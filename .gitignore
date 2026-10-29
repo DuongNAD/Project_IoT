@@ -1,0 +1,14 @@
+# Môi trường ảo và cache Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# IDE và hệ điều hành
+.idea/
+.DS_Store
+
+# Trọng số YOLO: ultralytics tự tải lại khi chạy
+*.pt
+
+# Ảnh chụp từ camera (phím 's' trong main.py): tránh lỡ đẩy ảnh cá nhân lên repo public
+captures/

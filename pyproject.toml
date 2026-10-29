@@ -1,0 +1,9 @@
+[project]
+name = "project-iot"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "opencv-python>=5.0.0.93",
+    "pyserial>=3.5",
+    "ultralytics>=8.4.183",
+]
