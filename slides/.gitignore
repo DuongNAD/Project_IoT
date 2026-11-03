@@ -1,0 +1,9 @@
+# Ảnh bàn làm việc riêng tư (repo GitHub công khai; .gitignore gốc đã nhắc tránh đẩy ảnh cá nhân)
+assets/real/
+assets/real_new/
+# Ảnh AI do Antigravity tạo, ảnh từ slide Gamota, manifest có đường dẫn cá nhân
+assets/ai/
+assets/reference/
+assets/manifest.json
+# Mọi thứ sinh ra khi dựng slide
+build/
