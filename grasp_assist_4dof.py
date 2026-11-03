@@ -35,10 +35,17 @@ ARM_CONFIG = {
     "L3_mm": 100.0,     # Chiều dài khâu Khuỷu -> Cổ tay/Giá kẹp (mm)
     "L4_r_mm": 65.0,    # Độ vươn ngang từ khớp giá kẹp tới tâm 2 ngón kẹp (mm)
     "L4_z_mm": 25.0,    # Độ trễ dọc từ khớp giá kẹp xuống tâm 2 ngón kẹp (mm)
-    # Vị trí mặc định của trục xoay Đế Robot trên hệ tọa độ tờ giấy A4 (29.7 x 21.0 cm)
-    # Mặc định đặt ở chính giữa mép dưới tờ A4 (X = 14.85 cm, Y = 22.0 cm), hướng nhìn lên (-Y)
-    "base_x_cm": 14.85,
-    "base_y_cm": 22.0,
+    # Vị trí trục xoay Đế Robot trên hệ tọa độ tờ giấy A4 (29.7 x 21.0 cm); nếu đế dán mã ArUco ID 4 và cam trên
+    # thấy được thì tự cập nhật. Bố cục hiện tại: đế nằm NGOÀI mép trên tờ A4 (mép ID 0-1), cách mép ~13.6 cm, tay vươn xuống.
+    # ƯỚC LƯỢNG từ 1 khung hình cam trên lúc tay ở tư thế 90° (solvePnP bù thị sai, giả định tầm với FK 239 mm), sai số
+    # cỡ ±1-2 cm; tờ A4 mà bị xê dịch so với robot thì phải đo lại (nên dán chặt tờ giấy).
+    # Bố cục gốc: base_y_cm = 22.0 (mép dưới, ID 2-3) + robot_faces = "up".
+    "base_x_cm": 18.0,
+    "base_y_cm": -13.6,
+    # Hướng cánh tay so với tờ A4: "up" = đế ở mép dưới (ID 2-3), tay vươn về mép trên (ID 0-1, hướng -Y);
+    # "down" = đế ở mép trên (ID 0-1), tay vươn xuống phía mép dưới (hướng +Y), khi đó base_y_cm là số ÂM
+    # (đế nằm ngoài mép trên tờ giấy, đo từ mép trên tới trục xoay của servo đế).
+    "robot_faces": "down",
     # Góc khớp chuẩn (độ) khi 3 servo Đế, Vai, Khuỷu đang ở vị trí mặc định 90° của code Arduino
     "theta2_at_90_deg": 45.0,   # Khi angleShoulder = 90° thì khâu L2 nghiêng +45° so với phương ngang
     "theta3_at_90_deg": -45.0,  # Khi angleElbow = 90° thì khâu L3 gập -45° so với khâu L2
@@ -67,6 +74,12 @@ LOG_CSV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", 
 
 # Biểu ngữ kết quả (THÀNH CÔNG / THẤT BẠI / ĐÃ RESET) tự tắt sau số giây này để không che gợi ý của lần gắp tiếp theo
 BANNER_SECONDS = 8.0
+
+# Cam ngang (webcam laptop): vạch mặt bàn nằm ở SIDE_TABLE_Y_RATIO x chiều cao khung hình, ngưỡng nhấc vật S1 (+20mm)
+# cao hơn vạch đó SIDE_LIFT_RATIO x chiều cao. Đo theo cảnh quay cũ: dời laptop thì bấm 'C' chụp ảnh cam ngang,
+# đo lại vị trí mặt bàn và độ cao 20mm (theo pixel) rồi chia cho chiều cao ảnh
+SIDE_TABLE_Y_RATIO = 0.54
+SIDE_LIFT_RATIO = 0.065
 
 
 # ==============================================================================
@@ -215,21 +228,24 @@ def table_cm_to_robot_mm(x_cm, y_cm, cfg=None):
     """
     Đổi tọa độ điểm (X_cm, Y_cm) trên tờ giấy A4 sang tọa độ (x_mm, y_mm) trong hệ gốc Đế Robot.
     Trên tờ A4 đặt ngang (29.7 x 21.0 cm):
-      - Đế robot đặt ở (base_x_cm, base_y_cm) (mặc định: mép dưới tờ A4, nhìn lên trên)
+      - Đế robot đặt ở (base_x_cm, base_y_cm) (bố cục gốc: mép dưới tờ A4, nhìn lên trên; xem robot_faces)
       - Trục +x_robot (vươn tới trước) = hướng từ đế lên phía trên tờ A4 (-Y_A4)
       - Trục +y_robot (sang trái của đế) = hướng sang bên trái tờ A4 (-X_A4)
+    Với robot_faces="down" (đế ở mép trên, tay vươn xuống) cả hai trục đảo dấu: +x_robot = +Y_A4, +y_robot = +X_A4.
     """
     c = cfg or ARM_CONFIG
-    x_robot_mm = (c["base_y_cm"] - y_cm) * 10.0
-    y_robot_mm = (c["base_x_cm"] - x_cm) * 10.0
+    s = -1.0 if c["robot_faces"] == "down" else 1.0
+    x_robot_mm = s * (c["base_y_cm"] - y_cm) * 10.0
+    y_robot_mm = s * (c["base_x_cm"] - x_cm) * 10.0
     return x_robot_mm, y_robot_mm
 
 
 def robot_mm_to_table_cm(x_robot_mm, y_robot_mm, cfg=None):
     """Đổi ngược từ tọa độ (x_mm, y_mm) hệ gốc Robot sang tọa độ (X_cm, Y_cm) trên tờ giấy A4."""
     c = cfg or ARM_CONFIG
-    x_cm = c["base_x_cm"] - (y_robot_mm / 10.0)
-    y_cm = c["base_y_cm"] - (x_robot_mm / 10.0)
+    s = -1.0 if c["robot_faces"] == "down" else 1.0
+    x_cm = c["base_x_cm"] - s * (y_robot_mm / 10.0)
+    y_cm = c["base_y_cm"] - s * (x_robot_mm / 10.0)
     return x_cm, y_cm
 
 
@@ -261,6 +277,72 @@ def format_key_hint(channel_idx, current_deg, target_deg):
 # ==============================================================================
 # 3. LUỒNG GIAO TIẾP USB SERIAL VỚI ARDUINO (TƯƠNG THÍCH CẢ CODE CŨ LẪN MỚI)
 # ==============================================================================
+def find_arduino_port():
+    """
+    Cổng serial của Arduino (Windows: COMx; macOS/Linux: /dev/cu.usb*, /dev/ttyACM*...), None nếu chưa cắm cáp USB.
+    Chỉ xét cổng USB (bỏ cổng Bluetooth ảo và cổng modem của điện thoại cắm USB), ưu tiên cổng có tên
+    Arduino / CH340 / CP210x / FTDI / USB Serial Device.
+    """
+    ports = []
+    if serial is not None:
+        try:
+            from serial.tools import list_ports
+            not_arduino = ("modem", "mobile", "bluetooth")
+            ports = [
+                p for p in list_ports.comports()
+                if p.vid is not None and not any(w in f"{p.description} {p.manufacturer or ''}".lower() for w in not_arduino)
+            ]
+        except Exception:
+            ports = []
+    if ports:
+        hints = ("arduino", "ch340", "ch341", "cp210", "ftdi", "usb serial", "usb-serial")
+
+        def rank(p):
+            text = f"{p.description} {p.manufacturer or ''}".lower()
+            return (0 if any(h in text for h in hints) else 1, p.device)
+
+        return min(ports, key=rank).device
+    fallback = sorted(glob.glob("/dev/cu.usbmodem*") + glob.glob("/dev/cu.usbserial*"))
+    return fallback[0] if fallback else None
+
+
+# Địa chỉ MAC của module HC-05 trên robot (12 ký tự hex) hoặc tên cổng của nó (COM10, /dev/cu.HC-05); đổi bằng biến
+# môi trường ROBOT_BT. Firmware cũ chỉ nghe lệnh qua HC-05: ghép đôi HC-05 với máy tính (PIN 1234) rồi gửi lệnh qua cổng
+# Bluetooth, còn trạng thái servo vẫn đọc từ cáp USB (board in lại "Phím bấm: x" cho mỗi lệnh nhận được).
+# Firmware robot_arm_4dof.ino hiện tại nghe lệnh cả qua USB nên không ghép HC-05 cũng điều khiển được.
+ROBOT_BT_DEFAULT = "98D351F6AF14"
+# macOS không ghi địa chỉ MAC vào cổng Bluetooth: HC-05 đã ghép đôi hiện ra theo tên thiết bị, VD /dev/cu.HC-05
+ROBOT_BT_NAME_HINTS = ("hc-05", "hc05", "hc-06")
+
+
+def find_bluetooth_port(target=None):
+    """
+    Cổng Bluetooth đã ghép với HC-05 của robot, None nếu chưa ghép. Windows: cổng COM "Standard Serial over Bluetooth link"
+    (loại outgoing) có địa chỉ MAC trong hwid; macOS: cổng /dev/cu.<tên thiết bị> như /dev/cu.HC-05 (xem ROBOT_BT_NAME_HINTS).
+    target: MAC 12 ký tự hex (có hoặc không có ':' / '-') hoặc tên cổng như "COM10" / "/dev/cu.HC-05";
+    bỏ trống thì lấy ROBOT_BT, rồi ROBOT_BT_DEFAULT.
+    """
+    target = (target or os.environ.get("ROBOT_BT") or ROBOT_BT_DEFAULT).strip()
+    if re.fullmatch(r"(?i)com\d+|/dev/\S+", target):
+        return target
+    mac = target.replace(":", "").replace("-", "").upper()
+    if serial is None or not mac:
+        return None
+    try:
+        from serial.tools import list_ports
+        ports = list(list_ports.comports())
+        for p in ports:
+            hwid = (p.hwid or "").upper()
+            if "BTHENUM" in hwid and mac in hwid:
+                return p.device
+        for p in ports:
+            if any(h in p.device.lower() for h in ROBOT_BT_NAME_HINTS):
+                return p.device
+    except Exception:
+        pass
+    return None
+
+
 class ArduinoSerialLink:
     """
     Luồng nền đọc/gửi tín hiệu qua cáp USB với Arduino (9600 baud):
@@ -277,17 +359,45 @@ class ArduinoSerialLink:
         self.port = None
         self.ser = None
         self.connected = False
+        self.bt_port = None  # Cổng COM Bluetooth HC-05 đang mở để GỬI lệnh (None = chưa kết nối)
+        self.bt_ser = None
         self.servo = [90, 90, 90, 95]  # [angleBase, angleShoulder, angleElbow, angleGrip]
         self.last_cmd = ""
         self.last_rx_time = 0.0
+        # Đã nhận được JSON trạng thái hoặc dòng "Phím bấm" từ board chưa (firmware có đọc lệnh gửi qua USB và trả lời)
+        self.heard_board = False
+        self.unanswered_since = None  # Lúc gửi phím đầu tiên qua USB mà board chưa trả lời
         self.lock = threading.Lock()
         self.running = True
         self.thread = threading.Thread(target=self._loop, daemon=True)
         self.thread.start()
+        self.bt_thread = threading.Thread(target=self._bt_loop, daemon=True)
+        self.bt_thread.start()
+
+    def _bt_loop(self):
+        """Giữ kết nối tới HC-05 (nếu đã ghép đôi): mở cổng COM Bluetooth có thể mất vài giây nên làm ở luồng riêng."""
+        while self.running and serial is not None:
+            if self.bt_ser is None:
+                port = find_bluetooth_port()
+                if port:
+                    try:
+                        ser = serial.Serial(port, self.baud, timeout=0.1, write_timeout=1.0)
+                        if not self.running:
+                            ser.close()
+                            return
+                        self.bt_ser, self.bt_port = ser, port
+                        print(f"🔵 Đã kết nối Bluetooth HC-05 tại {port} (gửi lệnh qua Bluetooth, đọc trạng thái qua USB)")
+                    except Exception:
+                        pass
+            time.sleep(3.0 if self.bt_ser is None else 0.5)
+
+    def board_ignores_usb(self):
+        """True khi đã gửi phím hơn 2 giây (qua USB hoặc Bluetooth) mà board chưa hề trả lời (firmware cũ không nghe USB; HC-05 mất kết nối...)."""
+        since = self.unanswered_since
+        return (not self.heard_board) and since is not None and time.time() - since > 2.0
 
     def _find_port(self):
-        ports = sorted(glob.glob("/dev/cu.usbmodem*") + glob.glob("/dev/cu.usbserial*"))
-        return ports[0] if ports else None
+        return find_arduino_port()
 
     def apply_key_locally(self, cmd):
         """Áp dụng đúng logic switch(cmd) của Arduino để cập nhật góc servo."""
@@ -320,10 +430,28 @@ class ArduinoSerialLink:
         if not cmd:
             return
         ch = cmd[0]
+        # Ưu tiên Bluetooth HC-05 (firmware cũ chỉ nghe kênh này); mất kết nối thì đóng để luồng nền mở lại
+        if self.bt_ser is not None:
+            try:
+                self.bt_ser.write(ch.encode("utf-8"))
+                self.bt_ser.flush()
+                if not self.heard_board and self.unanswered_since is None:
+                    self.unanswered_since = time.time()
+                if not self.connected:
+                    self.apply_key_locally(ch)  # Không có cáp USB để board báo lại: coi như board đã làm theo lệnh
+                return
+            except Exception:
+                try:
+                    self.bt_ser.close()
+                except Exception:
+                    pass
+                self.bt_ser, self.bt_port = None, None
         if self.connected and self.ser is not None:
             try:
                 self.ser.write(ch.encode("utf-8"))
                 self.ser.flush()
+                if not self.heard_board and self.unanswered_since is None:
+                    self.unanswered_since = time.time()
                 return
             except Exception:
                 self.connected = False
@@ -343,6 +471,7 @@ class ArduinoSerialLink:
                     with self.lock:
                         self.servo = [int(arr[0]), int(arr[1]), int(arr[2]), int(arr[3])]
                         self.last_rx_time = time.time()
+                    self.heard_board = True
                 return
             except Exception:
                 pass
@@ -359,6 +488,7 @@ class ArduinoSerialLink:
         if m:
             cmd_char = m.group(1)
             self.apply_key_locally(cmd_char)
+            self.heard_board = True
             with self.lock:
                 self.last_rx_time = time.time()
 
@@ -402,11 +532,12 @@ class ArduinoSerialLink:
 
     def release(self):
         self.running = False
-        if self.ser is not None:
-            try:
-                self.ser.close()
-            except Exception:
-                pass
+        for ser in (self.ser, self.bt_ser):
+            if ser is not None:
+                try:
+                    ser.close()
+                except Exception:
+                    pass
 
 
 # ==============================================================================
@@ -460,8 +591,11 @@ class GraspAssist4DOF:
         self.verify_color = (200, 200, 200)
         self.verify_banner_ts = 0.0
 
-        # Tên vật bị khóa lúc đóng kẹp (nâng lên rồi vật rời bàn nên không còn trong danh sách) + thống kê kết quả gắp
-        self.locked_obj_name = None
+        # Vật bị khóa lúc đóng kẹp (nâng lên rồi vật rời bàn nên không còn trong danh sách) + sai số căn đầu kẹp lúc đó
+        # (ghi vào cột align_error_mm của log CSV) + thống kê kết quả gắp
+        self.locked_obj = None
+        self.last_align_err_mm = None
+        self.locked_align_err_mm = None
         self.success_count = 0
         self.fail_count = 0
         self.last_result = None  # {"ok", "reason", "detail", "obj", "s1", "s2", "ts"} của lần gắp gần nhất
@@ -488,7 +622,7 @@ class GraspAssist4DOF:
                     obj_name,
                     f"{tx_mm:.1f}",
                     f"{ty_mm:.1f}",
-                    f"{err_mm:.1f}",
+                    "" if err_mm is None else f"{err_mm:.1f}",
                     f"{s1_ratio:.2f}",
                     f"{s2_ratio:.2f}",
                     result,
@@ -523,13 +657,19 @@ class GraspAssist4DOF:
 
     def next_stage(self):
         with self.lock:
-            if self.stage == 1 and self.target_history_cm:
-                # Trước khi đóng kẹp (chuyển sang bước 2), khóa vị trí cũ của vật để lát kiểm tra chỗ cũ trống (S2)
-                avg_cm = np.mean(self.target_history_cm, axis=0)
-                self.locked_grasp_cm = (float(avg_cm[0]), float(avg_cm[1]))
-                self.locked_obj_name = (
-                    self.objects[min(self.selected_idx, len(self.objects) - 1)]["name"] if self.objects else None
+            if self.stage == 1:
+                # Trước khi đóng kẹp (chuyển sang bước 3), khóa vị trí cũ, kích thước và sai số căn của vật: từ đó gợi ý
+                # nâng vật, kiểm tra chỗ cũ trống (S2) và log CSV đều theo vật này dù nó đã rời bàn khỏi danh sách vật.
+                # Luôn ghi đè (kể cả None) để không dùng nhầm vật đã khóa của lần gắp trước
+                if self.target_history_cm:
+                    avg_cm = np.mean(self.target_history_cm, axis=0)
+                    self.locked_grasp_cm = (float(avg_cm[0]), float(avg_cm[1]))
+                else:
+                    self.locked_grasp_cm = None
+                self.locked_obj = (
+                    dict(self.objects[min(self.selected_idx, len(self.objects) - 1)]) if self.objects else None
                 )
+                self.locked_align_err_mm = self.last_align_err_mm
             self.stage = (self.stage + 1) % len(STAGE_NAMES)
             if self.stage == 4:
                 self.s1_window.clear()
@@ -543,12 +683,13 @@ class GraspAssist4DOF:
             self.s1_window.clear()
             self.s2_window.clear()
             self.verify_start_ts = None
-            self.locked_obj_name = None
+            self.locked_obj = None
+            self.locked_align_err_mm = None
             self._set_banner("DA RESET QUY TRINH GAP VE BUOC 1", (0, 220, 255))
 
     def update_topdown_observations(self, work_img, corners, ids, dets_yolo, H_px2cm, H_cm2px):
         """
-        Cập nhật quan sát từ Cam A (Nhìn từ trên xuống - OBSBOT):
+        Cập nhật quan sát từ Cam A (Nhìn từ trên xuống - Điện thoại):
         1. Mã ID 4 -> Cập nhật vị trí Đế Robot trên tờ A4.
         2. Mã ID 5 -> Vị trí thực của Đầu kẹp (Closed-loop).
         3. Mã ID 10..29 + YOLO11 -> Danh sách vật thể cần gắp.
@@ -710,14 +851,14 @@ class GraspAssist4DOF:
 
     def update_side_observations(self, work_img, corners, ids, dets_side):
         """
-        Cập nhật quan sát từ Cam B (Nhìn ngang - Điện thoại):
+        Cập nhật quan sát từ Cam B (Nhìn ngang - Webcam laptop):
         - Đo độ cao vật thể so với đường mặt bàn để tính tín hiệu S1 (Vật đã rời mặt bàn >= 20mm).
         - Vẽ vạch chuẩn mặt bàn và vạch ngưỡng nâng +20mm lên khung Cam B.
         """
         h, w = work_img.shape[:2]
-        # Đường mặt bàn tham chiếu trên góc nhìn ngang (nằm tại y ~ 55% chiều cao khung hình)
-        table_y_px = int(h * 0.54)
-        lift_thresh_y_px = int(table_y_px - h * 0.065)  # Tương đương cao hơn mặt bàn ~20mm
+        # Đường mặt bàn tham chiếu và ngưỡng nâng +20mm trên góc nhìn ngang (xem SIDE_TABLE_Y_RATIO / SIDE_LIFT_RATIO)
+        table_y_px = int(h * SIDE_TABLE_Y_RATIO)
+        lift_thresh_y_px = int(table_y_px - h * SIDE_LIFT_RATIO)
 
         cv2.line(work_img, (40, table_y_px), (w - 40, table_y_px), (0, 180, 255), 2, cv2.LINE_AA)
         cv2.line(
@@ -735,14 +876,14 @@ class GraspAssist4DOF:
         )
 
         s1_lifted = False
-        # Kiểm tra qua mã ArUco mặt hông (ID 6 hoặc ID 10..29)
+        # Kiểm tra qua mã ArUco dán mặt hông vật (ID 10..29). Không tính ID 6 (mã trên đầu kẹp): kẹp rỗng nâng lên cũng
+        # vượt ngưỡng, nên khi vật bị hất khỏi chỗ cũ (S2 trống) sẽ báo nhầm GẮP THÀNH CÔNG
         if ids is not None and len(ids) > 0:
             for c, mid in zip(corners, ids.flatten()):
                 mid = int(mid)
                 cy = float(c[0].mean(axis=0)[1])
-                if mid == 6 or (10 <= mid <= 29):
-                    if cy < lift_thresh_y_px:
-                        s1_lifted = True
+                if 10 <= mid <= 29 and cy < lift_thresh_y_px:
+                    s1_lifted = True
 
         # Hoặc kiểm tra qua đáy bounding box YOLO trên góc nhìn ngang
         for det in dets_side:
@@ -771,7 +912,7 @@ class GraspAssist4DOF:
         s2_ratio = s2_cnt / n2
 
         # Sau khi nâng, vật đã rời bàn nên danh sách vật lúc này không còn đúng: ưu tiên tên/vị trí đã khóa lúc đóng kẹp
-        obj_name = self.locked_obj_name or (
+        obj_name = self.locked_obj["name"] if self.locked_obj else (
             self.objects[self.selected_idx]["name"]
             if self.objects and self.selected_idx < len(self.objects)
             else "Vat_Demo"
@@ -787,7 +928,7 @@ class GraspAssist4DOF:
         if len(self.s1_window) >= 15 and s1_ratio >= 0.80 and s2_ratio >= 0.80:
             self._set_banner("KET LUAN: GAP THANH CONG! (Cam A + Cam B dong y)", (0, 255, 100))
             self._record_result(True, "ok", obj_name, s1_ratio, s2_ratio)
-            self._log_attempt(obj_name, tx_mm, ty_mm, 0.0, s1_ratio, s2_ratio, "SUCCESS", "ok")
+            self._log_attempt(obj_name, tx_mm, ty_mm, self.locked_align_err_mm, s1_ratio, s2_ratio, "SUCCESS", "ok")
             self.stage = 0
             self.s1_window.clear()
             self.s2_window.clear()
@@ -804,7 +945,7 @@ class GraspAssist4DOF:
                 self.verify_banner = "KHONG XAC DINH -> Thu lai voi tu the vat moi"
             self._set_banner(self.verify_banner, (0, 80, 255))
             self._record_result(False, reason, obj_name, s1_ratio, s2_ratio)
-            self._log_attempt(obj_name, tx_mm, ty_mm, 0.0, s1_ratio, s2_ratio, "FAIL", reason)
+            self._log_attempt(obj_name, tx_mm, ty_mm, self.locked_align_err_mm, s1_ratio, s2_ratio, "FAIL", reason)
             self.stage = 0
             self.s1_window.clear()
             self.s2_window.clear()
@@ -816,9 +957,18 @@ class GraspAssist4DOF:
         """
         servo_now, usb_ok, port_name, last_cmd = self.serial_link.get_state()
         with self.lock:
-            has_obj = len(self.objects) > 0 and len(self.target_history_cm) > 0
             stage = self.stage
-            if has_obj:
+            # Từ bước 3 (đã đóng kẹp) giữ vị trí và vật đã khóa: vật nằm trong kẹp rồi rời bàn nên danh sách vật lúc này
+            # có thể đã chuyển sang vật khác, gợi ý nâng lên sẽ chỉ sai chỗ
+            locked_cm = self.locked_grasp_cm if stage >= 2 else None
+            has_obj = locked_cm is not None or (len(self.objects) > 0 and len(self.target_history_cm) > 0)
+            if locked_cm is not None:
+                lo = self.locked_obj or DEFAULT_OBJ_SPEC
+                obj_x_cm, obj_y_cm = locked_cm
+                obj_h_mm = float(lo.get("h_mm", 40.0))
+                obj_w_mm = float(lo.get("w_mm", 35.0))
+                obj_name = lo["name"]
+            elif has_obj:
                 sel = self.objects[min(self.selected_idx, len(self.objects) - 1)]
                 avg_cm = np.mean(self.target_history_cm, axis=0)
                 obj_x_cm, obj_y_cm = float(avg_cm[0]), float(avg_cm[1])
@@ -855,6 +1005,7 @@ class GraspAssist4DOF:
             t1, t2, t3 = arduino_servo_to_joint(servo_now)
             gx_mm, gy_mm, _ = fk_4dof_joint(t1, t2, t3)
         align_err_mm = math.hypot(x_rob_mm - gx_mm, y_rob_mm - gy_mm)
+        self.last_align_err_mm = align_err_mm  # next_stage() khóa giá trị này lúc đóng kẹp để ghi log CSV
 
         # Độ cao mục tiêu z_mm và trạng thái đóng/mở kẹp theo từng bước trong 5 bước
         grasp_z_mm = max(12.0, obj_h_mm * 0.5)
@@ -913,6 +1064,8 @@ class GraspAssist4DOF:
             "all_aligned": all_aligned,
             "align_err_mm": align_err_mm,
             "usb_ok": usb_ok,
+            "usb_silent": self.serial_link.board_ignores_usb(),
+            "bt_port": self.serial_link.bt_port if self.serial_link.bt_ser is not None else None,
             "port_name": port_name,
             "last_cmd": last_cmd,
             "stage": stage,
@@ -952,6 +1105,11 @@ class GraspAssist4DOF:
             else "USB Arduino: MO PHONG (Bam WASD/IK/JL tren ban phim de thu)"
         )
         usb_col = (0, 255, 128) if info["usb_ok"] else (0, 200, 255)
+        if info["usb_ok"] and info["bt_port"]:
+            usb_txt += f" + BT {info['bt_port']}"
+        if info["usb_ok"] and info["usb_silent"]:
+            usb_txt = "BOARD KHONG PHAN HOI (kiem tra HC-05)" if info["bt_port"] else "USB: BOARD KHONG NHAN LENH (firmware cu?)"
+            usb_col = (0, 80, 255)
         cv2.putText(hud, usb_txt, (16, 26), cv2.FONT_HERSHEY_SIMPLEX, 0.54, usb_col, 2, cv2.LINE_AA)
 
         reach_txt = (

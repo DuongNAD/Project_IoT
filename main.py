@@ -1,13 +1,19 @@
 import json
 import os
 import subprocess
+import sys
 import threading
 import time
 from datetime import datetime
+from urllib.parse import urlparse
 import cv2
 import numpy as np
 from grasp_assist_4dof import GraspAssist4DOF
 from guide_screen import GUIDE_WINDOW, build_guide_screen
+
+# Terminal Windows (cp1252, hoặc khi chuyển hướng ra file) không in được emoji: thay bằng '?' thay vì làm chương trình sập
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
 
 # Kích thước hiển thị chuẩn cho mỗi góc nhìn (Rộng x Cao)
 VIEW_WIDTH = 640
@@ -19,18 +25,23 @@ CAPTURE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures
 # Camera quá số giây này không ra hình (vừa cấp quyền Camera, vừa cắm lại cáp...) thì tự mở lại
 RETRY_SECONDS = 4
 
-# Điện thoại đang đặt ngược nên xoay hình 180 độ (đổi thành None nếu đặt lại cho thẳng)
-PHONE_ROTATE = cv2.ROTATE_180
+# Cam 1 = webcam laptop, đặt thấp nhìn NGANG vào vùng làm việc (mode "side", cửa sổ bên trái).
+# Cam 2 = điện thoại làm webcam (iPhone Continuity Camera / Iriun / DroidCam / Camo...) gắn trên cao nhìn TỪ TRÊN XUỐNG
+# (mode "topdown", bên phải). Tự tìm 2 camera theo tên (xem list_camera_names); không đọc được tên thì dùng 2 chỉ số
+# mặc định dưới đây (Windows đo trên máy Dell: 0 = Iriun Webcam, 1 = Integrated Webcam; macOS: 0 thường là camera MacBook).
+# Hình bị đảo (điện thoại hiện ở cam laptop và ngược lại): bấm 'X' để đổi chỗ 2 camera.
+PHONE_NAME_KEYWORDS = ("iphone", "iriun", "droidcam", "epoccam", "camo")
+# Không chọn làm webcam laptop: camera ảo (OBS Virtual Camera...) và "Desk View" (cảnh bàn cắt ra từ iPhone trên macOS)
+NOT_LAPTOP_KEYWORDS = ("virtual", "desk view")
+DEFAULT_LAPTOP_INDEX, DEFAULT_PHONE_INDEX = (1, 0) if sys.platform == "win32" else (0, 1)
 
-# Tự động bắc cầu cổng 8080 qua cáp C-to-C (phòng trường hợp vừa rút cáp cắm lại)
-ADB_PATH = "/Users/duongnad/Library/Android/sdk/platform-tools/adb"
+# Điện thoại dùng app IP Webcam (Start server): điền địa chỉ app hiển thị ở đây, hoặc truyền lúc chạy
+# `python main.py 192.168.1.5` / `python main.py http://192.168.1.5:8080/video`, hoặc đặt biến môi trường PHONE_URL.
+# Để trống = dùng Iriun/DroidCam như một webcam (theo chỉ số). PC và điện thoại phải cùng mạng Wi-Fi.
+PHONE_URL_DEFAULT = ""
 
-
-def adb_forward():
-    subprocess.run([ADB_PATH, "forward", "tcp:8080", "tcp:8080"], capture_output=True)
-
-
-adb_forward()
+# Hình điện thoại bị ngược thì đổi thành cv2.ROTATE_180 (hoặc cv2.ROTATE_90_CLOCKWISE...); None = giữ nguyên
+PHONE_ROTATE = None
 
 
 def letterbox(frame):
@@ -44,6 +55,16 @@ def letterbox(frame):
     return canvas
 
 
+def open_capture(source):
+    """Mở camera theo chỉ số (Windows dùng DirectShow: mở nhanh và chỉ số ổn định hơn MSMF) hoặc theo URL luồng."""
+    if isinstance(source, int) and sys.platform == "win32":
+        cap = cv2.VideoCapture(source, cv2.CAP_DSHOW)
+    else:
+        cap = cv2.VideoCapture(source)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    return cap
+
+
 class CameraStream:
     """Đọc camera trên luồng riêng (Thread) để luôn lấy frame mới nhất, triệt tiêu độ trễ (delay)."""
 
@@ -52,8 +73,7 @@ class CameraStream:
         self.name = name
         self.hint = hint
         self.rotate = rotate
-        self.cap = cv2.VideoCapture(source)
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        self.cap = None  # Mở trong luồng nền: mở camera mất 1-3 giây, không để nó làm đơ cửa sổ chính
         self.ret = False
         self.frame = None
         self.last_frame_time = time.time()
@@ -64,6 +84,13 @@ class CameraStream:
 
     def _update(self):
         while self.running:
+            if self.cap is None:
+                cap = open_capture(self.source)
+                if not self.running:  # Bị đóng trong lúc đang mở: nhả camera ngay, đừng giữ khóa thiết bị
+                    cap.release()
+                    break
+                self.cap = cap
+                self.last_frame_time = time.time()
             if self.cap.isOpened():
                 ret, frame = self.cap.read()
                 if ret and self.rotate is not None:
@@ -77,20 +104,14 @@ class CameraStream:
                     continue
             # Camera chưa mở được hoặc mất tín hiệu: nghỉ một nhịp, tránh vòng lặp chạy 100% CPU
             time.sleep(0.1)
-            if isinstance(self.source, str) and self.is_stalled():
-                self._reopen_stream()
+            if self.is_stalled():
+                # Quá RETRY_SECONDS vẫn không có hình (cắm lại cáp, vừa cấp quyền Camera...): đóng để vòng lặp mở lại
+                self.cap.release()
+                self.cap = None
 
     def is_stalled(self):
         """Quá RETRY_SECONDS chưa có frame mới: camera chưa mở được hoặc đã mất tín hiệu."""
         return time.time() - self.last_frame_time > RETRY_SECONDS
-
-    def _reopen_stream(self):
-        """Luồng điện thoại mất tín hiệu (rút cáp, vừa bấm Allow gỡ lỗi USB...): bắc cầu lại cổng 8080 rồi mở lại luồng."""
-        self.cap.release()
-        adb_forward()
-        self.cap = cv2.VideoCapture(self.source)
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        self.last_frame_time = time.time()
 
     def get_frame(self):
         with self.lock:
@@ -142,7 +163,9 @@ class CameraStream:
     def release(self):
         self.running = False
         self.thread.join(timeout=1.0)
-        self.cap.release()
+        cap = self.cap  # Luồng nền có thể đang đặt lại self.cap = None nếu join quá hạn
+        if cap is not None:
+            cap.release()
 
 
 def save_snapshots(cameras):
@@ -161,39 +184,81 @@ def save_snapshots(cameras):
             print(f"⚠️ Không ghi được {path}")
 
 
-def find_camera_index(keyword):
-    """Tìm chỉ số camera theo tên trong danh sách camera của macOS (giả định thứ tự khớp chỉ số OpenCV), None nếu không thấy."""
-    try:
-        out = subprocess.run(
-            ["system_profiler", "SPCameraDataType", "-json"], capture_output=True, text=True, timeout=15
-        ).stdout
-        names = [cam["_name"] for cam in json.loads(out)["SPCameraDataType"]]
-    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
-        return None
-    for index, name in enumerate(names):
-        if keyword.lower() in name.lower():
-            return index
-    return None
+def list_camera_names():
+    """
+    Tên các camera theo thứ tự chỉ số của OpenCV, [] nếu không đọc được.
+    Windows: thứ tự cv2.CAP_DSHOW (cần pygrabber). macOS: danh sách camera của system_profiler, giả định cùng thứ tự
+    với AVFoundation của OpenCV (như bản chạy trên Mac trước đây); chọn sai thì bấm 'X' hoặc '0'-'3' để chọn lại.
+    """
+    if sys.platform == "win32":
+        try:
+            from pygrabber.dshow_graph import FilterGraph
+            return list(FilterGraph().get_input_devices())
+        except Exception:
+            return []
+    if sys.platform == "darwin":
+        try:
+            out = subprocess.run(
+                ["system_profiler", "SPCameraDataType", "-json"], capture_output=True, text=True, timeout=15
+            ).stdout
+            return [cam["_name"] for cam in json.loads(out)["SPCameraDataType"]]
+        except (OSError, subprocess.TimeoutExpired, ValueError, KeyError, TypeError):
+            return []
+    return []
 
 
-def find_obsbot_index(fallback):
-    """Chỉ số OBSBOT lúc này theo tên (macOS xếp camera vừa dùng lên đầu nên chỉ số đổi liên tục), không thấy thì giữ fallback."""
-    index = find_camera_index("OBSBOT")
-    return fallback if index is None else index
-
-
-def open_obsbot(index):
-    return CameraStream(
-        index, f"Cam 2: OBSBOT (Index {index})", "Kiem tra cap USB; macOS hoi quyen Camera thi bam OK"
+def find_camera_indices(want_phone=True):
+    """
+    Trả về (chỉ số webcam laptop, chỉ số camera điện thoại): tìm theo tên, không đọc được tên thì dùng chỉ số mặc định.
+    want_phone=False (điện thoại dùng IP Webcam qua URL): không cần Iriun nên bỏ qua cảnh báo thiếu camera điện thoại.
+    """
+    names = list_camera_names()
+    if not names:
+        hint = " (cài `pip install pygrabber` để tự nhận)" if sys.platform == "win32" else ""
+        print(
+            f"ℹ️ Chưa đọc được tên camera{hint}: "
+            f"dùng mặc định laptop=Index {DEFAULT_LAPTOP_INDEX}, điện thoại=Index {DEFAULT_PHONE_INDEX}"
+        )
+        return DEFAULT_LAPTOP_INDEX, DEFAULT_PHONE_INDEX
+    print(f"📷 Camera: {', '.join(f'{i}={n}' for i, n in enumerate(names))}")
+    # "Desk View" cũng là camera của iPhone nhưng chỉ là cảnh bàn cắt ra, không dùng làm camera điện thoại hay laptop
+    is_phone = [any(k in n.lower() for k in PHONE_NAME_KEYWORDS) and "desk view" not in n.lower() for n in names]
+    others = [i for i, p in enumerate(is_phone) if not p]
+    laptop = next(
+        (i for i in others if not any(k in names[i].lower() for k in NOT_LAPTOP_KEYWORDS)), others[0] if others else 0
     )
+    if True in is_phone:
+        return laptop, is_phone.index(True)
+    if want_phone:
+        print("⚠️ Không thấy camera điện thoại (iPhone/Iriun/DroidCam...): mở app trên điện thoại và trên máy tính rồi chạy lại")
+    return laptop, len(names)  # Chỉ số chưa có thiết bị: khung hình báo "đang chờ tín hiệu"
 
 
-def revive(cam, make):
-    """Camera quá RETRY_SECONDS không ra hình thì đóng đi mở lại bằng make(), ngược lại giữ nguyên."""
-    if cam.is_stalled():
-        cam.release()
-        return make()
-    return cam
+def open_laptop(index):
+    return CameraStream(index, f"Cam 1: Laptop (Index {index})", "Kiem tra webcam laptop (quyen Camera cho Terminal)")
+
+
+def normalize_phone_url(text):
+    """'192.168.1.5' / '192.168.1.5:8080' / URL đầy đủ -> URL luồng video của IP Webcam (mặc định cổng 8080, đường dẫn /video); rỗng -> ''."""
+    text = text.strip()
+    if not text:
+        return ""
+    if "://" not in text:
+        text = "http://" + text
+    u = urlparse(text)
+    host = u.netloc if ":" in u.netloc else f"{u.netloc}:8080"
+    return f"{u.scheme}://{host}{u.path if u.path not in ('', '/') else '/video'}"
+
+
+def open_phone(source):
+    """source: URL luồng IP Webcam (str) hoặc chỉ số webcam Iriun/DroidCam (int)."""
+    if isinstance(source, str):
+        return CameraStream(
+            source, "Cam 2: Dien Thoai (IP Webcam)", "Mo IP Webcam > Start server, cung Wi-Fi voi PC", PHONE_ROTATE
+        )
+    return CameraStream(
+        source, f"Cam 2: Dien Thoai (Index {source})", "iPhone: dat gan Mac (Continuity Camera); Android: mo Iriun 2 ben", PHONE_ROTATE
+    )
 
 
 # Kích thước thực tế của quyển vở khổ A4 210x297mm đặt ngang (cm): Ngang W_CM = 29.7 x Dọc H_CM = 21.0
@@ -239,7 +304,7 @@ def order_quad_points(pts):
 
 
 def detect_notebook_corners_topdown(frame):
-    """Tìm 4 góc quyển vở từ góc nhìn trên xuống (OBSBOT) qua phân đoạn màu LAB."""
+    """Tìm 4 góc quyển vở từ góc nhìn trên xuống (Điện thoại) qua phân đoạn màu LAB."""
     h, w = frame.shape[:2]
     lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
     mask = cv2.inRange(lab, (130, 0, 125), (255, 134, 255))
@@ -255,9 +320,39 @@ def detect_notebook_corners_topdown(frame):
     return np.float32([[505 * sx, 118 * sy], [1380 * sx, 70 * sy], [1405 * sx, 678 * sy], [535 * sx, 718 * sy]])
 
 
+def sheet_quad_from_markers(frame):
+    """
+    4 góc tờ A4 (TL, TR, BR, BL, đơn vị px) suy ra từ các mã ArUco THẬT ID 0-3 (2.8 cm, cách mép 0.25 cm, xem generate_aruco_a4.py).
+    None nếu thấy dưới 3 mã: không đủ để tính chính xác, lúc đó dùng cách ước lượng theo màu.
+    """
+    corners, ids, _ = ARUCO_DETECTOR.detectMarkers(frame)
+    if ids is None:
+        return None
+    W, H, s, m = NOTEBOOK_W_CM, NOTEBOOK_H_CM, 2.8, 0.25
+    boxes_cm = {
+        0: [[m, m], [m + s, m], [m + s, m + s], [m, m + s]],
+        1: [[W - m - s, m], [W - m, m], [W - m, m + s], [W - m - s, m + s]],
+        2: [[W - m - s, H - m - s], [W - m, H - m - s], [W - m, H - m], [W - m - s, H - m]],
+        3: [[m, H - m - s], [m + s, H - m - s], [m + s, H - m], [m, H - m]],
+    }
+    img_pts, cm_pts, seen = [], [], set()
+    for c, mid in zip(corners, ids.flatten()):
+        if int(mid) in boxes_cm:
+            seen.add(int(mid))
+            img_pts.extend(c[0])
+            cm_pts.extend(boxes_cm[int(mid)])
+    if len(seen) < 3:
+        return None
+    H_cm2px, _ = cv2.findHomography(np.float32(cm_pts), np.float32(img_pts), 0)
+    if H_cm2px is None:
+        return None
+    return cv2.perspectiveTransform(np.float32([[[0, 0], [W, 0], [W, H], [0, H]]]), H_cm2px)[0]
+
+
 def detect_notebook_corners_side(frame):
     """
-    Tìm 4 góc mặt quyển vở từ góc nhìn ngang (Điện thoại).
+    Tìm 4 góc mặt quyển vở từ góc nhìn ngang (Webcam laptop).
+    LƯU Ý: 4 tọa độ pixel bên dưới đo theo cảnh quay cũ, chỉ dùng khi KHÔNG thấy mã ArUco thật; đặt lại laptop thì đo lại.
     Ánh xạ đúng 4 góc vật lý trùng với Cam trên xuống:
       ID 0: Góc Trước-Phải (0, 0)
       ID 1: Góc Trước-Trái (W, 0)
@@ -362,8 +457,12 @@ class ArucoYoloTracker:
             from ultralytics import YOLO
             model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "yolo11s.pt")
             self.model = YOLO(model_path if os.path.exists(model_path) else "yolo11s.pt")
-            if torch.backends.mps.is_available():
+            # GPU NVIDIA (Windows/Linux) cần bản torch có CUDA; pip mặc định cài bản chỉ chạy CPU
+            if torch.cuda.is_available():
+                self.device = "cuda:0"
+            elif torch.backends.mps.is_available():
                 self.device = "mps"
+            print(f"🧠 YOLO chạy trên: {self.device}")
         except Exception as e:
             print(f"⚠️ Không tải được YOLO: {e}")
 
@@ -384,7 +483,10 @@ class ArucoYoloTracker:
                 continue
 
             if td_frame is not None:
-                quad = detect_notebook_corners_topdown(td_frame)
+                # Có mã ArUco thật thì lấy chính tờ A4 làm vùng lọc vật (tay, cáp, mặt bàn ngoài giấy không bị nhận nhầm)
+                quad = sheet_quad_from_markers(td_frame)
+                if quad is None:
+                    quad = detect_notebook_corners_topdown(td_frame)
                 dets = self._detect_objects_topdown(td_frame, quad)
                 with self.lock:
                     self.notebook_quad_topdown = quad
@@ -433,9 +535,12 @@ class ArucoYoloTracker:
         return found
 
     def _detect_objects_side(self, frame):
-        """Chạy YOLO trên khung hình góc ngang (Điện thoại), lọc vật thể nằm trên mặt vở."""
+        """Chạy YOLO trên khung hình góc ngang (Webcam laptop), lọc vật thể nằm trên mặt vở."""
         results = self.model(frame, conf=0.20, imgsz=640, device=self.device, verbose=False)[0]
-        quad_side = detect_notebook_corners_side(frame)
+        # Cam ngang thấy được từ 3 mã ArUco góc thật thì lấy đúng tờ A4 làm vùng lọc; không thì dùng 4 góc đo tay theo cảnh quay cũ
+        quad_side = sheet_quad_from_markers(frame)
+        if quad_side is None:
+            quad_side = detect_notebook_corners_side(frame)
         poly = quad_side.reshape(-1, 1, 2)
         found = []
         for box in results.boxes:
@@ -705,107 +810,126 @@ def render_camera_panel(cam, tracker, mode):
     return panel, annotated
 
 
-# BƯỚC 1: Mở đồng thời 2 Camera + Bộ Gợi ý Gắp 4 Servo (Arduino WASD/IK/JL)
-PHONE_URL = "http://127.0.0.1:8080/video"
-# macOS xếp camera vừa dùng lên đầu danh sách nên chỉ số luôn đổi: tìm OBSBOT theo tên mỗi lần mở; phím '0'-'3' chỉ để chọn tay
-obsbot_index = find_camera_index("OBSBOT")
-if obsbot_index is None:
-    obsbot_index = 1
-    print("⚠️ Không thấy OBSBOT trong danh sách camera của macOS, kiểm tra lại cáp USB (tạm dùng Index 1)")
+def main():
+    # BƯỚC 1: Mở đồng thời 2 Camera + Bộ Gợi ý Gắp 4 Servo (Arduino WASD/IK/JL)
+    phone_url = normalize_phone_url(sys.argv[1] if len(sys.argv) > 1 else os.environ.get("PHONE_URL", PHONE_URL_DEFAULT))
+    laptop_index, phone_index = find_camera_indices(want_phone=not phone_url)
+    cam_laptop = open_laptop(laptop_index)
+    cam_phone = open_phone(phone_url or phone_index)
+    if phone_url:
+        print(f"📱 Điện thoại: IP Webcam tại {phone_url}")
+    assist = GraspAssist4DOF()
+    tracker = ArucoYoloTracker(assist=assist)
+    aruco_enabled = True
+    guide_enabled = True        # Cửa sổ HƯỚNG DẪN GẮP (2 cam + bảng thao tác to), phím G để ẩn/hiện
+    guide_placed = False        # Đã dời cửa sổ hướng dẫn ra vị trí mặc định chưa
+    guide_seen_visible = False  # Đã thấy cửa sổ hiện ra chưa (để biết khi nào người dùng bấm nút đóng cửa sổ)
 
-cam_phone = CameraStream(PHONE_URL, "Cam 1: Dien Thoai (C-to-C)", "Kiem tra cap USB, Allow tren dien thoai, IP Webcam", PHONE_ROTATE)
-cam_obsbot = open_obsbot(obsbot_index)
-assist = GraspAssist4DOF()
-tracker = ArucoYoloTracker(assist=assist)
-aruco_enabled = True
-guide_enabled = True        # Cửa sổ HƯỚNG DẪN GẮP (2 cam + bảng thao tác to), phím G để ẩn/hiện
-guide_placed = False        # Đã dời cửa sổ hướng dẫn ra vị trí mặc định chưa
-guide_seen_visible = False  # Đã thấy cửa sổ hiện ra chưa (để biết khi nào người dùng bấm nút đóng cửa sổ)
+    print("✅ Đang mở màn hình ghép 2 góc nhìn + Gợi ý Gắp 4 Servo (WASD / IK / JL)...")
+    print("🖥️ Đồng thời bật cửa sổ HƯỚNG DẪN GẮP: 2 camera ở trên, bên dưới là việc cần làm (phím nào, bấm mấy lần) và kết quả gắp")
+    print("💡 Phím tắt trên cửa sổ video:")
+    print("   - Các phím 'W/A/S/D', 'I/K', 'J/L', 'H' (Home): Điều khiển trực tiếp 4 Servo qua USB (hoặc tay cầm Bluetooth)")
+    print("   - Phím 'SPACE' (hoặc 'N'): Chuyển sang bước tiếp theo trong quy trình 5 bước gắp")
+    print("   - Phím 'TAB' (hoặc 'V'): Đổi vật mục tiêu cần gắp")
+    print("   - Phím 'P': Bật/Tắt tự động gửi từng bước phím gợi ý (Auto-Step)")
+    print("   - Phím 'R': Reset quy trình gắp về Bước 1")
+    print("   - Phím 'M': Bật/Tắt lớp phủ ArUco 4 góc + YOLO tính tọa độ (X, Y)")
+    print("   - Phím 'G': Ẩn/Hiện cửa sổ HƯỚNG DẪN GẮP (phím bấm ở cửa sổ nào cũng được)")
+    print("   - Phím 'C': Chụp ảnh gốc của cả 2 camera, lưu vào thư mục captures/")
+    print("   - Phím 'X': Đổi chỗ 2 camera (chỉ khi điện thoại dùng Iriun: bên trái hiện hình điện thoại, bên phải hiện laptop)")
+    print("   - Nhấn phím '0' đến '3': Đổi chỉ số camera ĐIỆN THOẠI (Iriun) hoặc chỉ số WEBCAM LAPTOP (khi điện thoại dùng IP Webcam)")
+    print("   - Nhấn phím 'Q': Thoát chương trình")
+    print("ℹ️ Camera nào chưa lên hình sẽ tự thử mở lại sau vài giây (VD: sau khi bạn mở app Iriun trên điện thoại)")
 
-print("✅ Đang mở màn hình ghép 2 góc nhìn + Gợi ý Gắp 4 Servo (WASD / IK / JL)...")
-print("🖥️ Đồng thời bật cửa sổ HƯỚNG DẪN GẮP: 2 camera ở trên, bên dưới là việc cần làm (phím nào, bấm mấy lần) và kết quả gắp")
-print("💡 Phím tắt trên cửa sổ video:")
-print("   - Các phím 'W/A/S/D', 'I/K', 'J/L', 'H' (Home): Điều khiển trực tiếp 4 Servo qua USB (hoặc tay cầm Bluetooth)")
-print("   - Phím 'SPACE' (hoặc 'N'): Chuyển sang bước tiếp theo trong quy trình 5 bước gắp")
-print("   - Phím 'TAB' (hoặc 'V'): Đổi vật mục tiêu cần gắp")
-print("   - Phím 'P': Bật/Tắt tự động gửi từng bước phím gợi ý (Auto-Step)")
-print("   - Phím 'R': Reset quy trình gắp về Bước 1")
-print("   - Phím 'M': Bật/Tắt lớp phủ ArUco 4 góc + YOLO tính tọa độ (X, Y)")
-print("   - Phím 'G': Ẩn/Hiện cửa sổ HƯỚNG DẪN GẮP (phím bấm ở cửa sổ nào cũng được)")
-print("   - Phím 'C': Chụp ảnh gốc của cả 2 camera, lưu vào thư mục captures/")
-print("   - Nhấn phím '0' đến '3': Đổi chỉ số Camera USB (nếu bên phải đang hiện cam MacBook thay vì OBSBOT)")
-print("   - Nhấn phím 'Q': Thoát chương trình")
-print("ℹ️ Camera nào chưa lên hình sẽ tự thử mở lại sau vài giây (VD: sau khi bạn bấm OK cấp quyền Camera cho macOS)")
-
-# BƯỚC 2: Vòng lặp lấy hình từ 2 Camera và ghép ngang vào 1 cửa sổ kèm thanh Gợi ý Gắp 4 Servo
-while True:
-    # Camera USB chưa ra hình (VD: macOS đang chờ bạn cấp quyền Camera, hoặc vừa cắm lại cáp): tự mở lại
-    cam_obsbot = revive(cam_obsbot, lambda: open_obsbot(find_obsbot_index(cam_obsbot.source)))
-    if aruco_enabled:
-        frame_left, view_left = render_camera_panel(cam_phone, tracker, mode="side")
-        frame_right, view_right = render_camera_panel(cam_obsbot, tracker, mode="topdown")
-    else:
-        frame_left = view_left = cam_phone.get_frame()
-        frame_right = view_right = cam_obsbot.get_frame()
-
-    # BƯỚC 3: Ghép ngang 2 ma trận ảnh (Trái + Phải) (1280x480) + Thanh Gợi ý Gắp ở dưới (1280x175)
-    combined_screen = cv2.hconcat([frame_left, frame_right])
-    cv2.line(combined_screen, (VIEW_WIDTH, 0), (VIEW_WIDTH, VIEW_HEIGHT), (255, 255, 255), 2)
-
-    # Tính gợi ý 1 lần mỗi khung hình rồi dùng chung cho thanh HUD và cửa sổ hướng dẫn (Auto-Step chỉ gửi phím 1 lần)
-    info = assist.compute_current_suggestion()
-    hud_bar = assist.render_hud_bar(width=combined_screen.shape[1], info=info)
-    full_screen = cv2.vconcat([combined_screen, hud_bar])
-
-    cv2.imshow("Dual Camera View: Dien Thoai (Trai) | OBSBOT (Phai)", full_screen)
-
-    # Cửa sổ HƯỚNG DẪN GẮP: 2 camera ở trên + bảng "việc cần làm / kết quả gắp" ở dưới
-    if guide_enabled:
-        cv2.imshow(GUIDE_WINDOW, build_guide_screen(view_left, view_right, info))
-        if not guide_placed:
-            cv2.moveWindow(GUIDE_WINDOW, 60, 60)  # lệch một chút để vẫn thấy mép cửa sổ ghép nằm phía sau
-            guide_placed = True
-        try:
-            guide_visible = cv2.getWindowProperty(GUIDE_WINDOW, cv2.WND_PROP_VISIBLE)
-        except cv2.error:
-            guide_visible = 0.0
-        if guide_visible >= 1:
-            guide_seen_visible = True
-        elif guide_seen_visible:
-            # Cửa sổ từng hiện nhưng giờ không còn: người dùng đã bấm nút đóng, đừng tự mở lại
-            guide_enabled = guide_seen_visible = False
-            print("🖥️ Đã đóng cửa sổ HƯỚNG DẪN GẮP (bấm 'G' để mở lại)")
-
-    key = cv2.waitKey(1) & 0xFF
-    if key in (ord("q"), ord("Q")):
-        break
-    elif assist.handle_key(key):
-        pass
-    elif key in (ord("m"), ord("M")):
-        aruco_enabled = not aruco_enabled
-        print(f"🎯 Chế độ ArUco + YOLO: {'BẬT' if aruco_enabled else 'TẮT'}")
-    elif key in (ord("g"), ord("G")):
-        guide_enabled = not guide_enabled
-        if guide_enabled:
-            guide_placed = guide_seen_visible = False
+    # BƯỚC 2: Vòng lặp lấy hình từ 2 Camera và ghép ngang vào 1 cửa sổ kèm thanh Gợi ý Gắp 4 Servo
+    while True:
+        # Trái = webcam laptop nhìn ngang ("side"), phải = điện thoại nhìn từ trên xuống ("topdown")
+        if aruco_enabled:
+            frame_left, view_left = render_camera_panel(cam_laptop, tracker, mode="side")
+            frame_right, view_right = render_camera_panel(cam_phone, tracker, mode="topdown")
         else:
-            try:
-                cv2.destroyWindow(GUIDE_WINDOW)
-            except cv2.error:
-                pass
-        print(f"🖥️ Cửa sổ HƯỚNG DẪN GẮP: {'BẬT' if guide_enabled else 'TẮT'}")
-    elif key in (ord("c"), ord("C")):
-        save_snapshots([("cam1_phone", cam_phone), (f"cam2_index{cam_obsbot.source}", cam_obsbot)])
-    elif key in (ord("0"), ord("1"), ord("2"), ord("3")):
-        new_index = int(chr(key))
-        if new_index != cam_obsbot.source:
-            print(f"🔄 Đang chuyển Camera bên phải sang Index {new_index}...")
-            cam_obsbot.release()
-            cam_obsbot = open_obsbot(new_index)
+            frame_left = view_left = cam_laptop.get_frame()
+            frame_right = view_right = cam_phone.get_frame()
 
-# BƯỚC 4: Giải phóng cả 2 Camera, cổng Serial và đóng cửa sổ
-tracker.running = False
-assist.release()
-cam_phone.release()
-cam_obsbot.release()
-cv2.destroyAllWindows()
+        # BƯỚC 3: Ghép ngang 2 ma trận ảnh (Trái + Phải) (1280x480) + Thanh Gợi ý Gắp ở dưới (1280x175)
+        combined_screen = cv2.hconcat([frame_left, frame_right])
+        cv2.line(combined_screen, (VIEW_WIDTH, 0), (VIEW_WIDTH, VIEW_HEIGHT), (255, 255, 255), 2)
+
+        # Tính gợi ý 1 lần mỗi khung hình rồi dùng chung cho thanh HUD và cửa sổ hướng dẫn (Auto-Step chỉ gửi phím 1 lần)
+        info = assist.compute_current_suggestion()
+        hud_bar = assist.render_hud_bar(width=combined_screen.shape[1], info=info)
+        full_screen = cv2.vconcat([combined_screen, hud_bar])
+
+        cv2.imshow("Dual Camera View: Laptop (Trai) | Dien Thoai (Phai)", full_screen)
+
+        # Cửa sổ HƯỚNG DẪN GẮP: 2 camera ở trên + bảng "việc cần làm / kết quả gắp" ở dưới
+        if guide_enabled:
+            cv2.imshow(GUIDE_WINDOW, build_guide_screen(view_left, view_right, info))
+            if not guide_placed:
+                cv2.moveWindow(GUIDE_WINDOW, 60, 60)  # lệch một chút để vẫn thấy mép cửa sổ ghép nằm phía sau
+                guide_placed = True
+            try:
+                guide_visible = cv2.getWindowProperty(GUIDE_WINDOW, cv2.WND_PROP_VISIBLE)
+            except cv2.error:
+                guide_visible = 0.0
+            if guide_visible >= 1:
+                guide_seen_visible = True
+            elif guide_seen_visible:
+                # Cửa sổ từng hiện nhưng giờ không còn: người dùng đã bấm nút đóng, đừng tự mở lại
+                guide_enabled = guide_seen_visible = False
+                print("🖥️ Đã đóng cửa sổ HƯỚNG DẪN GẮP (bấm 'G' để mở lại)")
+
+        key = cv2.waitKey(1) & 0xFF
+        if key in (ord("q"), ord("Q")):
+            break
+        elif assist.handle_key(key):
+            pass
+        elif key in (ord("m"), ord("M")):
+            aruco_enabled = not aruco_enabled
+            print(f"🎯 Chế độ ArUco + YOLO: {'BẬT' if aruco_enabled else 'TẮT'}")
+        elif key in (ord("g"), ord("G")):
+            guide_enabled = not guide_enabled
+            if guide_enabled:
+                guide_placed = guide_seen_visible = False
+            else:
+                try:
+                    cv2.destroyWindow(GUIDE_WINDOW)
+                except cv2.error:
+                    pass
+            print(f"🖥️ Cửa sổ HƯỚNG DẪN GẮP: {'BẬT' if guide_enabled else 'TẮT'}")
+        elif key in (ord("c"), ord("C")):
+            save_snapshots([("cam1_laptop", cam_laptop), ("cam2_phone", cam_phone)])
+        elif key in (ord("x"), ord("X")):
+            if isinstance(cam_phone.source, str):
+                print("⚠️ Điện thoại đang dùng IP Webcam (URL) nên không đổi chỗ được; webcam laptop sai thì bấm '0'-'3' để chọn lại chỉ số")
+            else:
+                laptop_index, phone_index = cam_phone.source, cam_laptop.source
+                print(f"🔄 Đổi chỗ 2 camera: laptop -> Index {laptop_index}, điện thoại -> Index {phone_index}")
+                cam_laptop.release()
+                cam_phone.release()
+                cam_laptop, cam_phone = open_laptop(laptop_index), open_phone(phone_index)
+        elif key in (ord("0"), ord("1"), ord("2"), ord("3")):
+            new_index = int(chr(key))
+            if isinstance(cam_phone.source, str):
+                # Điện thoại là IP Webcam (không có chỉ số): phím số chọn chỉ số webcam laptop
+                if new_index != cam_laptop.source:
+                    print(f"🔄 Đang chuyển webcam laptop (bên trái) sang Index {new_index}...")
+                    cam_laptop.release()
+                    cam_laptop = open_laptop(new_index)
+            elif new_index == cam_laptop.source:
+                print(f"⚠️ Index {new_index} đang là webcam laptop, bấm 'X' nếu muốn đổi chỗ 2 camera")
+            elif new_index != cam_phone.source:
+                print(f"🔄 Đang chuyển Camera điện thoại (bên phải) sang Index {new_index}...")
+                cam_phone.release()
+                cam_phone = open_phone(new_index)
+
+    # BƯỚC 4: Giải phóng cả 2 Camera, cổng Serial và đóng cửa sổ
+    tracker.running = False
+    assist.release()
+    cam_laptop.release()
+    cam_phone.release()
+    cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+    main()

@@ -358,8 +358,14 @@ def draw_result_card(img, info, x0=824, y0=118, w=444, h=228):
 
 def draw_footer(img, info, y=352):
     cv2.line(img, (12, y), (GUIDE_W - 12, y), CARD_EDGE, 1, AA)
-    if info["usb_ok"]:
-        usb, ucol = f"USB Arduino: DA KET NOI ({info['port_name']})", GREEN
+    bt = info.get("bt_port")
+    if info["usb_ok"] and info.get("usb_silent"):
+        usb, ucol = (
+            ("BOARD KHONG PHAN HOI LENH BLUETOOTH - kiem tra HC-05", RED) if bt
+            else ("USB: BOARD KHONG NHAN LENH (ghep HC-05 / nap .ino)", RED)
+        )
+    elif info["usb_ok"]:
+        usb, ucol = f"USB Arduino: DA KET NOI ({info['port_name']})" + (f" + BT {bt}" if bt else ""), GREEN
     else:
         usb, ucol = "USB Arduino: MO PHONG (bam phim tren ban phim de thu)", AMBER
     cv2.circle(img, (22, y + 15), 6, ucol, -1, AA)
@@ -395,7 +401,7 @@ def _cam_cell(frame, title, w, h):
 
 
 def build_guide_screen(view_left, view_right, info,
-                       titles=("CAM 1: DIEN THOAI (nhin ngang)", "CAM 2: OBSBOT (nhin tu tren)")):
+                       titles=("CAM 1: LAPTOP (nhin ngang)", "CAM 2: DIEN THOAI (nhin tu tren)")):
     """Cửa sổ hướng dẫn 1280 x 800: 2 camera ở trên, bảng thao tác ở dưới."""
     half = GUIDE_W // 2
     cams = cv2.hconcat([_cam_cell(view_left, titles[0], half, CAM_H), _cam_cell(view_right, titles[1], half, CAM_H)])
