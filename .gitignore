@@ -2,6 +2,7 @@
 .venv/
 __pycache__/
 *.py[cod]
+.pytest_cache/
 
 # IDE và hệ điều hành
 .idea/
@@ -10,5 +11,8 @@ __pycache__/
 # Trọng số YOLO: ultralytics tự tải lại khi chạy
 *.pt
 
-# Ảnh chụp từ camera (phím 's' trong main.py): tránh lỡ đẩy ảnh cá nhân lên repo public
+# Ảnh chụp từ camera (phím 'c' trong main.py, hoặc --headless): tránh lỡ đẩy ảnh cá nhân lên repo public
 captures/
+
+# Hiệu chỉnh vị trí đế robot (phím B trong main.py): riêng cho từng cách bố trí bàn, mặc định nằm trong code
+calibration.json

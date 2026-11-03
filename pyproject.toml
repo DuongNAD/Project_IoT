@@ -4,6 +4,17 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "opencv-python>=5.0.0.93",
+    "pyobjc-framework-avfoundation>=11 ; sys_platform == 'darwin'",
     "pyserial>=3.5",
     "ultralytics>=8.4.183",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+
+[tool.pytest.ini_options]
+# test_base_servo.py là script điều khiển robot thật nên không nằm trong danh sách chạy tự động
+pythonpath = ["."]
+testpaths = ["tests"]
