@@ -4,7 +4,12 @@ Bộ tài liệu để **Antigravity (Gemini 4 Argon)** dựng slide thuyết tr
 Mình đã chuẩn bị nội dung, lời nói, ảnh thật, prompt ảnh AI, số liệu đã kiểm, và kiểm tra chất lượng tự động. Việc còn lại là bạn **dán prompt**
 và **điền các chỗ trống**.
 
-> **Đã viết lại ngày 02/11/2026 ≈ 23:30** theo mã nguồn **sau khi đơn giản hóa** (`control.py` nhóm 1 → `success.py` nhóm 2; 103 test pass).
+> **Cập nhật 03/11/2026 ≈ 20:40: bộ slide đã dựng xong** là `slides/Project_IoT_ThuyetTrinh.pptx` (+ `.pdf`): **15 slide** nền tối giống màn hình app,
+> nội dung rút từ `01` và số liệu ở `05`. Dựng lại: `python3 slides/build_slides.py` → `python3 slides/export_pdf.py` → `python3 slides/render_previews.py`;
+> kiểm: `python3 slides/verify_slides.py` (số trang, ghi chú, chân trang, chữ "mô phỏng", thiết kế đã bỏ, chỗ `[...]` còn phải điền).
+> Kịch bản 25 slide kiểu Gamota trong `01`–`06` dưới đây vẫn giữ làm phương án dựng bằng Antigravity.
+>
+> **Đã viết lại ngày 02/11/2026 ≈ 23:30** theo mã nguồn **sau khi đơn giản hóa** (`control.py` nhóm 1 → `success.py` nhóm 2; 103 test pass, sau bản gộp 03/11 là 109).
 > Bản 21:30 mô tả thiết kế cũ (quy trình 5 bước, S1/S2, Auto-Step, `attempts.csv`, phím `Y`/`E`, 110 test, mô hình lệch 5 cm, chưa có `calibration.json`)
 > nên **không còn đúng**: deck dựng từ nó sẽ sai sự thật. Mọi file ở đây đã thay mới; mục 9 liệt kê điều đã đổi.
 
@@ -33,7 +38,7 @@ và **điền các chỗ trống**.
 1. (Tùy chọn, nên làm) chạy **bản mới với cánh tay thật**, bấm theo lệnh trên màn hình tới khi ghi `XONG!`, chụp màn hình và quay video 20–30 giây theo `02_ANH_THAT.md` mục 6.
    **Không bắt buộc**: bộ ảnh hiện có đã đủ để dựng, nhưng đây là bằng chứng mạnh nhất còn thiếu.
 2. Mở Antigravity ở thư mục dự án, chọn model `gemini-4-argon-medium`, dán prompt ở `04_PROMPT_ANTIGRAVITY.md` (**A → B → C**, hoặc prompt tổng).
-3. Duyệt kết quả theo checklist mục 8; điền chỗ `[…]`; tập nói; **commit và push** mã nguồn.
+3. Duyệt kết quả theo checklist mục 8; điền chỗ `[…]`; tập nói. (Mã nguồn đã lên GitHub: `main` = `e3f2d85`.)
 
 ## 3. Việc bạn cần làm (và Antigravity không làm thay được)
 
@@ -53,7 +58,7 @@ và **điền các chỗ trống**.
 
 **Trước ngày nói:**
 
-- [ ] **Commit và push** mã nguồn: repo công khai `github.com/DuongNAD/Project_IoT` mới có **1 commit là bản 5 bước cũ**. Chưa commit: `control.py`, `success.py`, `screen.py`, `vision.py`, `cameras.py`, `calibration.py`, `arm_fit.py`, `tests/`, `README.md`, `robot_arm_4dof/flash.sh`; chưa ghi nhận việc xóa `grasp_assist_4dof.py`, `guide_screen.py`, `test_ik.py`. (`captures/` và `calibration.json` đã được `.gitignore`, nên ảnh cá nhân không lên repo.)
+- [x] Mã nguồn mới đã lên GitHub (`main` = `e3f2d85`, 03/11/2026), gồm cả phần gộp từ máy Windows. Ảnh trong `assets/real/` và `captures/` vẫn ngoài repo; **lưu ý**: `Project_IoT_ThuyetTrinh.pptx`, `.pdf` và `preview/` có nhúng ảnh thật và đang được git theo dõi, nên quyết định trước khi commit chúng lên repo công khai.
 - [ ] đọc lại lời nói từng slide, sửa thành giọng của bạn; tập nói thử và bấm giờ: lời nói đủ ≈ 15 phút, bản rút gọn ≈ 12 phút (bảng giờ và gợi ý cắt ở `01_KICH_BAN_SLIDE.md`)
 - [ ] thử mở PPTX và PDF trên **máy sẽ trình chiếu** (phông mặc định Arial; bản Segoe UI cho Windows ở prompt E)
 - [ ] chuẩn bị demo: thử nguyên chuỗi trước giờ nói; tắt chương trình khác giữ cổng USB; nhớ rằng mở cổng thứ hai làm Arduino reset (slide 22); khi hạ đầu kẹp tựa xuống rồi bấm `Z` thì cả cánh tay sụp
@@ -131,7 +136,7 @@ và **điền các chỗ trống**.
 | Mô hình cánh tay | lệch ≈ 5 cm, chưa hiệu chỉnh | lệch 3,5–5,9 cm, **đã khớp 10 lần ôm: 8,5 mm** |
 | Bước phím | 5° | **2°** (kẹp 5°); giới hạn kẹp 160° |
 | Phím `Z` | "chưa nạp" | đã nạp và kiểm |
-| Kiểm thử | 110 test | **103 test** |
+| Kiểm thử | 110 test | **103 test** (sau bản gộp 03/11: **109**) |
 | Ảnh AI | 3 bắt buộc (slide 2, 9, 14) | **2 bắt buộc (slide 2, 14)** |
 | Phụ lục | S1/S2 chi tiết, ngoại suy 155–165° | success chi tiết, hiệu chỉnh chi tiết, **đã bỏ khi đơn giản hóa** |
 | Công cụ | `qa_deck.py` | thêm **`check_facts.py`** (chống lỗi thời), `make_screen_images.py`; `qa_deck.py` biết thiết kế đã bỏ |

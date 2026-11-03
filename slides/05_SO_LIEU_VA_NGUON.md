@@ -1,8 +1,8 @@
 # 05 · Số liệu và nguồn (nguồn sự thật duy nhất cho slide)
 
-Mọi con số, tên linh kiện và nhận định trên slide **chỉ được lấy từ file này**. Kiểm tra lần cuối: **02/11/2026 khoảng 23:10**, sau khi mã nguồn
-được đơn giản hóa thành hai nhóm nối nhau (`control.py` → `success.py`). Mã ở thư mục làm việc, **chưa commit**; test chạy thật bằng
-`.venv/bin/python -m pytest -q` (103 test pass).
+Mọi con số, tên linh kiện và nhận định trên slide **chỉ được lấy từ file này**. Kiểm tra lần cuối: **03/11/2026 khoảng 20:40**, sau khi gộp phần làm
+trên máy Windows vào bản hai nhóm nối nhau (`control.py` → `success.py`). Mã đã lên GitHub (`main` = `e3f2d85`); test chạy thật bằng
+`.venv/bin/python -m pytest -q` (109 test pass). Bộ slide đã dựng: `Project_IoT_ThuyetTrinh.pptx` (15 slide, `build_slides.py`).
 
 Kiểm lại bằng máy sau mỗi lần sửa mã: `.venv/bin/python -B slides/tools/check_facts.py` (so các hằng số ở mục 17 và mọi dẫn `file:dòng` trong các file `.md` với mã hiện tại).
 
@@ -35,7 +35,7 @@ Nhãn trạng thái:
 | **Góc servo báo về là góc LỆNH** | gói JSON in các biến `angleBase`, `angleShoulder`… mà firmware đã gán; MG996R không báo vị trí thật. "Đã tới góc" nghĩa là lệnh đã tới góc, **không** phải đã đo thấy cánh tay ở đó | CODE | `robot_arm_4dof.ino:70-83` |
 | Cam TRÊN | OBSBOT Meet SE treo phía trên tờ giấy, nhìn xuống, 1920×1080 | CODE + ĐO | `README.md` mục 1; ghi chú phiên 02/11 (memory `project-iot-camera-setup`) |
 | Cam NGANG | camera tích hợp MacBook đặt thấp trước tờ giấy, 1920×1080; có thể thay bằng điện thoại (IP Webcam qua `adb`), tùy chọn | CODE + ĐO | `README.md` mục 1; `cameras.py:117-150,204` |
-| Hệ điều hành và thư viện | macOS (PyObjC tìm camera theo tên), Python ≥ 3.12, OpenCV, pyserial, ultralytics (cho YOLO tùy chọn) | CODE | `pyproject.toml` |
+| Hệ điều hành và thư viện | macOS (PyObjC tìm camera theo tên), Python ≥ 3.12, OpenCV, pyserial, ultralytics (cho YOLO tùy chọn). Từ bản gộp 03/11 mã có thêm phần cho Windows: cổng `COMx` (ưu tiên CH340 / Arduino), tên camera DirectShow qua `pygrabber`, YOLO chạy CUDA nếu có; **mọi ảnh và số đo trong slide đều làm trên macOS** | CODE | `pyproject.toml`; `control.py:251-281`; `cameras.py:82-96,311-314`; `vision.py:369-373` |
 
 ## 2. Tờ A4, hệ tọa độ và nhận diện vật
 
@@ -172,12 +172,12 @@ Nhãn trạng thái:
 
 | Mục | Giá trị | Nhãn | Nguồn |
 |---|---|---|---|
-| Kiểm thử | **103 test** pass trong 9,3 giây: `test_control` 29, `test_vision` 15, `test_calibration` 11, `test_cameras` 10, `test_main` 8, `test_success` 7, `test_robustness` 6, `test_serial_link` 6, `test_arm_fit` 5, `test_screen` 4, `test_end_to_end` 2 | ĐO | `.venv/bin/python -m pytest -q`, 02/11 23:06 |
+| Kiểm thử | **109 test** pass trong 8,7 giây: `test_control` 29, `test_vision` 15, `test_cameras` 13, `test_calibration` 11, `test_serial_link` 9, `test_main` 8, `test_success` 7, `test_robustness` 6, `test_arm_fit` 5, `test_screen` 4, `test_end_to_end` 2 (11 tệp test) | ĐO | `.venv/bin/python -m pytest -q`, 03/11 20:15 |
 | Không chạm phần cứng | không test nào đụng camera, cổng Serial hay `calibration.json` thật; cảnh dựng bằng camera giả lập có đáp án chính xác | CODE | `README.md` mục 7 |
-| Quy mô | 8 module Python ≈ **2 620 dòng** (`main.py` 332 · `control.py` 579 · `success.py` 75 · `screen.py` 271 · `vision.py` 688 · `cameras.py` 394 · `calibration.py` 140 · `arm_fit.py` 141) + firmware 208 dòng + `generate_aruco_a4.py` 225 dòng + 11 file test ≈ 1 820 dòng | CODE | `wc -l` |
+| Quy mô | 8 module Python ≈ **2 690 dòng** (`main.py` 334 · `control.py` 620 · `success.py` 75 · `screen.py` 271 · `vision.py` 691 · `cameras.py` 415 · `calibration.py` 140 · `arm_fit.py` 141) + firmware 208 dòng + `generate_aruco_a4.py` 225 dòng + 11 file test ≈ 1 890 dòng | CODE | `wc -l` (03/11) |
 | Chạy không cần phần cứng | `main.py --top a.jpg --side b.jpg --no-serial --headless --seconds 10 --dump-dir out/` → `dual_view.png`, ảnh chú thích của 2 camera, `summary.json` (có `nhom_1_dieu_khien` và `nhom_2_success`) | CODE | `README.md` mục 7; `main.py:280-304` |
 | Mỗi khung hình là ba dòng | `plan = control.update(tracker.objects)` → `result = success.update(plan)` → `build_screen(…, plan, result)` | CODE | `README.md` mục 3; `main.py:171-174` |
-| Repo | `github.com/DuongNAD/Project_IoT` mới có **1 commit** (bản 5 bước cũ, gồm `grasp_assist_4dof.py`, `guide_screen.py`). Bản mới (`control.py`, `success.py`, `screen.py`, `vision.py`, `cameras.py`, `calibration.py`, `arm_fit.py`, `tests/`, `README.md`) **chưa commit** nên chưa lên GitHub; `captures/` và `calibration.json` đã được `.gitignore` | CODE | `git status`; `.gitignore` |
+| Repo | `github.com/DuongNAD/Project_IoT`: nhánh `main` (`e3f2d85`, 03/11/2026) đã có bản hai nhóm (`control.py`, `success.py`, `screen.py`, `vision.py`, `cameras.py`, `calibration.py`, `arm_fit.py`, `tests/`, `README.md`) và phần gộp từ máy Windows. `captures/`, `calibration.json` và `slides/assets/real/` nằm trong `.gitignore`; riêng `slides/Project_IoT_ThuyetTrinh.pptx`, `.pdf` và `slides/preview/` **đang được git theo dõi và có nhúng ảnh thật** | CODE | `git log`; `.gitignore`; `slides/.gitignore` |
 | Sao lưu bản trước khi đơn giản hóa | `~/Documents/project/Project_IoT_backup_truoc_don_gian_hoa_2026-11-02.tgz` (14 MB, ngoài repo) | CODE | `README.md` mục 9 |
 
 ## 12. Đã bỏ khi đơn giản hóa (02/11, khoảng 22:00–22:50)
@@ -241,7 +241,7 @@ Kết quả `grep` MQTT, paho, ESP32, FSR, dashboard trong mã nguồn (`*.py`, 
 
 1. Tên môn học hoặc sự kiện, ngày giờ, địa điểm, thời lượng được phép.
 2. Tên và vai trò các thành viên; ai nói slide nào; **"nhóm 1 · điều khiển" và "nhóm 2 · success" là hai phần mã hay hai nhóm người?** (slide gọi chúng là nhóm 1 và nhóm 2).
-3. Đã commit và push mã nguồn mới lên GitHub chưa (repo công khai hiện chỉ có bản 5 bước cũ; slide 14 trỏ tới repo).
+3. ~~Đã commit và push mã nguồn mới lên GitHub chưa?~~ Đã xong: `main` = `e3f2d85` (03/11/2026) có bản hai nhóm; slide 15 trỏ tới repo.
 4. Giảng viên có **bắt buộc dashboard IoT / MQTT** hoặc **mô hình học máy** không (kế hoạch 28/10 còn hỏi điều này).
 5. **Đã chạy bản mới trực tiếp với cánh tay thật chưa?** Nếu rồi, cho mình số `Thanh cong` và ảnh màn hình để đổi các dòng "chưa" ở slide 9, 11, 13.
 6. Tờ giấy đang dùng là tờ cũ (in nhỏ) hay tờ mới? Hiệu chỉnh hiện tại chỉ đúng cho tờ cũ.
@@ -297,9 +297,9 @@ CALIB_BASE = 13.83 31.67 -92.4
 CALIB_THETA = 60.2 -58.6
 CALIB_CLAW = 183.7 0.0 0.0
 CALIB_FIT = n:10 rms:8.5 loo:11.6
-PY_LINES = 2620
+PY_LINES = 2687
 FIRMWARE_LINES = 208
-TESTS = 103
+TESTS = 109
 HUG_ERR_CM = 5.4 3.5 5.9
 GOAL_CUP_20_1_7_4 = 74 58 90
 KEYS_FROM_HOME = d:8 s:16

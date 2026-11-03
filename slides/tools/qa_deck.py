@@ -46,7 +46,8 @@ REMOVED_DESIGN = [
 ]
 RISKY = [
     (re.compile(r"A\s*[=:]\s*(sang\s+)?trái|phím\s+A[^.\n]{0,25}trái", re.I), "hướng A/D ngược (A sang phải, D sang trái nhìn theo cam NGANG)"),
-    (re.compile(r"\b110\s*(test|/\s*110)", re.I), "số test cũ 110 (hiện 103)"),
+    (re.compile(r"\b110\s*(test|/\s*110)", re.I), "số test cũ 110 (hiện 109)"),
+    (re.compile(r"\b103\s*(test|/\s*103)", re.I), "số test cũ 103 (hiện 109)"),
     (re.compile(r"mô hình (đã )?chính xác (dưới|< ?)\s*1\s*cm", re.I), "nói mô hình chính xác dưới 1 cm"),
     (re.compile(r"tự động hoàn toàn|robot tự (động )?gắp", re.I), "nói robot tự động"),
     (re.compile(r"tỉ lệ (gắp )?thành công[^.\n]{0,20}\d"), "con số tỉ lệ thành công"),

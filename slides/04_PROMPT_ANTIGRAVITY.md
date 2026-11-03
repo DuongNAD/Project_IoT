@@ -277,5 +277,5 @@ DONE WHEN
 
 - Điền các chỗ `[…]` (tên môn, ngày, thành viên, liên kết video, kịch bản demo, phân công người nói). Danh sách đầy đủ: `00_DOC_TRUOC.md` mục 3.
 - Quay video gắp, chụp ảnh mới (`02_ANH_THAT.md` mục 6). **Quý nhất:** một ảnh màn hình chương trình lúc **chạy trực tiếp với cánh tay thật** và ghi `XONG!`.
-- **Commit và push** mã nguồn mới lên GitHub trước ngày nói (slide 14 trỏ tới repo; repo công khai hiện chỉ có bản 5 bước cũ, `control.py`, `success.py`, `screen.py`, `vision.py`, `cameras.py`, `calibration.py`, `arm_fit.py`, `tests/` đang chưa commit).
+- Mã nguồn mới đã lên GitHub (`main` = `e3f2d85`, 03/11/2026), nên slide 14 trỏ tới repo được. Nhớ rằng bản dựng sẵn `slides/Project_IoT_ThuyetTrinh.pptx` (15 slide, `build_slides.py`) đã có; bộ này là phương án 25 slide kiểu Gamota.
 - Chạy thật những việc đang ghi "chưa kiểm chứng" nếu muốn đổi chữ trên slide (bấm theo gợi ý đã hiệu chỉnh và đếm `Thanh cong`; hiệu chỉnh lại cho tờ giấy mới), rồi **sửa `05_SO_LIEU_VA_NGUON.md` trước**, sau đó mới sửa slide.

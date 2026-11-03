@@ -1,1832 +1,1049 @@
-"""Build 15-slide technical presentation for 4-DOF Robot Arm Grasp Assist system.
+#!/usr/bin/env python3
+"""
+Dựng bộ slide 15 trang (tiếng Việt, 16:9, nền tối giống màn hình app) cho mã HAI NHÓM hiện tại:
+camera -> vision.py -> control.py (NHÓM 1: bấm phím gì) -> success.py (NHÓM 2: đã tới chưa) -> screen.py.
 
-Strictly follows project specifications, color palette, typography, keycaps,
-native shapes, Vietnamese speaker notes, footers, and asset embedding.
+    python3 slides/build_slides.py        ->  slides/Project_IoT_ThuyetTrinh.pptx
+    python3 slides/export_pdf.py          ->  slides/Project_IoT_ThuyetTrinh.pdf   (LibreOffice, hoặc PowerPoint trên Windows)
+    python3 slides/render_previews.py     ->  slides/preview/slide_XX.png
+    python3 slides/verify_slides.py       ->  kiểm số trang, ghi chú, chân trang, chú thích "mô phỏng", tính năng đã bỏ
+
+Mọi con số lấy từ slides/05_SO_LIEU_VA_NGUON.md (kiểm lại bằng slides/tools/check_facts.py sau mỗi lần sửa mã).
+Ảnh thật nằm trong slides/assets/real/ (không đưa lên repo công khai); thiếu ảnh nào thì slide hiện khung "[Ảnh: ...]" thay vào.
+Cần: python-pptx, Pillow. Phông Arial / Courier New có sẵn trên macOS lẫn Windows, đủ dấu tiếng Việt.
 """
 
 import os
+import re
 import sys
+from datetime import datetime
 
-# Ensure UTF-8 stdout on Windows console
-if sys.platform == "win32":
+from lxml import etree
+from PIL import Image, ImageFont
+from pptx import Presentation
+from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
+from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
+from pptx.oxml.ns import qn
+from pptx.util import Inches, Pt
+
+if sys.platform == "win32":  # Terminal Windows (cp1252) không in được tiếng Việt
     try:
         sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
-    except Exception:
+    except (AttributeError, ValueError):
         pass
 
-# Ensure project root is in sys.path
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
-
-import pptx
-from pptx import Presentation
-from pptx.util import Inches, Pt
-from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
-from pptx.enum.shapes import MSO_SHAPE
-
-from slides.generate_asset import generate_guide_screen_asset, ASSETS_DIR
+SLIDES_DIR = os.path.dirname(os.path.abspath(__file__))
+REAL_DIR = os.path.join(SLIDES_DIR, "assets", "real")
+OUT_PPTX = os.path.join(SLIDES_DIR, "Project_IoT_ThuyetTrinh.pptx")
+TOTAL = 15
+FOOTER_TITLE = "Hệ thống hỗ trợ gắp vật · cánh tay robot 4 bậc tự do"
 
 # ==============================================================================
-# BẢNG MÀU CHUẨN DARK THEME (guide_screen.py)
+# Màu: lấy đúng bảng màu của screen.py (BGR đổi sang RGB) để slide trông như màn hình app
 # ==============================================================================
-BG_COLOR = RGBColor(25, 27, 30)        # #191B1E - Nền tối chính
-CARD_COLOR = RGBColor(39, 42, 46)      # #272A2E - Nền thẻ khối
-BORDER_COLOR = RGBColor(70, 76, 82)    # #464C52 - Viền phân cách
-PRIMARY_TEXT = RGBColor(245, 245, 245) # #F5F5F5 - Chữ chính
-MUTED_TEXT = RGBColor(155, 160, 165)   # #9BA0A5 - Chữ phụ, chú thích
-AMBER = RGBColor(255, 185, 40)          # #FFB928 - Điểm nhấn cam, keycap
-GREEN = RGBColor(90, 215, 110)         # #5AD76E - Điểm nhấn xanh lá (thành công)
-RED = RGBColor(245, 85, 85)            # #F55555 - Điểm nhấn đỏ (cảnh báo, lỗi)
-DARK_TEXT = RGBColor(25, 27, 30)       # #191B1E - Chữ tối trên nền cam/xanh
-AMBER_DK = RGBColor(98, 62, 28)        # #623E1C - Nền cam tối
-GREEN_DK = RGBColor(42, 88, 50)        # #2A5832 - Nền xanh lá tối
+BG = RGBColor(0x19, 0x1B, 0x1E)        # nền
+BG2 = RGBColor(0x20, 0x22, 0x26)       # dải nền phụ
+CARD = RGBColor(0x27, 0x2A, 0x2E)      # thẻ
+EDGE = RGBColor(0x46, 0x4C, 0x52)      # viền
+WHITE = RGBColor(0xF5, 0xF5, 0xF5)
+MUTED = RGBColor(0x9B, 0xA0, 0xA5)
+AMBER = RGBColor(0xFF, 0xB9, 0x28)     # phím, lệnh, điểm nhấn
+AMBER_DK = RGBColor(0x62, 0x3E, 0x1C)
+GREEN = RGBColor(0x5A, 0xD7, 0x6E)     # đã có / XONG
+GREEN_DK = RGBColor(0x2A, 0x58, 0x32)
+RED = RGBColor(0xF5, 0x55, 0x55)       # chưa / giới hạn
+RED_DK = RGBColor(0x6E, 0x28, 0x28)
+DARK = RGBColor(0x19, 0x1B, 0x1E)      # chữ tối trên nền hổ phách / xanh
 
-FONT_MAIN = "Arial"
-FONT_CODE = "Courier New"
+FONT = "Arial"
+MONO = "Courier New"
+LEFT, CENTER, RIGHT = PP_ALIGN.LEFT, PP_ALIGN.CENTER, PP_ALIGN.RIGHT
+TOP, MIDDLE, BOTTOM = MSO_ANCHOR.TOP, MSO_ANCHOR.MIDDLE, MSO_ANCHOR.BOTTOM
 
 
 # ==============================================================================
-# HELPER FUNCTIONS DỰNG SLIDE, SHAPE, TEXT, KEYCAP
+# Đo chữ: dùng đúng tệp phông Arial để biết một dòng rộng bao nhiêu, ngắt thành mấy dòng
 # ==============================================================================
-def create_deck():
-    """Tạo đối tượng Presentation tỉ lệ 16:9 widescreen (13.333 x 7.5 inches)."""
-    prs = Presentation()
-    prs.slide_width = Inches(13.333)
-    prs.slide_height = Inches(7.5)
-    return prs
+FONT_FILES = {
+    False: ("/System/Library/Fonts/Supplemental/Arial.ttf", "C:/Windows/Fonts/arial.ttf",
+            "/usr/share/fonts/truetype/msttcorefonts/Arial.ttf"),
+    True: ("/System/Library/Fonts/Supplemental/Arial Bold.ttf", "C:/Windows/Fonts/arialbd.ttf",
+           "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf"),
+}
+_pil_fonts = {}
+# Không ngắt dòng giữa số và đơn vị ("8,5 mm"), quanh dấu nhân ("S × 15") và trong "109 / 109"
+NO_BREAK = [(re.compile(r"(\d)\s+(mm|cm|ms|Hz|V|giây|°)(?!\w)"), "\\1\u00a0\\2"),
+            (re.compile(r"\s+×\s+"), "\u00a0×\u00a0"),
+            (re.compile(r"\s*≈\s+"), "\u00a0≈\u00a0"),
+            (re.compile(r"(\d)\s+/\s+(\d)"), "\\1\u00a0/\u00a0\\2")]
 
 
-def add_slide_with_bg(prs):
-    """Thêm một slide trắng với nền tối chuẩn #191B1E."""
-    blank_layout = prs.slide_layouts[6]
-    slide = prs.slides.add_slide(blank_layout)
+def text_w(s, size, bold=False):
+    """Bề rộng (inch) của một dòng chữ Arial cỡ `size` pt (không có tệp phông thì ước lượng)."""
+    if bold not in _pil_fonts:
+        path = next((f for f in FONT_FILES[bold] if os.path.exists(f)), None)
+        _pil_fonts[bold] = ImageFont.truetype(path, 100) if path else None
+    font = _pil_fonts[bold]
+    return (font.getlength(s) if font else len(s) * (60 if bold else 54)) / 100 * size / 72
 
-    # Đặt background fill cho slide
-    background = slide.background
-    fill = background.fill
+
+def n_lines(s, size, width, bold=False):
+    """Số dòng khi ngắt chữ theo từ trong hộp rộng `width` inch."""
+    lines, cur = 0, ""
+    for para in s.split("\n"):
+        cur = ""
+        for word in para.split():
+            cand = f"{cur} {word}".strip()
+            if cur and text_w(cand, size, bold) > width:
+                lines, cur = lines + 1, word
+            else:
+                cur = cand
+        lines += 1
+    return lines
+
+
+def plain(item):
+    """Chữ thuần của một đoạn (chuỗi hoặc danh sách run)."""
+    return item if isinstance(item, str) else "".join(r if isinstance(r, str) else r[0] for r in item)
+
+
+# ==============================================================================
+# Hàm vẽ nhỏ (đơn vị: inch, cỡ chữ: point)
+# ==============================================================================
+def new_slide(prs):
+    slide = prs.slides.add_slide(prs.slide_layouts[6])  # Bố cục trống
+    fill = slide.background.fill
     fill.solid()
-    fill.fore_color.rgb = BG_COLOR
-
-    # Thêm hình chữ nhật phủ toàn màn hình để đảm bảo tương thích 100% mọi viewer
-    bg_shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-    bg_shape.fill.solid()
-    bg_shape.fill.fore_color.rgb = BG_COLOR
-    bg_shape.line.fill.background()
+    fill.fore_color.rgb = BG
     return slide
 
 
-def add_header(slide, tag_text, title_text):
-    """Thêm tiêu đề chuẩn cho slide với Tag cam và đường gạch tinh tế."""
-    # Tag phía trên tiêu đề
-    tag_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.42), Inches(11.733), Inches(0.32))
-    tf_tag = tag_box.text_frame
-    tf_tag.word_wrap = True
-    tf_tag.margin_left = tf_tag.margin_top = tf_tag.margin_right = tf_tag.margin_bottom = 0
-    p_tag = tf_tag.paragraphs[0]
-    p_tag.text = tag_text.upper()
-    p_tag.font.name = FONT_MAIN
-    p_tag.font.size = Pt(13)
-    p_tag.font.bold = True
-    p_tag.font.color.rgb = AMBER
-
-    # Tiêu đề chính (>= 28 pt)
-    title_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.72), Inches(11.733), Inches(0.65))
-    tf_title = title_box.text_frame
-    tf_title.word_wrap = True
-    tf_title.margin_left = tf_title.margin_top = tf_title.margin_right = tf_title.margin_bottom = 0
-    p_title = tf_title.paragraphs[0]
-    p_title.text = title_text
-    p_title.font.name = FONT_MAIN
-    p_title.font.size = Pt(28)
-    p_title.font.bold = True
-    p_title.font.color.rgb = PRIMARY_TEXT
-
-    # Dải phân cách mỏng
-    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(1.42), Inches(11.733), Inches(0.02))
-    line.fill.solid()
-    line.fill.fore_color.rgb = BORDER_COLOR
-    line.line.fill.background()
+def text(slide, x, y, w, h, paras, size=18, color=WHITE, bold=False, font=FONT, align=LEFT, anchor=TOP,
+         spacing=1.1, after=0, spc=None):
+    """
+    Hộp chữ không tự co. paras: chuỗi, hoặc danh sách đoạn; mỗi đoạn là chuỗi hoặc danh sách run,
+    mỗi run là chuỗi hoặc (chuỗi, {"color", "bold", "size", "font"}).
+    """
+    box = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+    tf = box.text_frame
+    tf.word_wrap = True
+    tf.auto_size = MSO_AUTO_SIZE.NONE
+    tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
+    tf.vertical_anchor = anchor
+    fill_paragraphs(tf, paras, size, color, bold, font, align, spacing, after, spc)
+    return box
 
 
-def add_footer(slide, slide_num, total_slides=15):
-    """Thêm footer chuẩn gồm tên đề tài và số trang."""
-    # Tiêu đề ngắn bên trái
-    left_box = slide.shapes.add_textbox(Inches(0.8), Inches(6.92), Inches(8.5), Inches(0.38))
-    tf_left = left_box.text_frame
-    tf_left.margin_left = tf_left.margin_top = tf_left.margin_right = tf_left.margin_bottom = 0
-    p_left = tf_left.paragraphs[0]
-    p_left.text = "Hệ thống hỗ trợ gắp vật 4-DOF - IoT Robot Arm"
-    p_left.font.name = FONT_MAIN
-    p_left.font.size = Pt(14)
-    p_left.font.color.rgb = MUTED_TEXT
-
-    # Số trang bên phải
-    right_box = slide.shapes.add_textbox(Inches(9.5), Inches(6.92), Inches(3.033), Inches(0.38))
-    tf_right = right_box.text_frame
-    tf_right.margin_left = tf_right.margin_top = tf_right.margin_right = tf_right.margin_bottom = 0
-    p_right = tf_right.paragraphs[0]
-    p_right.alignment = PP_ALIGN.RIGHT
-    p_right.text = f"Trang {slide_num} / {total_slides}"
-    p_right.font.name = FONT_MAIN
-    p_right.font.size = Pt(14)
-    p_right.font.bold = True
-    p_right.font.color.rgb = MUTED_TEXT
+def fill_paragraphs(tf, paras, size, color, bold, font, align, spacing=1.1, after=0, spc=None):
+    if isinstance(paras, (str, tuple)):
+        paras = [paras]
+    for i, para in enumerate(paras):
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        p.alignment = align
+        p.line_spacing = spacing
+        if after:
+            p.space_after = Pt(after)
+        for run_spec in ([para] if isinstance(para, (str, tuple)) else para):
+            add_run(p, run_spec, size, color, bold, font, spc)
+    return tf
 
 
-def add_card(slide, left, top, width, height, bg_color=CARD_COLOR, border_color=BORDER_COLOR, border_width=1.0):
-    """Vẽ khối thẻ bo góc (Rounded Rectangle) chuẩn dark theme."""
-    card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height)
-    card.fill.solid()
-    card.fill.fore_color.rgb = bg_color
-    if border_color:
-        card.line.color.rgb = border_color
-        card.line.width = Pt(border_width)
+def add_run(p, run_spec, size, color, bold, font, spc=None):
+    s, style = (run_spec, {}) if isinstance(run_spec, str) else run_spec
+    for pat, rep in NO_BREAK:
+        s = pat.sub(rep, s)
+    run = p.add_run()
+    run.text = s
+    f = run.font
+    f.name = style.get("font", font)
+    f.size = Pt(style.get("size", size))
+    f.bold = style.get("bold", bold)
+    f.color.rgb = style.get("color", color)
+    if spc or style.get("spc"):
+        run._r.get_or_add_rPr().set("spc", str(style.get("spc", spc)))  # Giãn chữ (1/100 pt)
+    return run
+
+
+def bullets(slide, x, y, w, h, items, size=16, color=WHITE, mark="•", mark_color=AMBER, after=8, indent=0.26, spacing=1.08):
+    """Danh sách gạch đầu dòng thụt treo (dòng thứ hai thẳng hàng với chữ, không thẳng hàng với dấu)."""
+    box = text(slide, x, y, w, h, items, size, color, spacing=spacing, after=after)
+    for p in box.text_frame.paragraphs:
+        pPr = p._p.get_or_add_pPr()
+        pPr.set("marL", str(int(Inches(indent))))
+        pPr.set("indent", str(-int(Inches(indent))))
+        clr = etree.SubElement(pPr, qn("a:buClr"))
+        etree.SubElement(clr, qn("a:srgbClr")).set("val", str(mark_color))
+        etree.SubElement(pPr, qn("a:buFont")).set("typeface", FONT)
+        etree.SubElement(pPr, qn("a:buChar")).set("char", mark)
+    return box
+
+
+def steps(slide, x, y, w, items, size=15, color=WHITE, dot_color=AMBER, d=0.36, gap=0.14, fg=DARK, spacing=1.05):
+    """Danh sách đánh số; mỗi mục cao đúng theo số dòng đo bằng phông Arial. Trả về y ngay dưới mục cuối."""
+    tx, tw = x + d + 0.14, w - d - 0.14
+    line_h = size * 1.2 * spacing / 72
+    for i, it in enumerate(items):
+        h = n_lines(plain(it), size, tw - 0.05) * line_h
+        dot(slide, x, y + (line_h - d) / 2, i + 1, dot_color, d=d, size=max(11, size - 3), fg=fg)
+        text(slide, tx, y, tw, h + 0.04, [it] if isinstance(it, list) else it, size, color, spacing=spacing)
+        y += max(h, d) + gap
+    return y
+
+
+def box(slide, x, y, w, h, fill=CARD, edge=EDGE, edge_w=1.0, radius=0.08, shape=MSO_SHAPE.ROUNDED_RECTANGLE, dash=False):
+    shp = slide.shapes.add_shape(shape, Inches(x), Inches(y), Inches(w), Inches(h))
+    if shape == MSO_SHAPE.ROUNDED_RECTANGLE:
+        shp.adjustments[0] = min(0.5, radius / max(0.01, min(w, h)))
+    if fill is None:
+        shp.fill.background()
     else:
-        card.line.fill.background()
-    return card
-
-
-def add_keycap(slide, left, top, letter, width=Inches(0.48), height=Inches(0.38), bg_color=AMBER, fg_color=DARK_TEXT):
-    """Vẽ nút phím kiểu Keycap màu cam chữ tối bo tròn chuẩn guide_screen.py."""
-    key = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height)
-    key.fill.solid()
-    key.fill.fore_color.rgb = bg_color
-    key.line.fill.background()
-
-    tf = key.text_frame
-    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    tf.margin_left = tf.margin_top = tf.margin_right = tf.margin_bottom = 0
-    p = tf.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    p.text = letter
-    p.font.name = FONT_MAIN
-    p.font.size = Pt(14)
-    p.font.bold = True
-    p.font.color.rgb = fg_color
-    return key
-
-
-def add_arrow(slide, left, top, width, height, color=AMBER, direction="right"):
-    """Vẽ mũi tên liên kết giữa các khối."""
-    shape_type = MSO_SHAPE.RIGHT_ARROW if direction == "right" else MSO_SHAPE.DOWN_ARROW
-    arrow = slide.shapes.add_shape(shape_type, left, top, width, height)
-    arrow.fill.solid()
-    arrow.fill.fore_color.rgb = color
-    arrow.line.fill.background()
-    return arrow
-
-
-def set_speaker_notes(slide, notes_text):
-    """Thiết lập speaker notes cho slide."""
-    notes_slide = slide.notes_slide
-    tf = notes_slide.notes_text_frame
-    tf.text = notes_text.strip()
-
-
-# ==============================================================================
-# SLIDE 1: TIÊU ĐỀ ĐỀ TÀI
-# ==============================================================================
-def build_slide_1(prs):
-    slide = add_slide_with_bg(prs)
-
-    # Thẻ lớn trung tâm
-    main_card = add_card(slide, Inches(1.2), Inches(0.9), Inches(10.933), Inches(5.7),
-                         bg_color=CARD_COLOR, border_color=BORDER_COLOR, border_width=1.5)
-
-    # Dải viền trang trí màu cam trên đỉnh thẻ
-    top_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1.2), Inches(0.9), Inches(10.933), Inches(0.08))
-    top_bar.fill.solid()
-    top_bar.fill.fore_color.rgb = AMBER
-    top_bar.line.fill.background()
-
-    # Nhãn dự án
-    tag_box = slide.shapes.add_textbox(Inches(1.8), Inches(1.3), Inches(9.733), Inches(0.4))
-    tf_tag = tag_box.text_frame
-    p_tag = tf_tag.paragraphs[0]
-    p_tag.alignment = PP_ALIGN.CENTER
-    p_tag.text = "ĐỒ ÁN TỐT NGHIỆP / BÁO CÁO KỸ THUẬT IoT & ROBOTICS"
-    p_tag.font.name = FONT_MAIN
-    p_tag.font.size = Pt(15)
-    p_tag.font.bold = True
-    p_tag.font.color.rgb = AMBER
-
-    # Tên đề tài lớn
-    title_box = slide.shapes.add_textbox(Inches(1.8), Inches(1.75), Inches(9.733), Inches(1.4))
-    tf_title = title_box.text_frame
-    tf_title.word_wrap = True
-    p_title = tf_title.paragraphs[0]
-    p_title.alignment = PP_ALIGN.CENTER
-    p_title.text = "HỆ THỐNG HỖ TRỢ GẮP VẬT CHO CÁNH TAY ROBOT 4-DOF"
-    p_title.font.name = FONT_MAIN
-    p_title.font.size = Pt(32)
-    p_title.font.bold = True
-    p_title.font.color.rgb = PRIMARY_TEXT
-
-    # Phụ đề công nghệ
-    sub_box = slide.shapes.add_textbox(Inches(1.8), Inches(3.1), Inches(9.733), Inches(0.5))
-    tf_sub = sub_box.text_frame
-    p_sub = tf_sub.paragraphs[0]
-    p_sub.alignment = PP_ALIGN.CENTER
-    p_sub.text = "Thị giác máy tính 2 Camera • Định vị ArUco • Nhận diện YOLO11 • Động học ngược"
-    p_sub.font.name = FONT_MAIN
-    p_sub.font.size = Pt(18)
-    p_sub.font.color.rgb = MUTED_TEXT
-
-    # 4 huy hiệu công nghệ (Pills)
-    pill_w = Inches(2.25)
-    pill_h = Inches(0.55)
-    pills_data = [
-        ("DUAL CAMERA", GREEN),
-        ("ARUCO GRID A4", AMBER),
-        ("YOLO11s MODEL", GREEN),
-        ("ANALYTICAL IK", AMBER),
-    ]
-    start_x = Inches(1.8)
-    gap_x = Inches(0.24)
-    for i, (text, col) in enumerate(pills_data):
-        x = start_x + i * (pill_w + gap_x)
-        p_card = add_card(slide, x, Inches(3.75), pill_w, pill_h, bg_color=RGBColor(28, 30, 34), border_color=col, border_width=1.0)
-        p_box = slide.shapes.add_textbox(x, Inches(3.75), pill_w, pill_h)
-        tf_p = p_box.text_frame
-        tf_p.vertical_anchor = MSO_ANCHOR.MIDDLE
-        p_p = tf_p.paragraphs[0]
-        p_p.alignment = PP_ALIGN.CENTER
-        p_p.text = text
-        p_p.font.name = FONT_CODE
-        p_p.font.size = Pt(14)
-        p_p.font.bold = True
-        p_p.font.color.rgb = col
-
-    # Dải phân cách thông tin
-    sep = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(2.2), Inches(4.55), Inches(8.933), Inches(0.015))
-    sep.fill.solid()
-    sep.fill.fore_color.rgb = BORDER_COLOR
-    sep.line.fill.background()
-
-    # Bảng thông tin nhóm và giảng viên (2 cột)
-    meta_box = slide.shapes.add_textbox(Inches(2.2), Inches(4.75), Inches(8.933), Inches(1.6))
-    tf_meta = meta_box.text_frame
-    tf_meta.word_wrap = True
-
-    p1 = tf_meta.paragraphs[0]
-    p1.text = "Sinh viên thực hiện: [...]                      Giảng viên hướng dẫn: [...]"
-    p1.font.name = FONT_MAIN
-    p1.font.size = Pt(17)
-    p1.font.color.rgb = PRIMARY_TEXT
-
-    p2 = tf_meta.add_paragraph()
-    p2.text = "Lớp / Môn học: [...]                           Thời gian báo cáo: [...]"
-    p2.font.name = FONT_MAIN
-    p2.font.size = Pt(17)
-    p2.font.color.rgb = MUTED_TEXT
-
-    p3 = tf_meta.add_paragraph()
-    p3.text = "Mã nguồn đồ án: GraspAssist4DOF + OpenCV + PyTorch + PCA9685 Firmware"
-    p3.font.name = FONT_CODE
-    p3.font.size = Pt(14)
-    p3.font.color.rgb = AMBER
-
-    set_speaker_notes(slide,
-        "Kính thưa quý thầy cô và các bạn, hôm nay nhóm chúng em xin được trình bày đề tài: "
-        "Hệ thống hỗ trợ gắp vật cho cánh tay robot 4 bậc tự do sử dụng 2 camera, ArUco, YOLO11 và động học ngược. "
-        "Mục tiêu của dự án là xây dựng một hệ thống thị giác thông minh có khả năng quan sát không gian làm việc, "
-        "tự động tính toán góc quay của từng khớp và hướng dẫn người điều khiển thao tác gắp vật một cách trực quan, chính xác. "
-        "Sau đây, em xin phép đại diện nhóm đi vào chi tiết cấu trúc phần cứng và giải thuật phần mềm của hệ thống."
-    )
-
-
-# ==============================================================================
-# SLIDE 2: BÀI TOÁN THỰC TẾ VÀ MỤC TIÊU HỆ THỐNG
-# ==============================================================================
-def build_slide_2(prs):
-    slide = add_slide_with_bg(prs)
-    add_header(slide, "ĐẶT VẤN ĐỀ & MỤC TIÊU", "BÀI TOÁN THỰC TẾ VÀ MỤC TIÊU GIẢI PHÁP")
-    add_footer(slide, 2)
-
-    # Cột trái: Thách thức thực tế (Viền Đỏ)
-    card_l = add_card(slide, Inches(0.8), Inches(1.60), Inches(5.7), Inches(5.18),
-                      border_color=RED, border_width=1.5)
-    # Header thẻ trái
-    box_lh = slide.shapes.add_textbox(Inches(1.1), Inches(1.75), Inches(5.1), Inches(0.45))
-    tf_lh = box_lh.text_frame
-    tf_lh.margin_left = tf_lh.margin_top = tf_lh.margin_right = tf_lh.margin_bottom = 0
-    p_lh = tf_lh.paragraphs[0]
-    p_lh.text = "THÁCH THỨC ĐIỀU KHIỂN THỦ CÔNG"
-    p_lh.font.name = FONT_MAIN
-    p_lh.font.size = Pt(20)
-    p_lh.font.bold = True
-    p_lh.font.color.rgb = RED
-
-    # Nội dung thách thức
-    box_lc = slide.shapes.add_textbox(Inches(1.1), Inches(2.30), Inches(5.1), Inches(4.3))
-    tf_lc = box_lc.text_frame
-    tf_lc.word_wrap = True
-    tf_lc.margin_left = tf_lc.margin_top = tf_lc.margin_right = tf_lc.margin_bottom = 0
-
-    challenges = [
-        "Khó ước lượng không gian 3D: Người điều khiển khó phán đoán khoảng cách sâu và độ cao chỉ qua một góc nhìn duy nhất.",
-        "Dò phím mò mẫm: Cánh tay 4 khớp tự do dễ bị va đập mặt bàn hoặc gạt đổ vật khi dịch chuyển các góc không đồng bộ.",
-        "Thiếu phản hồi vị trí: Servo RC thông thường không có encoder phản hồi, dễ lệch góc khi chịu tải trọng vật nặng.",
-        "Đánh giá chủ quan: Khó xác định vật đã kẹp chắc chắn hay chưa khi chưa nhấc hẳn lên khỏi vùng làm việc."
-    ]
-    for i, ch in enumerate(challenges):
-        p = tf_lc.paragraphs[0] if i == 0 else tf_lc.add_paragraph()
-        p.text = f"• {ch}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(16.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(8)
-
-    # Cột phải: Mục tiêu giải pháp đề xuất (Viền Xanh lá)
-    card_r = add_card(slide, Inches(6.833), Inches(1.60), Inches(5.7), Inches(5.18),
-                      border_color=GREEN, border_width=1.5)
-    # Header thẻ phải
-    box_rh = slide.shapes.add_textbox(Inches(7.133), Inches(1.75), Inches(5.1), Inches(0.45))
-    tf_rh = box_rh.text_frame
-    tf_rh.margin_left = tf_rh.margin_top = tf_rh.margin_right = tf_rh.margin_bottom = 0
-    p_rh = tf_rh.paragraphs[0]
-    p_rh.text = "MỤC TIÊU & GIẢI PHÁP ĐỀ XUẤT"
-    p_rh.font.name = FONT_MAIN
-    p_rh.font.size = Pt(20)
-    p_rh.font.bold = True
-    p_rh.font.color.rgb = GREEN
-
-    # Nội dung giải pháp
-    box_rc = slide.shapes.add_textbox(Inches(7.133), Inches(2.30), Inches(5.1), Inches(4.3))
-    tf_rc = box_rc.text_frame
-    tf_rc.word_wrap = True
-    tf_rc.margin_left = tf_rc.margin_top = tf_rc.margin_right = tf_rc.margin_bottom = 0
-
-    solutions = [
-        "Thị giác máy tính 2 Camera: Cam trên định vị phẳng (X, Y); Cam ngang kiểm tra cao độ (Z) và vạch nâng.",
-        "Động học ngược giải tích (IK): Tự động tính toán góc 4 khớp chuẩn xác từng bước 5° và cảnh báo tầm với.",
-        "Giao diện HUD hướng dẫn trực quan: Chỉ rõ từng phím bấm cần thao tác, số lần bấm và thứ tự di chuyển an toàn.",
-        "Tự động thẩm định kết quả gắp: Hai camera độc lập tự động đối soát, phân loại lỗi trượt kẹp hoặc rơi vật."
-    ]
-    for i, sol in enumerate(solutions):
-        p = tf_rc.paragraphs[0] if i == 0 else tf_rc.add_paragraph()
-        p.text = f"• {sol}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(16.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(8)
-
-    set_speaker_notes(slide,
-        "Trong thực tế, việc điều khiển một cánh tay robot mini 4 bậc tự do gắp vật bằng tay cầm hoặc bàn phím "
-        "thường gặp rất nhiều khó khăn do người vận hành không thể ước lượng chính xác khoảng cách 3 chiều và góc khớp. "
-        "Để giải quyết bài toán này, nhóm đã xây dựng giải pháp hỗ trợ thông minh: sử dụng camera góc trên để định vị vật thể "
-        "và giải động học ngược, kết hợp camera góc ngang để kiểm tra độ cao. Hệ thống đóng vai trò như một người trợ lý ảo, "
-        "đưa ra hướng dẫn từng bước phím bấm và tự động đánh giá xem vật đã được gắp thành công hay chưa."
-    )
-
-
-# ==============================================================================
-# SLIDE 3: KIẾN TRÚC VÀ THIẾT BỊ PHẦN CỨNG
-# ==============================================================================
-def build_slide_3(prs):
-    slide = add_slide_with_bg(prs)
-    add_header(slide, "THIẾT BỊ & PHẦN CỨNG", "KIẾN TRÚC VÀ THIẾT BỊ PHẦN CỨNG HỆ THỐNG")
-    add_footer(slide, 3)
-
-    # 3 Cột chức năng phần cứng
-    col_w = Inches(3.7)
-    col_h = Inches(5.18)
-    cols_x = [Inches(0.8), Inches(4.816), Inches(8.833)]
-
-    # Cột 1: Cơ cấu chấp hành & Servo
-    add_card(slide, cols_x[0], Inches(1.60), col_w, col_h)
-    box1 = slide.shapes.add_textbox(cols_x[0] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf1 = box1.text_frame
-    tf1.word_wrap = True
-    tf1.margin_left = tf1.margin_right = tf1.margin_top = tf1.margin_bottom = 0
-    p1 = tf1.paragraphs[0]
-    p1.text = "CƠ CẤU CHẤP HÀNH"
-    p1.font.name = FONT_MAIN
-    p1.font.size = Pt(20)
-    p1.font.bold = True
-    p1.font.color.rgb = AMBER
-    p1.space_after = Pt(8)
-
-    items1 = [
-        "4x Động cơ RC Servo MG996R: Bánh răng kim loại, lực kéo cao.",
-        "Kênh 0 (Đế): Quay 0° – 180° (Mặc định 90° hướng thẳng).",
-        "Kênh 1 (Vai): Nâng hạ 25° – 155° (Mặc định 90°).",
-        "Kênh 2 (Khuỷu): Gập duỗi 25° – 155° (Mặc định 90°).",
-        "Kênh 3 (Kẹp): Đóng mở 95° – 175° (95° mở rộng, 165° kẹp chặt)."
-    ]
-    for item in items1:
-        p = tf1.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(15)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(6)
-
-    # Cột 2: Điều khiển xung & Vi điều khiển
-    add_card(slide, cols_x[1], Inches(1.60), col_w, col_h)
-    box2 = slide.shapes.add_textbox(cols_x[1] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf2 = box2.text_frame
-    tf2.word_wrap = True
-    tf2.margin_left = tf2.margin_right = tf2.margin_top = tf2.margin_bottom = 0
-    p2 = tf2.paragraphs[0]
-    p2.text = "ĐIỀU KHIỂN & KẾT NỐI"
-    p2.font.name = FONT_MAIN
-    p2.font.size = Pt(20)
-    p2.font.bold = True
-    p2.font.color.rgb = GREEN
-    p2.space_after = Pt(8)
-
-    items2 = [
-        "Mạch xung PCA9685: Chuẩn I2C địa chỉ 0x40, tần số 50Hz cấp xung servo.",
-        "Độ rộng xung PWM: 125 (~0°) đến 575 (~180°) xung 12-bit.",
-        "Vi điều khiển trung tâm: Bo mạch Arduino [...] cấp xung và đọc lệnh 9600 baud.",
-        "Module Bluetooth HC-05: Chân RX=D2, TX=D3, baud 9600, MAC 98D351F6AF14.",
-        "Nguồn rời 5V–6V dòng cao: Nuôi riêng 4 servo, chống sụt áp reset Arduino."
-    ]
-    for item in items2:
-        p = tf2.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(15)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(6)
-
-    # Cột 3: Cảm biến thị giác & Máy tính trạm
-    add_card(slide, cols_x[2], Inches(1.60), col_w, col_h)
-    box3 = slide.shapes.add_textbox(cols_x[2] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf3 = box3.text_frame
-    tf3.word_wrap = True
-    tf3.margin_left = tf3.margin_right = tf3.margin_top = tf3.margin_bottom = 0
-    p3 = tf3.paragraphs[0]
-    p3.text = "THỊ GIÁC & MÁY TRẠM"
-    p3.font.name = FONT_MAIN
-    p3.font.size = Pt(20)
-    p3.font.bold = True
-    p3.font.color.rgb = AMBER
-    p3.space_after = Pt(8)
-
-    items3 = [
-        "Cam 1 (Nhìn ngang): Webcam laptop đặt thấp quan sát cao độ gắp.",
-        "Cam 2 (Nhìn trên xuống): Camera điện thoại gắn giá cao vuông góc mặt bàn.",
-        "Hỗ trợ kết nối Cam 2: iPhone Continuity, Iriun, DroidCam, Wi-Fi IP Webcam.",
-        "Máy tính xử lý trung tâm: Laptop [...] chạy mô hình YOLO11s và giải IK.",
-        "Tăng tốc phần cứng: Tự động nhận diện PyTorch MPS (Apple Silicon), CUDA hoặc CPU."
-    ]
-    for item in items3:
-        p = tf3.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(15)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(6)
-
-    set_speaker_notes(slide,
-        "Về mặt phần cứng, cánh tay robot sử dụng 4 servo MG996R bánh răng kim loại, mang lại lực kẹp và độ ổn định cao. "
-        "Do dòng khởi động của 4 servo khá lớn, nhóm sử dụng module mở rộng PCA9685 giao tiếp qua chuẩn I2C địa chỉ 0x40 ở tần số 50Hz, "
-        "được cấp nguồn rời từ 5 đến 6V độc lập với Arduino. Dữ liệu điều khiển được truyền từ máy tính xử lý trung tâm xuống Arduino "
-        "thông qua cáp USB hoặc module Bluetooth HC-05 gắn ở chân D2 và D3 với tốc độ 9600 baud."
-    )
-
-
-# ==============================================================================
-# SLIDE 4: KIẾN TRÚC PHẦN MỀM VÀ LUỒNG XỬ LÝ
-# ==============================================================================
-def build_slide_4(prs):
-    slide = add_slide_with_bg(prs)
-    add_header(slide, "KIẾN TRÚC PHẦN MỀM", "KIẾN TRÚC PHẦN MỀM VÀ LUỒNG DỮ LIỆU THỜI GIAN THỰC")
-    add_footer(slide, 4)
-
-    # Sơ đồ khối Native PowerPoint Shapes
-    # Hàng 1: Hai camera đầu vào
-    cam1 = add_card(slide, Inches(0.8), Inches(1.7), Inches(2.5), Inches(1.0), bg_color=RGBColor(32, 35, 40), border_color=AMBER)
-    b_c1 = slide.shapes.add_textbox(Inches(0.8), Inches(1.7), Inches(2.5), Inches(1.0))
-    tf_c1 = b_c1.text_frame
-    tf_c1.vertical_anchor = MSO_ANCHOR.MIDDLE
-    p = tf_c1.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    p.text = "Cam 1: Ngang (Webcam)\nCameraStream (Buffer=1)"
-    p.font.name = FONT_MAIN
-    p.font.size = Pt(14)
-    p.font.bold = True
-    p.font.color.rgb = PRIMARY_TEXT
-
-    cam2 = add_card(slide, Inches(0.8), Inches(3.0), Inches(2.5), Inches(1.0), bg_color=RGBColor(32, 35, 40), border_color=AMBER)
-    b_c2 = slide.shapes.add_textbox(Inches(0.8), Inches(3.0), Inches(2.5), Inches(1.0))
-    tf_c2 = b_c2.text_frame
-    tf_c2.vertical_anchor = MSO_ANCHOR.MIDDLE
-    p = tf_c2.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    p.text = "Cam 2: Trên (Điện thoại)\nCameraStream (Buffer=1)"
-    p.font.name = FONT_MAIN
-    p.font.size = Pt(14)
-    p.font.bold = True
-    p.font.color.rgb = PRIMARY_TEXT
-
-    # Mũi tên từ 2 Cam vào Tracker
-    add_arrow(slide, Inches(3.4), Inches(2.6), Inches(0.6), Inches(0.3), color=AMBER)
-
-    # Khối 2: ArucoYoloTracker
-    tracker = add_card(slide, Inches(4.1), Inches(1.9), Inches(2.8), Inches(1.8), bg_color=RGBColor(32, 35, 40), border_color=GREEN)
-    b_tr = slide.shapes.add_textbox(Inches(4.1), Inches(1.9), Inches(2.8), Inches(1.8))
-    tf_tr = b_tr.text_frame
-    tf_tr.vertical_anchor = MSO_ANCHOR.MIDDLE
-    p = tf_tr.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    p.text = "ArucoYoloTracker\n• YOLO11s (Luồng nền)\n• ArUco ID 0-3 góc A4\n• Homography (px → cm)\n• Lọc SMA-10 khung hình"
-    p.font.name = FONT_MAIN
-    p.font.size = Pt(14)
-    p.font.color.rgb = PRIMARY_TEXT
-
-    # Mũi tên từ Tracker vào GraspAssist
-    add_arrow(slide, Inches(7.0), Inches(2.6), Inches(0.6), Inches(0.3), color=GREEN)
-
-    # Khối 3: GraspAssist4DOF
-    assist = add_card(slide, Inches(7.5), Inches(1.7), Inches(5.0), Inches(2.2), bg_color=RGBColor(35, 42, 38), border_color=GREEN)
-    b_as = slide.shapes.add_textbox(Inches(7.5), Inches(1.7), Inches(5.0), Inches(2.2))
-    tf_as = b_as.text_frame
-    tf_as.vertical_anchor = MSO_ANCHOR.MIDDLE
-    tf_as.margin_left = tf_as.margin_right = tf_as.margin_top = tf_as.margin_bottom = 0
-    p = tf_as.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    p.text = "GraspAssist4DOF (Bộ điều phối trung tâm)\n• Động học ngược giải tích IK (Nghiệm khuỷu lên)\n• Máy trạng thái 5 bước gắp (Điểm chờ → Kiểm tra)\n• Phím bấm WASD/IK/JL bước 5° & Auto-Step (P)\n• Xác nhận 2 camera S1 + S2 (80%, Timeout 3s)"
-    p.font.name = FONT_MAIN
-    p.font.size = Pt(14)
-    p.font.color.rgb = PRIMARY_TEXT
-
-    # Phân nhánh xuống giao tiếp phần cứng và hiển thị
-    add_arrow(slide, Inches(8.5), Inches(4.0), Inches(0.3), Inches(0.5), color=AMBER, direction="down")
-    add_arrow(slide, Inches(11.0), Inches(4.0), Inches(0.3), Inches(0.5), color=GREEN, direction="down")
-
-    # Khối 4: Giao tiếp phần cứng Arduino
-    hw_card = add_card(slide, Inches(6.8), Inches(4.6), Inches(3.6), Inches(1.9), bg_color=RGBColor(32, 35, 40), border_color=BORDER_COLOR)
-    b_hw = slide.shapes.add_textbox(Inches(6.8), Inches(4.6), Inches(3.6), Inches(1.9))
-    tf_hw = b_hw.text_frame
-    tf_hw.vertical_anchor = MSO_ANCHOR.MIDDLE
-    tf_hw.margin_left = tf_hw.margin_right = tf_hw.margin_top = tf_hw.margin_bottom = 0
-    p = tf_hw.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    p.text = "ArduinoSerialLink & Phần cứng\n• USB Serial / Bluetooth HC-05 (9600)\n• Gói tin JSON trạng thái góc 5Hz\n• PCA9685 I2C 0x40 50Hz\n• 4x Servo MG996R"
-    p.font.name = FONT_MAIN
-    p.font.size = Pt(14)
-    p.font.color.rgb = PRIMARY_TEXT
-
-    # Khối 5: Giao diện hiển thị kép
-    ui_card = add_card(slide, Inches(10.6), Inches(4.6), Inches(1.9), Inches(1.9), bg_color=RGBColor(32, 35, 40), border_color=AMBER)
-    b_ui = slide.shapes.add_textbox(Inches(10.6), Inches(4.6), Inches(1.9), Inches(1.9))
-    tf_ui = b_ui.text_frame
-    tf_ui.vertical_anchor = MSO_ANCHOR.MIDDLE
-    tf_ui.margin_left = tf_ui.margin_right = tf_ui.margin_top = tf_ui.margin_bottom = 0
-    p = tf_ui.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    p.text = "Giao diện kép\n• Thanh HUD\n  (1280 × 175)\n• Cửa sổ Hướng dẫn\n  (1280 × 800)"
-    p.font.name = FONT_MAIN
-    p.font.size = Pt(14)
-    p.font.color.rgb = PRIMARY_TEXT
-
-    # Khối tóm tắt đặc tính kiến trúc (Bên trái dưới)
-    summary_card = add_card(slide, Inches(0.8), Inches(4.4), Inches(5.8), Inches(2.1))
-    b_sm = slide.shapes.add_textbox(Inches(1.0), Inches(4.5), Inches(5.4), Inches(1.9))
-    tf_sm = b_sm.text_frame
-    tf_sm.word_wrap = True
-    tf_sm.margin_left = tf_sm.margin_right = tf_sm.margin_top = tf_sm.margin_bottom = 0
-    p_sm = tf_sm.paragraphs[0]
-    p_sm.text = "ĐẶC ĐIỂM THIẾT KẾ ĐA LUỒNG & CHỐNG TRỄ"
-    p_sm.font.name = FONT_MAIN
-    p_sm.font.size = Pt(16)
-    p_sm.font.bold = True
-    p_sm.font.color.rgb = AMBER
-    p_sm.space_after = Pt(6)
-
-    bullets = [
-        "Zero-latency buffer: CameraStream duy trì buffersize=1, chống tích tụ trễ khung hình.",
-        "YOLO Worker nền: Tách biệt luồng nhận diện AI giúp giao diện luôn giữ mượt mà 30+ FPS.",
-        "Watchdog 4s: Tự động khởi động lại camera nếu mất tín hiệu video."
-    ]
-    for b in bullets:
-        p = tf_sm.add_paragraph()
-        p.text = f"• {b}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(4)
-
-    set_speaker_notes(slide,
-        "Kiến trúc phần mềm của hệ thống được tổ chức hoàn toàn theo hướng đa luồng để triệt tiêu độ trễ hình ảnh. "
-        "Luồng CameraStream liên tục bắt khung hình mới nhất từ 2 camera, trong khi mô hình YOLO11 chạy trên một worker riêng "
-        "để không gây sụt giảm FPS hiển thị. Tọa độ vật thể được ánh xạ từ pixel sang centimet thông qua ma trận Homography, "
-        "sau đó đưa vào module GraspAssist4DOF để tính toán động học ngược. Kết quả góc quay được đồng bộ hai chiều với Arduino "
-        "qua giao thức JSON ở tần số 5Hz và hiển thị trực quan lên cửa sổ hướng dẫn."
-    )
-
-
-# ==============================================================================
-# SLIDE 5: THIẾT LẬP KHÔNG GIAN BÀN VÀ LƯỚI MÃ ARUCO
-# ==============================================================================
-def build_slide_5(prs):
-    slide = add_slide_with_bg(prs)
-    add_header(slide, "HỆ TỌA ĐỘ & ĐỊNH VỊ", "THIẾT LẬP KHÔNG GIAN BÀN VÀ LƯỚI MÃ ARUCO")
-    add_footer(slide, 5)
-
-    col_w = Inches(3.7)
-    col_h = Inches(5.18)
-    cols_x = [Inches(0.8), Inches(4.816), Inches(8.833)]
-
-    # Cột 1: Tờ A4 & 4 góc ArUco
-    add_card(slide, cols_x[0], Inches(1.60), col_w, col_h)
-    box1 = slide.shapes.add_textbox(cols_x[0] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf1 = box1.text_frame
-    tf1.word_wrap = True
-    tf1.margin_left = tf1.margin_right = tf1.margin_top = tf1.margin_bottom = 0
-    p1 = tf1.paragraphs[0]
-    p1.text = "LƯỚI ARUCO TỜ A4"
-    p1.font.name = FONT_MAIN
-    p1.font.size = Pt(20)
-    p1.font.bold = True
-    p1.font.color.rgb = AMBER
-    p1.space_after = Pt(8)
-
-    items1 = [
-        "Khổ giấy A4 đặt ngang: Rộng W = 29.7 cm, Dài H = 21.0 cm.",
-        "Bộ từ điển ArUco: DICT_4X4_50 (50 mã 4x4 bit, nhận diện nhanh).",
-        "Kích thước mã in: 2.8 x 2.8 cm, đặt cách mép giấy 0.25 cm.",
-        "ID 0 (Góc Trên-Trái): Gốc O (0.0, 0.0 cm).",
-        "ID 1 (Góc Trên-Phải): Trục X (29.7, 0.0 cm).",
-        "ID 2 (Góc Dưới-Phải): Điểm cực (29.7, 21.0 cm).",
-        "ID 3 (Góc Dưới-Trái): Trục Y (0.0, 21.0 cm)."
-    ]
-    for item in items1:
-        p = tf1.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(5)
-
-    # Cột 2: Phân bổ mã ArUco toàn hệ thống
-    add_card(slide, cols_x[1], Inches(1.60), col_w, col_h)
-    box2 = slide.shapes.add_textbox(cols_x[1] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf2 = box2.text_frame
-    tf2.word_wrap = True
-    tf2.margin_left = tf2.margin_right = tf2.margin_top = tf2.margin_bottom = 0
-    p2 = tf2.paragraphs[0]
-    p2.text = "PHÂN BỔ MÃ TOÀN HỆ THỐNG"
-    p2.font.name = FONT_MAIN
-    p2.font.size = Pt(20)
-    p2.font.bold = True
-    p2.font.color.rgb = GREEN
-    p2.space_after = Pt(8)
-
-    items2 = [
-        "ID 4 (Đế Robot): Tự động hiệu chỉnh tọa độ base_x_cm, base_y_cm.",
-        "ID 5 (Đầu kẹp - Cam trên): Phản hồi vị trí kẹp thực tế (Closed-loop).",
-        "ID 6 (Đầu kẹp - Cam ngang): Loại trừ khỏi S1 để chống báo gắp giả.",
-        "ID 10–13: Vật mẫu (Hộp vuông 40mm, Hộp xanh 35x50mm, Hộp đỏ 30x60mm, Trụ 35x50mm).",
-        "ID 14–29: Dải mã dự phòng cho các vật thể kiểm thử khác (35x35x40 mm)."
-    ]
-    for item in items2:
-        p = tf2.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(6)
-
-    # Cột 3: Giải thuật Homography & Dự phòng
-    add_card(slide, cols_x[2], Inches(1.60), col_w, col_h)
-    box3 = slide.shapes.add_textbox(cols_x[2] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf3 = box3.text_frame
-    tf3.word_wrap = True
-    tf3.margin_left = tf3.margin_right = tf3.margin_top = tf3.margin_bottom = 0
-    p3 = tf3.paragraphs[0]
-    p3.text = "HOMOGRAPHY & DỰ PHÒNG"
-    p3.font.name = FONT_MAIN
-    p3.font.size = Pt(20)
-    p3.font.bold = True
-    p3.font.color.rgb = AMBER
-    p3.space_after = Pt(8)
-
-    items3 = [
-        "Ma trận Homography H: Chuyển đổi chính xác tọa độ pixel sang cm mặt bàn.",
-        "Ánh xạ 8–16 điểm góc: Khớp 4 điểm góc của các mã ArUco thật với tọa độ cm.",
-        "Ma trận nghịch đảo H_inv: Chiếu ngược tọa độ centimet lên pixel để vẽ thước đo.",
-        "Dự phòng phân đoạn màu LAB: Tách nền giấy trắng (L:130-255, A:0-134, B:125-255) khi che mã.",
-        "Gán ArUco ảo: Dán mã ảo bù trừ viền Quiet Zone nếu chưa in mã thật."
-    ]
-    for item in items3:
-        p = tf3.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(5)
-
-    set_speaker_notes(slide,
-        "Để xác định không gian làm việc một cách tuyệt đối, nhóm sử dụng một tờ giấy A4 đặt ngang kích thước 29.7 nhân 21 centimet làm mặt bàn chuẩn. "
-        "Bốn góc tờ giấy được in 4 mã ArUco thuộc bộ từ điển DICT_4X4_50 từ ID 0 đến ID 3, mỗi mã có kích thước 2.8 centimet và đặt cách mép 2.5 milimet để OpenCV dễ dàng bắt góc. "
-        "Hệ thống còn quy ước mã ID 4 gắn trên đế robot, mã ID 5 và 6 gắn trên đầu kẹp, cùng dải mã từ 10 đến 29 dành cho các vật thể. "
-        "Nếu có góc bị che khuất, thuật toán phân đoạn màu LAB sẽ tự động kích hoạt để tìm biên giấy dự phòng."
-    )
-
-
-# ==============================================================================
-# SLIDE 6: NHẬN DIỆN VẬT THỂ VÀ HỢP NHẤT DỮ LIỆU THỊ GIÁC
-# ==============================================================================
-def build_slide_6(prs):
-    slide = add_slide_with_bg(prs)
-    add_header(slide, "THỊ GIÁC MÁY TÍNH & AI", "NHẬN DIỆN VẬT THỂ VÀ HỢP NHẤT DỮ LIỆU THỊ GIÁC")
-    add_footer(slide, 6)
-
-    col_w = Inches(3.7)
-    col_h = Inches(5.18)
-    cols_x = [Inches(0.8), Inches(4.816), Inches(8.833)]
-
-    # Cột 1: YOLO11s Luồng nền
-    add_card(slide, cols_x[0], Inches(1.60), col_w, col_h)
-    box1 = slide.shapes.add_textbox(cols_x[0] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf1 = box1.text_frame
-    tf1.word_wrap = True
-    tf1.margin_left = tf1.margin_right = tf1.margin_top = tf1.margin_bottom = 0
-    p1 = tf1.paragraphs[0]
-    p1.text = "MÔ HÌNH YOLO11s"
-    p1.font.name = FONT_MAIN
-    p1.font.size = Pt(20)
-    p1.font.bold = True
-    p1.font.color.rgb = AMBER
-    p1.space_after = Pt(8)
-
-    items1 = [
-        "Mô hình học sâu: YOLO11s chạy suy luận trên luồng nền độc lập.",
-        "Vùng cắt A4: Cắt bao quanh tứ giác A4 (lề an toàn 10px), triệt nhiễu.",
-        "Tham số Cam trên: conf = 0.12, imgsz = 960 phát hiện vật nhỏ.",
-        "Lọc diện tích: Bỏ hộp quá lớn (> 40% A4) hoặc quá nhỏ (< 400 px²).",
-        "Kiểm tra mép: Tâm vật cách mép tờ A4 tối thiểu 15 px."
-    ]
-    for item in items1:
-        p = tf1.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(5)
-
-    # Cột 2: Dung hợp ArUco - YOLO11
-    add_card(slide, cols_x[1], Inches(1.60), col_w, col_h)
-    box2 = slide.shapes.add_textbox(cols_x[1] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf2 = box2.text_frame
-    tf2.word_wrap = True
-    tf2.margin_left = tf2.margin_right = tf2.margin_top = tf2.margin_bottom = 0
-    p2 = tf2.paragraphs[0]
-    p2.text = "DUNG HỢP DỮ LIỆU"
-    p2.font.name = FONT_MAIN
-    p2.font.size = Pt(20)
-    p2.font.bold = True
-    p2.font.color.rgb = GREEN
-    p2.space_after = Pt(8)
-
-    items2 = [
-        "Ưu tiên ArUco ID 10–29: Cung cấp chính xác kích thước 3 chiều (w, l, h).",
-        "Khử trùng lặp (Threshold < 2.5 cm): Nếu YOLO cách ArUco < 2.5 cm thì bỏ YOLO.",
-        "Bổ sung vật YOLO: Nếu cách xa >= 2.5 cm, gán nhãn YOLO:<cls> (35x40 mm).",
-        "Sắp xếp theo độ gần: Ưu tiên gắp vật thể có khoảng cách gần đế robot nhất.",
-        "Phím TAB / V: Chuyển đổi mục tiêu gắp cho người vận hành."
-    ]
-    for item in items2:
-        p = tf2.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(5)
-
-    # Cột 3: Bộ lọc SMA-10 & Xử lý Cam ngang
-    add_card(slide, cols_x[2], Inches(1.60), col_w, col_h)
-    box3 = slide.shapes.add_textbox(cols_x[2] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf3 = box3.text_frame
-    tf3.word_wrap = True
-    tf3.margin_left = tf3.margin_right = tf3.margin_top = tf3.margin_bottom = 0
-    p3 = tf3.paragraphs[0]
-    p3.text = "LỌC TỌA ĐỘ & CAM NGANG"
-    p3.font.name = FONT_MAIN
-    p3.font.size = Pt(20)
-    p3.font.bold = True
-    p3.font.color.rgb = AMBER
-    p3.space_after = Pt(8)
-
-    items3 = [
-        "Lọc trung bình trượt 10 khung hình: deque(maxlen=10) khử rung lắc.",
-        "Tọa độ cấp cho IK: Tính trung bình cộng của 10 vị trí gần nhất.",
-        "Nhận diện Cam ngang: conf = 0.20, imgsz = 640 lọc nhiễu bàn ghế, laptop.",
-        "Điểm chân đế vật: cy_base = y2 - 0.30*(y2 - y1) kiểm tra nằm vùng bàn.",
-        "Vạch tham chiếu mặt bàn: Tỉ lệ SIDE_TABLE_Y_RATIO = 0.54 xác định cao độ."
-    ]
-    for item in items3:
-        p = tf3.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(5)
-
-    set_speaker_notes(slide,
-        "Nhằm tối ưu độ chính xác và khả năng thích ứng linh hoạt, hệ thống kết hợp song song cả mô hình học sâu YOLO11s và mã ArUco. "
-        "Mô hình YOLO11s được cắt vùng xử lý sát bề mặt tờ A4 để loại bỏ nhiễu từ tay người hay bàn ghế xung quanh, trong khi các vật mẫu "
-        "dán mã ArUco ID 10 đến 29 sẽ cung cấp ngay kích thước ba chiều thật từ bảng cấu hình. Hai nguồn dữ liệu này được khử trùng lặp "
-        "với ngưỡng khoảng cách 2.5 centimet, sau đó làm mịn qua bộ lọc trung bình trượt 10 khung hình và ưu tiên gắp vật thể nằm gần đế robot nhất."
-    )
-
-
-# ==============================================================================
-# SLIDE 7: ĐỘNG HỌC CÁNH TAY ROBOT VÀ QUY ĐỔI SERVO
-# ==============================================================================
-def build_slide_7(prs):
-    slide = add_slide_with_bg(prs)
-    add_header(slide, "ĐỘNG HỌC ROBOT 4-DOF", "ĐỘNG HỌC CÁNH TAY ROBOT VÀ QUY ĐỔI SERVO ARDUINO")
-    add_footer(slide, 7)
-
-    col_w = Inches(3.7)
-    col_h = Inches(5.18)
-    cols_x = [Inches(0.8), Inches(4.816), Inches(8.833)]
-
-    # Cột 1: Kích thước cơ khí ARM_CONFIG
-    add_card(slide, cols_x[0], Inches(1.60), col_w, col_h)
-    box1 = slide.shapes.add_textbox(cols_x[0] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf1 = box1.text_frame
-    tf1.word_wrap = True
-    tf1.margin_left = tf1.margin_right = tf1.margin_top = tf1.margin_bottom = 0
-    p1 = tf1.paragraphs[0]
-    p1.text = "THÔNG SỐ CƠ KHÍ"
-    p1.font.name = FONT_MAIN
-    p1.font.size = Pt(20)
-    p1.font.bold = True
-    p1.font.color.rgb = AMBER
-    p1.space_after = Pt(8)
-
-    items1 = [
-        "Chiều cao trục vai d1: 70.0 mm (mặt bàn tới trục servo Vai).",
-        "Khâu vai L2: 105.0 mm (Upper arm: Trục Vai → Trục Khuỷu).",
-        "Khâu khuỷu L3: 100.0 mm (Forearm: Trục Khuỷu → Khớp kẹp).",
-        "Độ vươn kẹp L4_r: 65.0 mm (khoảng cách ngang tới tâm ngón).",
-        "Độ trễ kẹp L4_z: 25.0 mm (khoảng cách dọc hạ thấp đầu kẹp).",
-        "Tầm với: Tối đa L2 + L3 = 205.0 mm, tối thiểu |L2 - L3| = 5.0 mm."
-    ]
-    for item in items1:
-        p = tf1.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(5)
-
-    # Cột 2: Công thức Động học ngược giải tích
-    add_card(slide, cols_x[1], Inches(1.60), col_w, col_h)
-    box2 = slide.shapes.add_textbox(cols_x[1] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf2 = box2.text_frame
-    tf2.word_wrap = True
-    tf2.margin_left = tf2.margin_right = tf2.margin_top = tf2.margin_bottom = 0
-    p2 = tf2.paragraphs[0]
-    p2.text = "ĐỘNG HỌC NGƯỢC (IK)"
-    p2.font.name = FONT_MAIN
-    p2.font.size = Pt(20)
-    p2.font.bold = True
-    p2.font.color.rgb = GREEN
-    p2.space_after = Pt(8)
-
-    items2 = [
-        "Tâm cổ tay rw, zw: rw = max(5, r - L4_r), zw = (z + L4_z) - d1.",
-        "Định lý cosin: D = (rw² + zw² - L2² - L3²) / (2*L2*L3).",
-        "Điều kiện với tới: |D| <= 1.0 và r >= L4_r + 2.5 mm.",
-        "Nghiệm khuỷu lên (Elbow-up): sin(θ3) <= 0 tránh chạm bàn:",
-        "θ3 = atan2(-sqrt(1 - D²), D)",
-        "θ2 = atan2(zw, rw) - atan2(L3*sin(θ3), L2 + L3*cos(θ3))",
-        "Góc xoay đế: θ1 = atan2(y, x) tính theo tọa độ robot."
-    ]
-    for item in items2:
-        p = tf2.add_paragraph()
-        p.text = f"• {item}" if not item.startswith("θ") else f"   {item}"
-        p.font.name = FONT_CODE if item.startswith("θ") or "D =" in item else FONT_MAIN
-        p.font.size = Pt(14)
-        p.font.color.rgb = AMBER if item.startswith("θ") else PRIMARY_TEXT
-        p.space_after = Pt(4)
-
-    # Cột 3: Ánh xạ Servo Arduino & Giới hạn
-    add_card(slide, cols_x[2], Inches(1.60), col_w, col_h)
-    box3 = slide.shapes.add_textbox(cols_x[2] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf3 = box3.text_frame
-    tf3.word_wrap = True
-    tf3.margin_left = tf3.margin_right = tf3.margin_top = tf3.margin_bottom = 0
-    p3 = tf3.paragraphs[0]
-    p3.text = "QUY ĐỔI SERVO ARDUINO"
-    p3.font.name = FONT_MAIN
-    p3.font.size = Pt(20)
-    p3.font.bold = True
-    p3.font.color.rgb = AMBER
-    p3.space_after = Pt(8)
-
-    items3 = [
-        "Quy ước chuẩn 90°: θ2 = 45.0°, θ3 = -45.0° (vị trí cân bằng).",
-        "Servo Đế: raw_base = 90.0 + θ1 (Dải [0°, 180°]).",
-        "Servo Vai: raw_shoulder = 90.0 + (θ2 - 45.0°) (Dải [25°, 155°]).",
-        "Servo Khuỷu: raw_elbow = 90.0 + (θ3 + 45.0°) (Dải [25°, 155°]).",
-        "Servo Kẹp: Mở 95° – 125°, Kẹp chặt 165° (Dải [95°, 175°]).",
-        "Lượng tử hóa: SERVO_STEP_DEG = 5° (snap_and_clamp).",
-        "Cảnh báo đỏ: Khi góc yêu cầu chạm giới hạn cứng."
-    ]
-    for item in items3:
-        p = tf3.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(4)
-
-    set_speaker_notes(slide,
-        "Cấu trúc cơ học của cánh tay được xác định bởi các thông số thực tế đo bằng thước: chiều cao khớp vai d1 bằng 70mm, "
-        "khâu vai L2 dài 105mm, khâu khuỷu L3 dài 100mm, cùng độ vươn đầu kẹp L4r bằng 65mm. Thuật toán IK giải tích chọn nghiệm "
-        "khuỷu hướng lên để tối ưu không gian vận động và tránh va quẹt với mặt bàn. Các góc khớp sau khi giải sẽ được ánh xạ sang góc xung servo "
-        "với quy ước chuẩn 90 độ tương ứng theta2 bằng 45 độ và theta3 bằng âm 45 độ, sau đó làm tròn theo bước nhảy 5 độ nằm trong dải giới hạn an toàn tuyệt đối."
-    )
-
-
-# ==============================================================================
-# SLIDE 8: CHUYỂN ĐỔI HỆ TỌA ĐỘ VÀ VÙNG LÀM VIỆC AN TOÀN
-# ==============================================================================
-def build_slide_8(prs):
-    slide = add_slide_with_bg(prs)
-    add_header(slide, "KHÔNG GIAN BÀN & AN TOÀN", "CHUYỂN ĐỔI HỆ TỌA ĐỘ VÀ VÙNG LÀM VIỆC AN TOÀN")
-    add_footer(slide, 8)
-
-    # Bố cục 2 cột
-    card_l = add_card(slide, Inches(0.8), Inches(1.60), Inches(5.7), Inches(5.18))
-    box_lh = slide.shapes.add_textbox(Inches(1.1), Inches(1.75), Inches(5.1), Inches(0.45))
-    tf_lh = box_lh.text_frame
-    tf_lh.margin_left = tf_lh.margin_top = tf_lh.margin_right = tf_lh.margin_bottom = 0
-    p_lh = tf_lh.paragraphs[0]
-    p_lh.text = "CHUYỂN ĐỔI TỌA ĐỘ A4 → ROBOT"
-    p_lh.font.name = FONT_MAIN
-    p_lh.font.size = Pt(20)
-    p_lh.font.bold = True
-    p_lh.font.color.rgb = AMBER
-
-    box_lc = slide.shapes.add_textbox(Inches(1.1), Inches(2.25), Inches(5.1), Inches(4.4))
-    tf_lc = box_lc.text_frame
-    tf_lc.word_wrap = True
-    tf_lc.margin_left = tf_lc.margin_top = tf_lc.margin_right = tf_lc.margin_bottom = 0
-
-    items_l = [
-        "Vị trí Đế Robot trên tờ A4: base_x_cm = 18.0, base_y_cm = -13.6 cm.",
-        "Hướng đặt: robot_faces = 'down' (đế mép trên, vươn xuống bàn, hệ số s = -1.0).",
-        "Công thức tọa độ Robot (mm):",
-        "x_robot_mm = (y_cm - base_y_cm) * 10 = (y_cm + 13.6) * 10",
-        "y_robot_mm = (x_cm - base_x_cm) * 10 = (x_cm - 18.0) * 10",
-        "Chiều trục: +X_robot vươn sâu vào giấy, +Y_robot hướng sang bên trái.",
-        "Thuận nghịch: robot_mm_to_table_cm() ánh xạ ngược chính xác sai số < 1e-9 cm."
-    ]
-    for item in items_l:
-        p = tf_lc.add_paragraph()
-        p.text = item if item.startswith("x_") or item.startswith("y_") else f"• {item}"
-        p.font.name = FONT_CODE if "x_" in item or "y_" in item else FONT_MAIN
-        p.font.size = Pt(15)
-        p.font.color.rgb = AMBER if "x_" in item or "y_" in item else PRIMARY_TEXT
-        p.space_after = Pt(5)
-
-    card_r = add_card(slide, Inches(6.833), Inches(1.60), Inches(5.7), Inches(5.18))
-    box_rh = slide.shapes.add_textbox(Inches(7.133), Inches(1.75), Inches(5.1), Inches(0.45))
-    tf_rh = box_rh.text_frame
-    tf_rh.margin_left = tf_rh.margin_top = tf_rh.margin_right = tf_rh.margin_bottom = 0
-    p_rh = tf_rh.paragraphs[0]
-    p_rh.text = "KIỂM SOÁT VÙNG AN TOÀN & CẢNH BÁO"
-    p_rh.font.name = FONT_MAIN
-    p_rh.font.size = Pt(20)
-    p_rh.font.bold = True
-    p_rh.font.color.rgb = GREEN
-
-    box_rc = slide.shapes.add_textbox(Inches(7.133), Inches(2.25), Inches(5.1), Inches(4.4))
-    tf_rc = box_rc.text_frame
-    tf_rc.word_wrap = True
-    tf_rc.margin_left = tf_rc.margin_top = tf_rc.margin_right = tf_rc.margin_bottom = 0
-
-    items_r = [
-        "Tầm với tối đa: max_reach = 205.0 mm (khoảng cách cổ tay rw² + zw²).",
-        "Tầm với tối thiểu: min_reach = 5.0 mm (tránh điểm kỳ dị khâu gập sát đế).",
-        "Cảnh báo NGOÀI TẦM VỚI: Hiển thị chữ đỏ rực rỡ khi khoảng cách dist > 205.0 mm.",
-        "Khoảng cách dời vật: move_closer_mm = dist - (max_reach - 2.0 mm) báo số mm cần đẩy lại gần.",
-        "Cảnh báo kẹp servo: Phát hiện khi góc yêu cầu vượt ngưỡng [lo - 2.5°, hi + 2.5°].",
-        "Cập nhật vị trí đế qua ID 4: Tự động hiệu chỉnh lại base_x, base_y nếu tờ A4 bị xê dịch."
-    ]
-    for item in items_r:
-        p = tf_rc.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(15)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(5)
-
-    set_speaker_notes(slide,
-        "Do camera đo đạc vật thể trên hệ tọa độ centimet của tờ giấy A4, hệ thống cần chuyển đổi sang hệ quy chiếu milimet lấy gốc tại đế robot. "
-        "Trong bố cục hiện tại, robot đặt ở mép trên tại tọa độ X bằng 18 và Y bằng âm 13.6 centimet, vươn xuống với cấu hình robot_faces bằng 'down'. "
-        "Nếu mục tiêu nằm ngoài tầm với tối đa 205 milimet, hệ thống sẽ phát cảnh báo đỏ và tính toán chính xác số milimet cần dịch chuyển vật lại gần, "
-        "đồng thời phát hiện kịp thời các trường hợp góc khớp bị chạm giới hạn cơ khí."
-    )
-
-
-# ==============================================================================
-# SLIDE 9: QUY TRÌNH GẮP 5 BƯỚC VÀ THỨ TỰ THAO TÁC AN TOÀN
-# ==============================================================================
-def build_slide_9(prs):
-    slide = add_slide_with_bg(prs)
-    add_header(slide, "QUY TRÌNH GẮP VẬT", "QUY TRÌNH GẮP 5 BƯỚC VÀ THỨ TỰ THAO TÁC AN TOÀN")
-    add_footer(slide, 9)
-
-    # 5 Khối Stepper ngang
-    step_w = Inches(2.05)
-    step_h = Inches(1.85)
-    arrow_w = Inches(0.35)
-    start_x = Inches(0.8)
-    gap_x = Inches(0.4)
-
-    steps_info = [
-        ("1. ĐIỂM CHỜ", "Cao +60mm", "Mở kẹp (J)", "Đưa kẹp trên cao", AMBER),
-        ("2. HẠ XUỐNG", "Sát thân vật", "Kẹp mở", "Căn tâm đầu kẹp", AMBER),
-        ("3. ĐÓNG KẸP", "Khóa vật", "Phím L (165°)", "Khóa mục tiêu", GREEN),
-        ("4. NÂNG LÊN", "Cao +80mm", "Giữ kẹp chặt", "Nhấc khỏi mặt bàn", AMBER),
-        ("5. KIỂM TRA", "Cửa sổ 30f", "2 Camera S1+S2", "Thẩm định kết quả", GREEN),
-    ]
-
-    for i, (title, sub1, sub2, sub3, col) in enumerate(steps_info):
-        x = start_x + i * (step_w + arrow_w)
-        card = add_card(slide, x, Inches(1.65), step_w, step_h, bg_color=RGBColor(32, 35, 40), border_color=col, border_width=1.2)
-        box = slide.shapes.add_textbox(x, Inches(1.65), step_w, step_h)
-        tf = box.text_frame
-        tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-        p = tf.paragraphs[0]
-        p.alignment = PP_ALIGN.CENTER
-        p.text = f"{title}\n{sub1}\n{sub2}\n{sub3}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(13)
-        p.font.bold = True
-        p.font.color.rgb = PRIMARY_TEXT
-
-        if i < 4:
-            add_arrow(slide, x + step_w + Inches(0.05), Inches(2.4), arrow_w - Inches(0.1), Inches(0.25), color=BORDER_COLOR)
-
-    # Thẻ lớn phía dưới: Thứ tự an toàn và Phím bấm Keycap
-    lower_card = add_card(slide, Inches(0.8), Inches(3.75), Inches(11.733), Inches(2.95))
-    lh_box = slide.shapes.add_textbox(Inches(1.1), Inches(3.9), Inches(11.133), Inches(0.45))
-    tf_lh = lh_box.text_frame
-    p_lh = tf_lh.paragraphs[0]
-    p_lh.text = "THỨ TỰ ĐIỀU KHIỂN KHỚP AN TOÀN & BẢNG PHÍM TẮT KEYCAP"
-    p_lh.font.name = FONT_MAIN
-    p_lh.font.size = Pt(19)
-    p_lh.font.bold = True
-    p_lh.font.color.rgb = AMBER
-
-    # 4 Hàng thứ tự an toàn: Đế (0) -> Kẹp (3) -> Vai (1) -> Khuỷu (2)
-    rows_data = [
-        ("ƯU TIÊN 1", "ĐẾ XOAY (Kênh 0)", "Quay trái (+5°) / Quay phải (-5°)", ["A", "D"], Inches(4.5)),
-        ("ƯU TIÊN 2", "KẸP GẮP (Kênh 3)", "Mở kẹp (-5°) / Kẹp chặt (+5°)", ["J", "L"], Inches(5.0)),
-        ("ƯU TIÊN 3", "KHỚP VAI (Kênh 1)", "Nâng vai lên (+5°) / Hạ vai (-5°)", ["W", "S"], Inches(5.5)),
-        ("ƯU TIÊN 4", "KHỚP KHUỶU (Kênh 2)", "Gập khuỷu lên (+5°) / Duỗi hạ (-5°)", ["I", "K"], Inches(6.0)),
-    ]
-
-    for prio, joint, desc, keys, y_pos in rows_data:
-        # Nhãn thứ tự
-        t_box = slide.shapes.add_textbox(Inches(1.1), y_pos, Inches(1.5), Inches(0.4))
-        p = t_box.text_frame.paragraphs[0]
-        p.text = prio
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14)
-        p.font.bold = True
-        p.font.color.rgb = GREEN
-
-        # Tên khớp
-        j_box = slide.shapes.add_textbox(Inches(2.6), y_pos, Inches(2.5), Inches(0.4))
-        p = j_box.text_frame.paragraphs[0]
-        p.text = joint
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(15)
-        p.font.bold = True
-        p.font.color.rgb = PRIMARY_TEXT
-
-        # Mô tả
-        d_box = slide.shapes.add_textbox(Inches(5.2), y_pos, Inches(3.8), Inches(0.4))
-        p = d_box.text_frame.paragraphs[0]
-        p.text = desc
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14)
-        p.font.color.rgb = MUTED_TEXT
-
-        # Vẽ Keycap
-        add_keycap(slide, Inches(9.2), y_pos, keys[0])
-        add_keycap(slide, Inches(9.8), y_pos, keys[1])
-
-    # Chế độ Auto-Step và phím Space
-    auto_box = slide.shapes.add_textbox(Inches(10.5), Inches(4.5), Inches(1.8), Inches(1.9))
-    tf_au = auto_box.text_frame
-    tf_au.word_wrap = True
-    p_au = tf_au.paragraphs[0]
-    p_au.text = "TỰ ĐỘNG BƯỚC\nAuto-Step (Phím P)\nPhát 1 phím / 0.28s\ntheo đúng thứ tự an toàn."
-    p_au.font.name = FONT_MAIN
-    p_au.font.size = Pt(13)
-    p_au.font.color.rgb = AMBER
-    add_keycap(slide, Inches(11.0), Inches(5.7), "P")
-
-    set_speaker_notes(slide,
-        "Quy trình gắp vật được chia thành 5 bước tuần tự chặt chẽ: bắt đầu bằng việc đưa tay tới điểm chờ cao hơn vật 60mm với kẹp mở, "
-        "hạ xuống sát tâm vật, bấm phím L để kẹp chặt ở góc 165 độ, nâng bổng vật lên 80mm và cuối cùng là giữ yên để kiểm tra. "
-        "Để đảm bảo an toàn tuyệt đối, hệ thống quy định thứ tự dịch chuyển các khớp là Đế trước, rồi tới Kẹp, sau đó mới tới Vai và Khuỷu "
-        "nhằm tránh va chạm ngang vào các vật lân cận. Người dùng có thể nhấn phím P để hệ thống tự động phát xung phím sau mỗi 0.28 giây theo đúng trình tự này."
-    )
-
-
-# ==============================================================================
-# ==============================================================================
-# SLIDE 10: CƠ CHẾ TỰ ĐỘNG XÁC NHẬN GẮP 2 CAMERA ĐỘC LẬP
-# ==============================================================================
-def build_slide_10(prs):
-    slide = add_slide_with_bg(prs)
-    add_header(slide, "TỰ ĐỘNG XÁC NHẬN GẮP", "CƠ CHẾ TỰ ĐỘNG XÁC NHẬN GẮP 2 CAMERA ĐỘC LẬP")
-    add_footer(slide, 10)
-
-    # 3 Cột logic xác nhận
-    col_w = Inches(3.7)
-    col_h = Inches(5.18)
-    cols_x = [Inches(0.8), Inches(4.816), Inches(8.833)]
-
-    # Cột 1: Cảm biến S1 và S2
-    add_card(slide, cols_x[0], Inches(1.60), col_w, col_h)
-    box1 = slide.shapes.add_textbox(cols_x[0] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf1 = box1.text_frame
-    tf1.word_wrap = True
-    tf1.margin_left = tf1.margin_right = tf1.margin_top = tf1.margin_bottom = 0
-    p1 = tf1.paragraphs[0]
-    p1.text = "HAI KÊNH CẢM BIẾN ĐỘC LẬP"
-    p1.font.name = FONT_MAIN
-    p1.font.size = Pt(19)
-    p1.font.bold = True
-    p1.font.color.rgb = AMBER
-    p1.space_after = Pt(8)
-
-    items1 = [
-        "Kênh S1 (Cam B - Ngang): Phát hiện vật thể nhấc cao hơn mặt bàn > +20 mm.",
-        "Vạch bàn: SIDE_TABLE_Y_RATIO = 0.54, ngưỡng nâng: SIDE_LIFT_RATIO = 0.065.",
-        "LOẠI TRỪ MÃ ID 6: Tuyệt đối không tính mã đầu kẹp (chỉ tính ID 10–29 / YOLO).",
-        "Kênh S2 (Cam A - Trên xuống): Kiểm tra vị trí cũ (locked_grasp_cm) có trống không.",
-        "Bán kính r = 3.0 cm: Quét dọn chỗ cũ hoàn toàn sạch bóng vật thể."
-    ]
-    for item in items1:
-        p = tf1.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(5)
-
-    # Cột 2: Cửa sổ 30 khung hình & Đồng thuận >= 80%
-    add_card(slide, cols_x[1], Inches(1.60), col_w, col_h)
-    box2 = slide.shapes.add_textbox(cols_x[1] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf2 = box2.text_frame
-    tf2.word_wrap = True
-    tf2.margin_left = tf2.margin_right = tf2.margin_top = tf2.margin_bottom = 0
-    p2 = tf2.paragraphs[0]
-    p2.text = "CỬA SỔ ĐỒNG THUẬN 80%"
-    p2.font.name = FONT_MAIN
-    p2.font.size = Pt(19)
-    p2.font.bold = True
-    p2.font.color.rgb = GREEN
-    p2.space_after = Pt(8)
-
-    items2 = [
-        "Cửa sổ trượt: deque(maxlen=30) lưu kết quả từng khung hình của S1 và S2.",
-        "Tỉ lệ đồng thuận: s1_ratio = sum(s1)/30, s2_ratio = sum(s2)/30.",
-        "Điều kiện THÀNH CÔNG: Số khung >= 15 và đồng thời s1_ratio >= 0.80 VÀ s2_ratio >= 0.80.",
-        "Thời gian Timeout: Giới hạn tối đa 3.0 giây ở Bước 5.",
-        "Biểu ngữ: 'GAP THANH CONG: Cam A + Cam B deu thay vat da roi ban!'"
-    ]
-    for item in items2:
-        p = tf2.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(5)
-
-    # Cột 3: Cây quyết định phân loại lỗi & Log CSV
-    add_card(slide, cols_x[2], Inches(1.60), col_w, col_h)
-    box3 = slide.shapes.add_textbox(cols_x[2] + Inches(0.2), Inches(1.75), col_w - Inches(0.4), col_h - Inches(0.3))
-    tf3 = box3.text_frame
-    tf3.word_wrap = True
-    tf3.margin_left = tf3.margin_right = tf3.margin_top = tf3.margin_bottom = 0
-    p3 = tf3.paragraphs[0]
-    p3.text = "PHÂN LOẠI LỖI & NHẬT KÝ"
-    p3.font.name = FONT_MAIN
-    p3.font.size = Pt(19)
-    p3.font.bold = True
-    p3.font.color.rgb = RED
-    p3.space_after = Pt(8)
-
-    items3 = [
-        "Phân loại lỗi khi hết 3.0s Timeout:",
-        "1. Kẹp trượt (s2 < 0.40): Vật vẫn ở vị trí cũ (kep_truot_vat_van_o_cho_cu).",
-        "2. Rơi khi nâng (s1 < 0.40): Cam B không thấy vật (roi_khi_nang_hoac_chua_nhac_len).",
-        "3. Không xác định: Bị che khuất tầm nhìn (khong_xac_dinh_bi_che).",
-        "Ghi nhật ký attempts.csv: Timestamp, tên vật, tọa độ, sai số align_error_mm, S1/S2."
-    ]
-    for item in items3:
-        p = tf3.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(5)
-
-    set_speaker_notes(slide,
-        "Điểm sáng tạo cốt lõi của đề tài là cơ chế tự động xác nhận kết quả gắp độc lập bằng 2 camera mà không cần gắn thêm cảm biến áp lực phức tạp. "
-        "Camera ngang kiểm tra tín hiệu S1 xem vật đã nâng cao hơn mặt bàn 20mm hay chưa, trong đó thuật toán đặc biệt loại trừ mã ID 6 của đầu kẹp "
-        "để tránh trường hợp kẹp rỗng nâng lên bị báo nhầm là thành công. Cùng lúc đó, camera trên kiểm tra tín hiệu S2 xem vị trí cũ trong bán kính 3 centimet "
-        "đã hoàn toàn trống hay chưa. Nếu cả hai camera đồng thuận đạt từ 80% trên tổng số 30 khung hình, hệ thống sẽ công nhận thành công và tự động ghi log sai số vào CSV."
-    )
-
-
-# ==============================================================================
-# SLIDE 11: GIAO THỨC TRUYỀN THÔNG VÀ ĐỒNG BỘ ARDUINO
-# ==============================================================================
-def build_slide_11(prs):
-    slide = add_slide_with_bg(prs)
-    add_header(slide, "TRUYỀN THÔNG & ĐỒNG BỘ", "GIAO THỨC TRUYỀN THÔNG VÀ ĐỒNG BỘ ARDUINO")
-    add_footer(slide, 11)
-
-    # Sơ đồ truyền thông 3 khối ngang phía trên
-    box_l = add_card(slide, Inches(0.8), Inches(1.65), Inches(3.4), Inches(1.5), bg_color=RGBColor(32, 35, 40), border_color=AMBER)
-    b_l = slide.shapes.add_textbox(Inches(0.8), Inches(1.65), Inches(3.4), Inches(1.5))
-    tf_l = b_l.text_frame
-    tf_l.vertical_anchor = MSO_ANCHOR.MIDDLE
-    tf_l.margin_left = tf_l.margin_right = tf_l.margin_top = tf_l.margin_bottom = 0
-    p = tf_l.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    p.text = "MÁY TÍNH (PYTHON)\nArduinoSerialLink\nGửi ký tự phím 'a','w','s'...\nĐọc gói JSON trạng thái"
-    p.font.name = FONT_MAIN
-    p.font.size = Pt(15)
-    p.font.bold = True
-    p.font.color.rgb = PRIMARY_TEXT
-
-    # Mũi tên 2 chiều
-    add_arrow(slide, Inches(4.3), Inches(2.2), Inches(0.6), Inches(0.3), color=AMBER)
-
-    box_m = add_card(slide, Inches(5.0), Inches(1.65), Inches(3.4), Inches(1.5), bg_color=RGBColor(32, 35, 40), border_color=GREEN)
-    b_m = slide.shapes.add_textbox(Inches(5.0), Inches(1.65), Inches(3.4), Inches(1.5))
-    tf_m = b_m.text_frame
-    tf_m.vertical_anchor = MSO_ANCHOR.MIDDLE
-    tf_m.margin_left = tf_m.margin_right = tf_m.margin_top = tf_m.margin_bottom = 0
-    p = tf_m.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    p.text = "ARDUINO [...]\nFirmware robot_arm_4dof.ino\nUSB 9600 & Bluetooth HC-05\nPhát JSON mỗi 200ms (5Hz)"
-    p.font.name = FONT_MAIN
-    p.font.size = Pt(15)
-    p.font.bold = True
-    p.font.color.rgb = PRIMARY_TEXT
-
-    add_arrow(slide, Inches(8.5), Inches(2.2), Inches(0.6), Inches(0.3), color=GREEN)
-
-    box_r = add_card(slide, Inches(9.2), Inches(1.65), Inches(3.333), Inches(1.5), bg_color=RGBColor(32, 35, 40), border_color=AMBER)
-    b_r = slide.shapes.add_textbox(Inches(9.2), Inches(1.65), Inches(3.333), Inches(1.5))
-    tf_r = b_r.text_frame
-    tf_r.vertical_anchor = MSO_ANCHOR.MIDDLE
-    tf_r.margin_left = tf_r.margin_right = tf_r.margin_top = tf_r.margin_bottom = 0
-    p = tf_r.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    p.text = "MẠCH PCA9685 & SERVO\nI2C Địa chỉ 0x40, Tần số 50Hz\nXung 12-bit (125 - 575)\n4x Servo MG996R"
-    p.font.name = FONT_MAIN
-    p.font.size = Pt(15)
-    p.font.bold = True
-    p.font.color.rgb = PRIMARY_TEXT
-
-    # 3 Thẻ chi tiết phía dưới
-    card_w = Inches(3.7)
-    card_h = Inches(3.3)
-    card_y = Inches(3.35)
-
-    # Thẻ 1: Cấu trúc gói tin JSON
-    add_card(slide, cols_x_0 := Inches(0.8), card_y, card_w, card_h)
-    b1 = slide.shapes.add_textbox(cols_x_0 + Inches(0.15), card_y + Inches(0.15), card_w - Inches(0.3), card_h - Inches(0.3))
-    tf1 = b1.text_frame
-    tf1.word_wrap = True
-    tf1.margin_left = tf1.margin_right = tf1.margin_top = tf1.margin_bottom = 0
-    p1 = tf1.paragraphs[0]
-    p1.text = "GÓI TIN JSON ĐỒNG BỘ"
-    p1.font.name = FONT_MAIN
-    p1.font.size = Pt(17)
-    p1.font.bold = True
-    p1.font.color.rgb = AMBER
-    p1.space_after = Pt(8)
-
-    items1 = [
-        "Định dạng JSON gửi từ Arduino:",
-        "{\"t\":12450,\"servo\":[90,85,110,165]}",
-        "Tần số gửi:",
-        "1. Gửi tức thời sau mỗi lệnh phím.",
-        "2. Gửi định kỳ mỗi 200 ms (5 Hz) qua ngắt timer millis().",
-        "Đồng bộ góc thực tế với giao diện laptop không bị giật."
-    ]
-    for item in items1:
-        p = tf1.add_paragraph()
-        p.text = item if item.startswith("{\"") else f"• {item}"
-        p.font.name = FONT_CODE if item.startswith("{\"") else FONT_MAIN
-        p.font.size = Pt(14)
-        p.font.color.rgb = GREEN if item.startswith("{\"") else PRIMARY_TEXT
-        p.space_after = Pt(4)
-
-    # Thẻ 2: Cơ chế Watchdog & Fallback
-    add_card(slide, cols_x_1 := Inches(4.816), card_y, card_w, card_h)
-    b2 = slide.shapes.add_textbox(cols_x_1 + Inches(0.15), card_y + Inches(0.15), card_w - Inches(0.3), card_h - Inches(0.3))
-    tf2 = b2.text_frame
-    tf2.word_wrap = True
-    tf2.margin_left = tf2.margin_right = tf2.margin_top = tf2.margin_bottom = 0
-    p2 = tf2.paragraphs[0]
-    p2.text = "WATCHDOG & FALLBACK"
-    p2.font.name = FONT_MAIN
-    p2.font.size = Pt(17)
-    p2.font.bold = True
-    p2.font.color.rgb = GREEN
-    p2.space_after = Pt(8)
-
-    items2 = [
-        "Tự động tìm Bluetooth HC-05: Tìm MAC 98D351F6AF14 trên Windows hoặc /dev/cu.HC-05 trên macOS.",
-        "Tự động Fallback: Đang gửi Bluetooth nếu đứt kết nối sẽ lập tức chuyển sang cáp USB.",
-        "Phát hiện mất phản hồi (Timeout 2s): Cảnh báo 'BOARD KHONG PHAN HOI' nếu vi điều khiển im lặng > 2.0s."
-    ]
-    for item in items2:
-        p = tf2.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(6)
-
-    # Thẻ 3: Chế độ Mô phỏng & Khẩn cấp
-    add_card(slide, cols_x_2 := Inches(8.833), card_y, card_w, card_h)
-    b3 = slide.shapes.add_textbox(cols_x_2 + Inches(0.15), card_y + Inches(0.15), card_w - Inches(0.3), card_h - Inches(0.3))
-    tf3 = b3.text_frame
-    tf3.word_wrap = True
-    tf3.margin_left = tf3.margin_right = tf3.margin_top = tf3.margin_bottom = 0
-    p3 = tf3.paragraphs[0]
-    p3.text = "MÔ PHỎNG & KHẨN CẤP"
-    p3.font.name = FONT_MAIN
-    p3.font.size = Pt(17)
-    p3.font.bold = True
-    p3.font.color.rgb = AMBER
-    p3.space_after = Pt(8)
-
-    items3 = [
-        "Chế độ Mô phỏng (Simulation Mode): Tự động kích hoạt khi không cắm board thật, cập nhật góc ảo bằng phím.",
-        "Kiểm thử độc lập: Cho phép kiểm tra toàn bộ thị giác và giải thuật IK mà không sợ reset board.",
-        "Phím khẩn cấp [H] (Home): Đưa lập tức 4 servo về tư thế an toàn: [90°, 90°, 90°, 95°]."
-    ]
-    for item in items3:
-        p = tf3.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(6)
-
-    set_speaker_notes(slide,
-        "Giao thức truyền thông giữa máy tính và vi điều khiển được thiết kế vô cùng tin cậy với tốc độ 9600 baud. "
-        "Bo mạch Arduino định kỳ phát gói JSON chứa mảng 4 góc servo với tần số 5Hz để đồng bộ thời gian thực với mô hình 3D trên máy tính. "
-        "Hệ thống hỗ trợ truyền nhận song song qua cả USB và Bluetooth HC-05, có khả năng tự động fallback về cáp USB nếu đường truyền Bluetooth bị gián đoạn. "
-        "Đặc biệt, nếu không có phần cứng kết nối, phần mềm sẽ tự động chuyển sang chế độ mô phỏng giúp nhóm có thể kiểm thử toàn bộ thuật toán mọi lúc mọi nơi."
-    )
-
-
-# ==============================================================================
-# SLIDE 12: GIAO DIỆN NGƯỜI DÙNG TRỰC QUAN (HUD & CỬA SỔ HƯỚNG DẪN)
-# ==============================================================================
-def build_slide_12(prs):
-    slide = add_slide_with_bg(prs)
-    add_header(slide, "GIAO DIỆN NGƯỜI DÙNG", "THIẾT KẾ GIAO DIỆN NGƯỜI DÙNG VÀ BẢNG PHÍM TẮT")
-    add_footer(slide, 12)
-
-    # Chèn ảnh giao diện thật được sinh từ code
-    img_path = os.path.join(ASSETS_DIR, "guide_screen_sample.png")
-    if os.path.exists(img_path):
-        # Kích thước ảnh 1280 x 800 (tỉ lệ 1.6)
-        slide.shapes.add_picture(img_path, Inches(0.8), Inches(1.60), width=Inches(7.4), height=Inches(4.625))
+        shp.fill.solid()
+        shp.fill.fore_color.rgb = fill
+    if edge is None:
+        shp.line.fill.background()
     else:
-        # Fallback card nếu ảnh chưa tồn tại
-        add_card(slide, Inches(0.8), Inches(1.60), Inches(7.4), Inches(4.625))
+        shp.line.color.rgb = edge
+        shp.line.width = Pt(edge_w)
+        if dash:
+            etree.SubElement(shp.line._get_or_add_ln(), qn("a:prstDash")).set("val", "dash")
+    shp.shadow.inherit = False  # Bỏ bóng đổ mặc định của theme
+    return shp
 
-    # Cột phải: Bảng phân tích giao diện và danh mục phím tắt
-    card_r = add_card(slide, Inches(8.4), Inches(1.60), Inches(4.133), Inches(5.18))
-    box_r = slide.shapes.add_textbox(Inches(8.55), Inches(1.75), Inches(3.833), Inches(4.88))
-    tf_r = box_r.text_frame
-    tf_r.word_wrap = True
-    tf_r.margin_left = tf_r.margin_right = tf_r.margin_top = tf_r.margin_bottom = 0
 
-    p = tf_r.paragraphs[0]
-    p.text = "CÁC VÙNG CHỨC NĂNG CHÍNH"
-    p.font.name = FONT_MAIN
-    p.font.size = Pt(17)
-    p.font.bold = True
-    p.font.color.rgb = AMBER
-    p.space_after = Pt(6)
+def label_in(shp, paras, size=14, color=WHITE, bold=False, align=CENTER, anchor=MIDDLE, font=FONT, margin=0.04):
+    """Chữ nằm trong một hình (phím, chip, nút)."""
+    tf = shp.text_frame
+    tf.word_wrap = True
+    tf.auto_size = MSO_AUTO_SIZE.NONE
+    tf.margin_left = tf.margin_right = Inches(margin)
+    tf.margin_top = tf.margin_bottom = 0
+    tf.vertical_anchor = anchor
+    fill_paragraphs(tf, paras, size, color, bold, font, align, spacing=1.0)
+    return shp
 
-    features = [
-        "1. Khung 2 Camera (1280x400): Cam ngang kiểm tra vạch nâng; Cam trên quan sát bàn.",
-        "2. Thanh Stepper 5 bước: Viên thuốc bo tròn thể hiện tiến độ quy trình gắp.",
-        "3. Chỉ dẫn phím Keycap: Nút cam chỉ rõ phím cần bấm và số lần lặp xN.",
-        "4. Thanh trượt servo: Vạch trắng góc hiện tại, vòng tròn mục tiêu cần đạt.",
-        "5. Thẻ kết quả & Đồng hồ 80%: Hiển thị trạng thái thành công hoặc lý do lỗi."
+
+def chip(slide, x, y, w, h, s, fill=None, color=AMBER, edge=None, size=11, bold=True):
+    """Nhãn bo tròn: nền đặc (fill) hoặc chỉ viền (edge). w=None: rộng vừa chữ."""
+    if w is None:
+        w = chip_w(s, size, bold)
+    shp = box(slide, x, y, w, h, fill=fill, edge=edge, edge_w=1.25, radius=h / 2)
+    return label_in(shp, s, size, color, bold, margin=0.08)
+
+
+def chip_w(s, size=11, bold=True):
+    return text_w(s, size, bold) + 0.4
+
+
+def keycap(slide, x, y, letter, w=0.46, h=0.42, size=17):
+    """Phím màu hổ phách chữ tối, giống phím vẽ trên màn hình app."""
+    shp = box(slide, x, y, w, h, fill=AMBER, edge=None, radius=0.07)
+    return label_in(shp, letter, size, DARK, True, margin=0.0)
+
+
+def dot(slide, x, y, n, color=AMBER, d=0.42, size=15, fg=DARK):
+    """Vòng tròn đánh số."""
+    shp = box(slide, x, y, d, d, fill=color, edge=None, shape=MSO_SHAPE.OVAL)
+    return label_in(shp, str(n), size, fg, True, margin=0.0)
+
+
+def line(slide, x1, y1, x2, y2, color=AMBER, width=2.0, head=False, dash=False):
+    """Đoạn thẳng (head=True: có mũi tên ở cuối)."""
+    c = slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, Inches(x1), Inches(y1), Inches(x2), Inches(y2))
+    c.line.color.rgb = color
+    c.line.width = Pt(width)
+    ln = c.line._get_or_add_ln()
+    if dash:
+        etree.SubElement(ln, qn("a:prstDash")).set("val", "dash")
+    if head:
+        tail = etree.SubElement(ln, qn("a:tailEnd"))
+        tail.set("type", "triangle")
+        tail.set("w", "med")
+        tail.set("len", "med")
+    return c
+
+
+def image(slide, name, x, y, w, h=None, mode="cover", focus=(0.5, 0.5), edge=EDGE):
+    """
+    Ảnh trong khung w x h. mode="cover": cắt bớt cho đầy khung, giữ tỉ lệ (focus = điểm giữ lại, 0..1);
+    h=None: giữ nguyên tỉ lệ ảnh. Thiếu tệp thì vẽ khung "[Ảnh: tên tệp]" để vẫn dựng được slide.
+    """
+    path = name if os.path.isabs(name) else os.path.join(REAL_DIR, name)
+    if not os.path.exists(path):
+        hh = h if h is not None else w * 9 / 16
+        ph = box(slide, x, y, w, hh, fill=BG2, edge=MUTED, dash=True, radius=0.05)
+        label_in(ph, f"[Ảnh: {os.path.basename(name)}]", 13, MUTED)
+        return ph
+    iw, ih = Image.open(path).size
+    if h is None:
+        h = w * ih / iw
+    pic = slide.shapes.add_picture(path, Inches(x), Inches(y), Inches(w), Inches(h))
+    if mode == "cover":
+        box_ratio, img_ratio = w / h, iw / ih
+        if img_ratio > box_ratio:  # Ảnh rộng hơn khung: cắt hai bên
+            keep = box_ratio / img_ratio
+            left = min(max(focus[0] - keep / 2, 0.0), 1.0 - keep)
+            pic.crop_left, pic.crop_right = left, 1.0 - keep - left
+        elif img_ratio < box_ratio:  # Ảnh cao hơn khung: cắt trên dưới
+            keep = img_ratio / box_ratio
+            top = min(max(focus[1] - keep / 2, 0.0), 1.0 - keep)
+            pic.crop_top, pic.crop_bottom = top, 1.0 - keep - top
+    if edge is not None:
+        pic.line.color.rgb = edge
+        pic.line.width = Pt(0.75)
+    return pic
+
+
+def header(slide, tag, title, size=28):
+    text(slide, 0.6, 0.38, 12.1, 0.3, tag.upper(), 13, AMBER, True, spc=120)
+    text(slide, 0.6, 0.66, 12.1, 0.62, title, size, WHITE, True, anchor=TOP)
+    box(slide, 0.6, 1.36, 0.8, 0.05, fill=AMBER, edge=None, shape=MSO_SHAPE.RECTANGLE)
+
+
+def footer(slide, n):
+    text(slide, 0.6, 7.04, 8.0, 0.25, FOOTER_TITLE, 11, MUTED)
+    text(slide, 10.73, 7.04, 2.0, 0.25, f"Trang {n} / {TOTAL}", 11, MUTED, align=RIGHT)
+
+
+def notes(slide, s):
+    slide.notes_slide.notes_text_frame.text = s.strip()
+
+
+def caption(slide, x, y, w, s, size=11.5, h=0.45, color=MUTED, align=LEFT):
+    return text(slide, x, y, w, h, s, size, color, align=align, spacing=1.05)
+
+
+def card_title(slide, x, y, w, s, color=AMBER, size=13):
+    return text(slide, x, y, w, 0.3, s.upper(), size, color, True, spc=60)
+
+
+# ==============================================================================
+# Slide 1: Bìa
+# ==============================================================================
+def slide_01(prs):
+    s = new_slide(prs)
+    text(s, 0.6, 0.95, 6.9, 0.3, "ĐỒ ÁN IoT · [MÔN HỌC] · [NGÀY BÁO CÁO]", 13, AMBER, True, spc=120)
+    text(s, 0.6, 1.4, 6.85, 2.3, "Hệ thống hỗ trợ gắp vật cho cánh tay robot 4 bậc tự do bằng thị giác máy tính",
+         34, WHITE, True, spacing=1.02)
+    text(s, 0.6, 3.72, 6.7, 0.95,
+         "Hai camera chỉ cho người điều khiển bấm phím nào, mấy lần; rồi kiểm tra ba servo đã tới góc gợi ý chưa.",
+         18, MUTED, spacing=1.12)
+    chips = [("2 CAMERA + ArUco", WHITE), ("NHÓM 1 · ĐIỀU KHIỂN", AMBER), ("NHÓM 2 · SUCCESS", GREEN)]
+    x = 0.6
+    for label, col in chips:
+        w = chip_w(label, 11)
+        chip(s, x, 4.86, w, 0.4, label, edge=col, color=col, size=11)
+        x += w + 0.14
+    team = box(s, 0.6, 5.55, 6.75, 1.2, fill=CARD)
+    text(s, 0.85, 5.7, 3.3, 0.95, [
+        [("Sinh viên thực hiện", {"color": MUTED, "size": 12})], "[...]",
+        [("Lớp / Môn học", {"color": MUTED, "size": 12})], "[...]"], 15, WHITE, spacing=1.0)
+    text(s, 4.2, 5.7, 3.0, 0.95, [
+        [("Giảng viên hướng dẫn", {"color": MUTED, "size": 12})], "[...]",
+        [("Ngày báo cáo", {"color": MUTED, "size": 12})], "[...]"], 15, WHITE, spacing=1.0)
+    image(s, "demo_06_grip_side.jpg", 7.75, 0.95, 4.98, 2.8)
+    image(s, "demo_06_grip_top.jpg", 7.75, 3.88, 4.98, 2.8)
+    caption(s, 7.75, 6.74, 4.98, "Ảnh thật từ hai camera của hệ thống (ngang, trên) · 02/11/2026 20:32:52 · người bấm phím", 11, 0.3)
+    notes(s, """
+Em chào thầy cô và các bạn. Nhóm em xin trình bày đề tài: hệ thống hỗ trợ gắp vật cho cánh tay robot bốn bậc tự do bằng thị giác máy tính. Nói ngắn gọn: hai camera nhìn tờ giấy và vật, chương trình cho người điều khiển biết phải bấm phím nào, bấm mấy lần, rồi kiểm tra ba servo đã tới góc gợi ý chưa.
+
+Bài nói khoảng mười lăm phút: bài toán; hệ thống và phần cứng; cách hệ thống nhìn tờ giấy và tìm vật; nhóm một, phần điều khiển; nhóm hai, phần success; thử trên cánh tay thật; hai sự cố nhóm gặp; và cuối cùng là những gì nhóm đã và chưa kiểm chứng.
+
+Hai ảnh bên phải là ảnh thật từ hai camera của hệ thống, lúc cánh tay đang kẹp cốc do người bấm phím, không phải ảnh dựng.
+
+Nếu được hỏi: ai làm phần nào? [...điền phân công; nhóm một là điều khiển, nhóm hai là success].
+
+Nguồn: ảnh demo_06_grip_side, demo_06_grip_top (khung cắt từ video buổi thử 02/11/2026, 20:32:52).
+""")
+
+
+# ==============================================================================
+# Slide 2: Bài toán
+# ==============================================================================
+def slide_02(prs):
+    s = new_slide(prs)
+    header(s, "01 · Bài toán", "Ba câu hỏi trước mỗi lần gắp")
+    card_title(s, 0.6, 1.72, 7.2, "Trước mỗi lần gắp, người điều khiển phải tự trả lời", MUTED, 12)
+    rows = [
+        ("Vật đang ở đâu trên bàn?", "PHẦN NHÌN · vision.py", WHITE),
+        ("Ba servo ở góc nào? Bấm phím nào, mấy lần?", "NHÓM 1 · ĐIỀU KHIỂN · control.py", AMBER),
+        ("Đã tới đúng góc chưa?", "NHÓM 2 · SUCCESS · success.py", GREEN),
     ]
-    for feat in features:
-        p = tf_r.add_paragraph()
-        p.text = feat
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(13.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(3)
+    for i, (q, who, col) in enumerate(rows):
+        y = 2.12 + i * 1.42
+        box(s, 0.6, y, 7.3, 1.24, fill=CARD)
+        dot(s, 0.85, y + 0.22, i + 1, d=0.5, size=18)
+        text(s, 1.55, y + 0.17, 6.28, 0.45, q, 20, WHITE, True)
+        text(s, 1.55, y + 0.7, 6.28, 0.35, [[("→  ", {"color": col}), (who, {"color": col, "bold": True})]], 14)
+    box(s, 8.25, 2.12, 4.48, 4.08, fill=CARD)
+    card_title(s, 8.55, 2.35, 4.0, "Vì sao khó", RED)
+    bullets(s, 8.55, 2.8, 3.95, 2.3, [
+        "Mỗi phím chỉ nhích 2°: tới được vật có khi phải bấm hơn 20 lần",
+        "Mắt người khó ước lượng độ sâu qua một góc nhìn",
+        "Gợi ý chỉ đúng khi mô hình hình học khớp cánh tay thật (slide 11)",
+    ], 16, after=10, mark_color=RED)
+    box(s, 8.5, 5.08, 3.98, 0.9, fill=BG2, edge=None, radius=0.06)
+    text(s, 8.68, 5.15, 3.7, 0.25, "VÍ DỤ Ở SLIDE 7", 10.5, MUTED, True, spc=40)
+    keycap(s, 8.68, 5.45, "D", 0.4, 0.38, 15)
+    text(s, 9.13, 5.45, 0.5, 0.38, "× 8", 15, WHITE, True, anchor=MIDDLE)
+    keycap(s, 9.72, 5.45, "S", 0.4, 0.38, 15)
+    text(s, 10.17, 5.45, 0.65, 0.38, "× 16", 15, WHITE, True, anchor=MIDDLE)
+    text(s, 10.85, 5.45, 1.6, 0.38, "= 24 lần bấm", 15, AMBER, True, anchor=MIDDLE)
+    text(s, 0.6, 6.42, 12.1, 0.45, [[("Hệ thống trả lời ba câu này; ", {"color": WHITE}),
+                                    ("người vẫn là người bấm phím.", {"color": AMBER, "bold": True})]], 19)
+    footer(s, 2)
+    notes(s, """
+Bài toán rất cụ thể. Cánh tay của nhóm có bốn servo, điều khiển bằng bàn phím, mỗi lần bấm một phím thì một servo nhích hai độ. Trước mỗi lần gắp, người điều khiển phải tự trả lời ba câu hỏi: vật đang ở đâu trên bàn; ba servo phải ở góc nào, phải bấm phím nào, mấy lần; và đã tới đúng góc chưa.
 
-    p_sub = tf_r.add_paragraph()
-    p_sub.text = "DANH MỤC PHÍM TẮT HỆ THỐNG"
-    p_sub.font.name = FONT_MAIN
-    p_sub.font.size = Pt(15)
-    p_sub.font.bold = True
-    p_sub.font.color.rgb = GREEN
-    p_sub.space_before = Pt(6)
-    p_sub.space_after = Pt(4)
+Khó nhất là mắt người khó ước lượng độ sâu, mỗi phím lại chỉ nhích hai độ nên tới được vật có khi phải bấm hơn hai mươi lần, như ví dụ hai mươi bốn lần ở slide bảy. Và nếu mô hình hình học không khớp cánh tay thật thì gợi ý nào cũng lệch.
 
-    shortcuts = [
-        "• SPACE / N: Sang bước tiếp   • TAB / V: Đổi mục tiêu",
-        "• P: Bật/Tắt Auto-Step        • H: Về vị trí Home",
-        "• R: Reset về Bước 1         • G: Ẩn/Hiện Guide HUD",
-        "• Q: Thoát an toàn khỏi chương trình."
+Hệ thống của nhóm trả lời đúng ba câu hỏi này, mỗi câu bằng một thành phần riêng: phần nhìn trả lời câu một, nhóm một trả lời câu hai, nhóm hai trả lời câu ba. Người vẫn là người bấm phím.
+
+Nếu được hỏi: vì sao không để chương trình tự điều khiển luôn? Vì mô hình hình học chỉ khớp cánh tay thật cỡ một xăng-ti-mét (slide 11) và tay kẹp chưa giữ chắc cốc thon (slide 9), nên nhóm chọn hướng hỗ trợ người điều khiển. Bản trước có chế độ tự gửi phím, nhóm đã bỏ để mã giải thích được trong một phút.
+
+Nguồn: README.md mục 3; control.py; success.py.
+""")
+
+
+# ==============================================================================
+# Slide 3: Hệ thống (sơ đồ hai nhóm)
+# ==============================================================================
+def slide_03(prs):
+    s = new_slide(prs)
+    header(s, "02 · Hệ thống", "Hai camera nhìn, nhóm 1 tính, nhóm 2 kiểm")
+    w, gap, y, h = 2.02, 0.5, 2.05, 1.62
+    blocks = [
+        ("CẢM BIẾN", "Hai camera", "OBSBOT nhìn xuống, MacBook nhìn ngang; tờ A4 có 4 mã ArUco", EDGE, MUTED),
+        ("NHÌN · vision.py", "Tìm vật", "ArUco → homography; tách màu → (X, Y) cm", EDGE, MUTED),
+        ("NHÓM 1 · control.py", "Điều khiển", "vị trí vật → góc 3 servo → phím cần bấm", AMBER, AMBER),
+        ("NHÓM 2 · success.py", "Success", "3 servo đã tới góc chưa? đếm số lần", GREEN, GREEN),
+        ("MÀN HÌNH · screen.py", "Lệnh + kết luận", "phím to, số lần; XONG hoặc CHƯA XONG", EDGE, MUTED),
     ]
-    for sc in shortcuts:
-        p = tf_r.add_paragraph()
-        p.text = sc
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(13)
-        p.font.color.rgb = MUTED_TEXT
-        p.space_after = Pt(2)
+    xs = [0.6 + i * (w + gap) for i in range(5)]
+    for x, (tag, title, desc, edge, tagc) in zip(xs, blocks):
+        thick = edge in (AMBER, GREEN)
+        box(s, x, y, w, h, fill=CARD, edge=edge, edge_w=2.25 if thick else 1.0)
+        text(s, x + 0.14, y + 0.13, w - 0.24, 0.25, tag, 10.5, tagc, True)
+        text(s, x + 0.14, y + 0.42, w - 0.24, 0.35, title, 16, WHITE, True)
+        text(s, x + 0.14, y + 0.82, w - 0.24, 0.75, desc, 12.5, MUTED, spacing=1.05)
+    mid = y + h / 2
+    for i, lab in enumerate(["ảnh", "(X, Y)", "Plan", "Result"]):
+        x1, x2 = xs[i] + w + 0.05, xs[i + 1] - 0.05
+        strong = lab == "Plan"
+        line(s, x1, mid, x2, mid, AMBER if strong else MUTED, 3.5 if strong else 1.75, head=True)
+        text(s, x1 - 0.25, mid - 0.4, x2 - x1 + 0.5, 0.3, lab, 13 if strong else 11, AMBER if strong else MUTED, strong, align=CENTER)
+    # Vòng người: nhìn màn hình rồi bấm phím, phím đi qua nhóm 1 xuống Arduino
+    lx, rx, top = xs[2] + w / 2, xs[4] + w / 2, 1.72
+    line(s, rx, y, rx, top, MUTED, 1.5, dash=True)
+    line(s, rx, top, lx, top, MUTED, 1.5, dash=True)
+    line(s, lx, top, lx, y - 0.02, MUTED, 1.5, head=True, dash=True)
+    text(s, lx + 0.3, top - 0.29, rx - lx - 0.6, 0.27, "người nhìn màn hình rồi bấm phím", 11.5, WHITE, align=CENTER)
+    # Hàng phần cứng dưới nhóm 1, nhóm 2, màn hình
+    hy, hh = 4.45, 1.05
+    hw = [("Arduino Uno", "nhận phím, gửi JSON"), ("PCA9685", "I²C 0x40 · xung 50 Hz"), ("4 servo MG996R", "đế · vai · khuỷu · kẹp")]
+    for i, (t1, t2) in enumerate(hw):
+        x = xs[2 + i]
+        box(s, x, hy, w, hh, fill=BG2, edge=EDGE)
+        text(s, x + 0.14, hy + 0.15, w - 0.24, 0.32, t1, 15, WHITE, True)
+        text(s, x + 0.14, hy + 0.55, w - 0.24, 0.4, t2, 12, MUTED)
+        if i < 2:
+            line(s, x + w + 0.05, hy + hh / 2, xs[3 + i] - 0.05, hy + hh / 2, MUTED, 1.75, head=True)
+    cx = xs[2] + w / 2
+    line(s, cx - 0.32, y + h + 0.04, cx - 0.32, hy - 0.04, AMBER, 2.0, head=True)
+    line(s, cx + 0.32, hy - 0.04, cx + 0.32, y + h + 0.04, GREEN, 2.0, head=True)
+    text(s, xs[1] + 0.3, y + h + 0.2, cx - 0.42 - xs[1] - 0.3, 0.5, ["phím · USB 9600 baud"], 11, AMBER, align=RIGHT)
+    text(s, cx + 0.45, y + h + 0.2, 2.3, 0.5, ["JSON ~5 gói/giây", "(góc servo đã ra lệnh)"], 11, GREEN, spacing=1.0)
+    box(s, 0.6, hy, 4.45, hh, fill=CARD, edge=AMBER, edge_w=1.0)
+    text(s, 0.8, hy + 0.12, 4.1, 0.3, "CHỈ MỘT ĐỐI TƯỢNG NỐI HAI NHÓM", 11, AMBER, True, spc=40)
+    text(s, 0.8, hy + 0.42, 4.1, 0.6, "Plan = góc hiện tại, góc cần tới, lệnh bấm cho từng servo. Nhóm 1 tạo ra, nhóm 2 chỉ đọc.", 13, WHITE, spacing=1.05)
+    box(s, 0.6, 5.8, 12.13, 1.05, fill=BG2, edge=None, radius=0.06)
+    code = [("plan   = self.control.update(self.tracker.objects)", "# NHÓM 1: vật ở đâu -> góc cần tới -> bấm phím gì"),
+            ("result = self.success.update(plan)", "# NHÓM 2: đã tới chưa"),
+            ("screen = build_screen(..., plan, result)", "# main.py:171-174, mỗi khung hình")]
+    text(s, 0.85, 5.9, 11.7, 0.9, [[(c.ljust(53), {}), (k, {"color": MUTED})] for c, k in code], 13, WHITE, font=MONO, spacing=1.12)
+    footer(s, 3)
+    notes(s, """
+Đây là toàn bộ hệ thống trên một trang, đọc từ trái sang phải.
 
-    set_speaker_notes(slide,
-        "Đây là hình ảnh thực tế của cửa sổ 'HƯỚNG DẪN GẮP' với độ phân giải 1280 nhân 800 do nhóm tự động sinh từ mã nguồn. "
-        "Nửa trên hiển thị song song hai góc camera giúp người quan sát nắm bắt trọn vẹn hiện trường, trong khi nửa dưới là bảng hướng dẫn "
-        "thao tác được thiết kế tương phản cao trên nền tối. Mỗi khớp servo đều có ô keycap màu cam chỉ rõ phím cần bấm, số lần lặp và thanh trượt "
-        "trực quan hóa góc xoay. Người vận hành chỉ cần làm theo hướng dẫn từng bước mà không cần phải ghi nhớ bất kỳ thông số kỹ thuật phức tạp nào."
-    )
+Hai camera cùng quay tờ giấy A4: OBSBOT treo trên nhìn xuống để tính vị trí vật, camera MacBook đặt thấp phía trước để người điều khiển nhìn độ cao và độ sát của hai ngón kẹp. Phần nhìn dò bốn mã ArUco để đổi pixel sang xăng-ti-mét, rồi tách màu để ra vị trí X, Y của vật.
+
+Hai ô ở giữa là điểm chính của thiết kế. Nhóm một lo điều khiển: biết vật ở đâu thì tính ba servo cần ở góc nào và lập danh sách phím cần bấm. Nhóm hai lo success: chỉ trả lời một câu, ba servo đã tới góc đó chưa. Hai nhóm chỉ nói chuyện qua một đối tượng tên là Plan, nên làm riêng và kiểm riêng được; ba dòng mã ở dưới là đúng những gì chương trình làm mỗi khung hình.
+
+Người nhìn màn hình rồi bấm phím. Phím đi xuống Arduino qua cáp USB, chín nghìn sáu trăm baud; Arduino điều khiển bốn servo qua mạch PCA9685 và gửi ngược lên gói JSON chứa bốn góc servo, khoảng năm gói mỗi giây. Đó là phần IoT của hệ thống.
+
+Nếu được hỏi: chương trình có tự gửi phím không? Không, chỉ gửi khi người bấm. Có Bluetooth không? Firmware có sẵn đường nhận phím từ module HC-05 ở chân D2, D3, nhưng chương trình trên laptop chỉ dùng cáp USB.
+
+Nguồn: README.md (sơ đồ đầu trang, mục 1 và 3); main.py:171-174; robot_arm_4dof.ino:6,8,86,203-207; control.py (ArduinoSerialLink).
+""")
 
 
 # ==============================================================================
-# SLIDE 13: KẾT QUẢ KIỂM THỬ GIẢI THUẬT VÀ THỰC NGHIỆM
+# Slide 4: Phần cứng
 # ==============================================================================
-def build_slide_13(prs):
-    slide = add_slide_with_bg(prs)
-    add_header(slide, "KIỂM THỬ & THỰC NGHIỆM", "KẾT QUẢ KIỂM THỬ GIẢI THUẬT VÀ THỰC NGHIỆM")
-    add_footer(slide, 13)
-
-    # Cột trái: Kết quả test_ik.py thật (Dữ liệu thật 100%)
-    card_l = add_card(slide, Inches(0.8), Inches(1.60), Inches(5.7), Inches(5.18), border_color=GREEN, border_width=1.5)
-    box_lh = slide.shapes.add_textbox(Inches(1.1), Inches(1.75), Inches(5.1), Inches(0.45))
-    tf_lh = box_lh.text_frame
-    tf_lh.margin_left = tf_lh.margin_top = tf_lh.margin_right = tf_lh.margin_bottom = 0
-    p_lh = tf_lh.paragraphs[0]
-    p_lh.text = "KIỂM THỬ ĐỘNG HỌC (test_ik.py)"
-    p_lh.font.name = FONT_MAIN
-    p_lh.font.size = Pt(20)
-    p_lh.font.bold = True
-    p_lh.font.color.rgb = GREEN
-
-    box_lc = slide.shapes.add_textbox(Inches(1.1), Inches(2.25), Inches(5.1), Inches(4.4))
-    tf_lc = box_lc.text_frame
-    tf_lc.word_wrap = True
-    tf_lc.margin_left = tf_lc.margin_top = tf_lc.margin_right = tf_lc.margin_bottom = 0
-
-    items_l = [
-        "10/10 Bài kiểm thử PASS 100% (Exit code 0).",
-        "Kiểm thử lưới 455 điểm 3D trong tầm với: Sai số cực đại FK(IK(p)) = 0.000000 mm (< 0.1 mm).",
-        "Toàn bộ góc servo tuân thủ SERVO_LIMITS và chia hết cho SERVO_STEP_DEG = 5°.",
-        "Gợi ý phím WASD + IK + JL: Tính toán số xung phím chính xác tuyệt đối.",
-        "Ánh xạ tờ A4 ↔ Robot: Đúng 100% cho cả 2 hướng up và down.",
-        "Xử lý ngắt kết nối: Tự động fallback từ Bluetooth về cáp USB khi đứt kết nối.",
-        "Loại trừ mã ID 6: Kẹp rỗng nâng lên không bị báo nhầm là đã gắp vật."
+def slide_04(prs):
+    s = new_slide(prs)
+    header(s, "02 · Phần cứng", "Arduino Uno, PCA9685 và bốn servo MG996R")
+    pw, ph1, ph2 = 3.0, 1.69, 2.2
+    photos = [
+        ("hw_overview_top.jpg", 0.6, 1.7, ph1, "Cam TRÊN · OBSBOT Meet SE nhìn xuống"),
+        ("hw_overview_side.jpg", 3.75, 1.7, ph1, "Cam NGANG · camera MacBook đặt thấp"),
+        ("hw_electronics.jpg", 0.6, 3.93, ph2, "Arduino Uno + PCA9685 + nguồn tổ ong"),
+        ("hw_arm_gripper.jpg", 3.75, 3.93, ph2, "Cánh tay 4 servo, tay kẹp hai ngón"),
     ]
-    for item in items_l:
-        p = tf_lc.add_paragraph()
-        p.text = f"✅ {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(4)
+    for name, x, y, h, cap in photos:
+        image(s, name, x, y, pw, h)
+        caption(s, x, y + h + 0.05, pw, cap, 11, 0.3)
+    rx = 7.15
+    card_title(s, rx, 1.72, 5.6, "4 servo · phím · giới hạn góc", MUTED, 12)
+    rows = [("KÊNH 0", "Đế (xoay)", "A", "D", "0–180°"), ("KÊNH 1", "Vai", "W", "S", "25–155°"),
+            ("KÊNH 2", "Khuỷu", "I", "K", "25–155°"), ("KÊNH 3", "Kẹp", "J", "L", "95–160°")]
+    for i, (ch, name, k1, k2, lim) in enumerate(rows):
+        y = 2.1 + i * 0.66
+        box(s, rx, y, 5.58, 0.56, fill=CARD)
+        text(s, rx + 0.18, y + 0.15, 0.9, 0.3, ch, 11, MUTED, True)
+        text(s, rx + 1.05, y + 0.12, 1.8, 0.35, name, 16, WHITE, True)
+        keycap(s, rx + 2.85, y + 0.07, k1, 0.44, 0.42, 16)
+        keycap(s, rx + 3.37, y + 0.07, k2, 0.44, 0.42, 16)
+        text(s, rx + 4.05, y + 0.12, 1.4, 0.35, lim, 16, AMBER if i == 3 else WHITE, True, align=RIGHT)
+    bullets(s, rx, 4.88, 5.6, 2.0, [
+        [("Mỗi lần bấm: ", {"bold": True}), "đế, vai, khuỷu nhích 2°; kẹp 5°"],
+        [("PCA9685: ", {"bold": True}), "I²C 0x40, xung 50 Hz; nguồn riêng 5–6 V, không lấy từ USB"],
+        [("Laptop ↔ Arduino: ", {"bold": True}), "USB 9600 baud; HC-05 (D2/D3) có sẵn trong firmware, tùy chọn"],
+    ], 14.5, after=7)
+    footer(s, 4)
+    notes(s, """
+Phần cứng gồm ba khối. Khối điều khiển là Arduino Uno cộng mạch PCA9685 sinh xung cho servo, trong ảnh dưới bên trái. Khối chấp hành là cánh tay bốn bậc tự do dùng servo MG996R: kênh không là đế, kênh một là vai, kênh hai là khuỷu, kênh ba là tay kẹp. Khối cảm biến là hai camera: OBSBOT Meet SE treo trên nhìn xuống, và camera của MacBook đặt thấp phía trước, cả hai ở độ phân giải 1920 nhân 1080.
 
-    # Cột phải: Thực nghiệm phần cứng (Giữ nguyên dạng placeholder [...])
-    card_r = add_card(slide, Inches(6.833), Inches(1.60), Inches(5.7), Inches(5.18), border_color=AMBER, border_width=1.5)
-    box_rh = slide.shapes.add_textbox(Inches(7.133), Inches(1.75), Inches(5.1), Inches(0.45))
-    tf_rh = box_rh.text_frame
-    tf_rh.margin_left = tf_rh.margin_top = tf_rh.margin_right = tf_rh.margin_bottom = 0
-    p_rh = tf_rh.paragraphs[0]
-    p_rh.text = "THỰC NGHIỆM TRÊN PHẦN CỨNG THẬT"
-    p_rh.font.name = FONT_MAIN
-    p_rh.font.size = Pt(20)
-    p_rh.font.bold = True
-    p_rh.font.color.rgb = AMBER
+Mỗi servo có giới hạn cứng trong firmware, như bảng bên phải. Mỗi lần bấm một phím, đế, vai và khuỷu nhích hai độ để căn cho chính xác, còn tay kẹp nhích năm độ. Điểm cần nhớ về nguồn: servo lấy điện từ nguồn tổ ong riêng năm đến sáu vôn cấp vào PCA9685, không lấy từ cổng USB của laptop.
 
-    box_rc = slide.shapes.add_textbox(Inches(7.133), Inches(2.25), Inches(5.1), Inches(4.4))
-    tf_rc = box_rc.text_frame
-    tf_rc.word_wrap = True
-    tf_rc.margin_left = tf_rc.margin_top = tf_rc.margin_right = tf_rc.margin_bottom = 0
+Bốn ảnh ở đây đều là ảnh thật; hai ảnh trên là hai camera của hệ thống nhìn cùng một cảnh.
 
-    items_r = [
-        "Tổng số lượt thử nghiệm gắp: [...] lượt.",
-        "Tỉ lệ gắp thành công: [...]% (Thành công [...] lượt, Thất bại [...] lượt).",
-        "Phân bố nguyên nhân thất bại thực nghiệm:",
-        "  • Lỗi kẹp trượt (vật vẫn ở chỗ cũ): [...]%",
-        "  • Lỗi rơi khi nâng (vật rơi lúc nhấc cao): [...]%",
-        "  • Lỗi bị che khuất tầm nhìn: [...]%",
-        "Sai số căn chỉnh đầu kẹp thực tế: align_error_mm = [...] mm.",
-        "Thời gian trung bình hoàn thành 5 bước: [...] giây/lượt.",
-        "Ghi chú: Số liệu thực nghiệm do nhóm cập nhật sau khi chạy chuỗi đo trên cánh tay vật lý."
+Nếu được hỏi: tay kẹp có mấy ngón? Hai ngón, cơ cấu song song, một servo. Vì sao giới hạn kẹp là 160 độ? Xem slide 12. Có phản hồi vị trí không? Không: MG996R ở đây chỉ nhận lệnh góc, Arduino báo lại góc đã ra lệnh (slide 9). Chạy trên Windows được không? Mã có phần tìm cổng COM và tên camera trên Windows, nhưng nhóm chạy và chụp ảnh trên macOS.
+
+Nguồn: README.md mục 1; robot_arm_4dof/flash.sh:19 (arduino:avr:uno); robot_arm_4dof.ino:6,8,13-14,19-21,86-90,121-152; control.py:56-63.
+""")
+
+
+# ==============================================================================
+# Slide 5: Tờ A4 thành hệ tọa độ
+# ==============================================================================
+def slide_05(prs):
+    s = new_slide(prs)
+    header(s, "03 · Hệ thống nhìn", "Bốn mã ArUco biến tờ A4 thành thước đo bằng cm")
+    image(s, "sw_annot_top.jpg", 0.6, 1.68, 5.95, 3.25)
+    image(s, "sw_annot_side.jpg", 6.78, 1.68, 5.95, 3.25)
+    caption(s, 0.6, 4.98, 5.95, "Cam TRÊN: lưới 5 cm dựng từ 4 mã; cốc đo được ở X = 16,5 cm, Y = 13,8 cm", 11.5, 0.3)
+    caption(s, 6.78, 4.98, 5.95, "Cam NGANG: cùng tờ giấy nhìn nghiêng, cùng lưới tọa độ", 11.5, 0.3)
+    cols = [
+        ("4 mã ở 4 góc", "DICT_4X4_50, ID 0–3, cạnh 2,8 cm; in A4 đúng 100%"),
+        ("Homography", "pixel ↔ cm cho cả hai camera; gốc ở mã ID 0, X dài 29,7 cm, Y rộng 21,0 cm"),
+        ("Che mất mã vẫn chạy", "dùng vị trí đã nhớ; xô camera thì tự học lại; phím U dò lại"),
+        ("Sửa lệch phối cảnh", "cam TRÊN treo ≈ 46 cm: vật cao 5 cm lệch ≈ 1 cm. Một phép đo: 1,2 → 0,2 cm"),
     ]
-    for item in items_r:
-        p = tf_rc.add_paragraph()
-        p.text = item if item.startswith("  •") else f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14)
-        p.font.color.rgb = AMBER if "[...]" in item else MUTED_TEXT
-        p.space_after = Pt(4)
+    for i, (t, d) in enumerate(cols):
+        x = 0.6 + i * 3.08
+        dot(s, x, 5.5, i + 1, d=0.36, size=13)
+        text(s, x + 0.48, 5.5, 2.5, 0.32, t, 15.5, WHITE, True)
+        text(s, x + 0.48, 5.86, 2.5, 1.05, d, 12.5, MUTED, spacing=1.05)
+    footer(s, 5)
+    notes(s, """
+Điều đầu tiên hệ thống phải biết là vật nằm ở đâu, tính bằng xăng-ti-mét. Nhóm in một tờ A4 có bốn mã ArUco ở bốn góc; mỗi mã có số định danh và OpenCV tìm được bốn góc của mã.
 
-    set_speaker_notes(slide,
-        "Về mặt kiểm thử giải thuật, bộ test tự động test_ik.py đã thực thi thành công toàn bộ 10 bài kiểm tra nghiêm ngặt. "
-        "Trong đó, giải thuật động học ngược được thử nghiệm trên lưới 455 điểm không gian 3 chiều trong tầm với, cho sai số giữa động học thuận "
-        "và ngược đạt 0.000000 milimet, chứng minh công thức giải tích hoàn toàn chính xác. Đối với phần thực nghiệm trên mô hình thực tế, "
-        "do hệ thống nhật ký đang tiếp tục ghi nhận, nhóm xin phép thể hiện các chỉ số về số lượt gắp và tỉ lệ thành công dưới dạng số liệu đang hoàn thiện "
-        "và sẽ cập nhật chi tiết trong buổi báo cáo trực tiếp."
-    )
+Biết bốn góc ngoài đời cách nhau hai mươi chín phẩy bảy nhân hai mươi mốt xăng-ti-mét, chương trình tính phép biến đổi phẳng gọi là homography, đổi từng pixel sang tọa độ trên tờ giấy, cho cả hai camera. Gốc tọa độ ở mã số không. Che mất một hai mã thì chương trình dùng vị trí đã nhớ.
+
+Một chi tiết nhóm phải sửa: camera trên treo cao khoảng bốn mươi sáu xăng-ti-mét, nên nắp cốc cao năm xăng-ti-mét bị lệch ra xa tâm ảnh khoảng một xăng-ti-mét. Nhóm sửa bằng một công thức tỉ lệ theo độ cao vật; ở một vị trí đã đo, hai camera lệch nhau một phẩy hai xăng-ti-mét trước khi sửa và không phẩy hai sau khi sửa. Hai ảnh là lưới do chương trình vẽ lên khung hình camera thật đã lưu.
+
+Nếu được hỏi: vì sao ArUco? Vì mã có số định danh, cho bốn góc rõ ràng, chịu được nhìn nghiêng, và OpenCV có sẵn. Tờ giấy là hệ quy chiếu chung cho cả hai camera, nên đổi camera hay đổi chỗ đặt không phải đo lại bằng thước. Độ cao bốn mươi sáu xăng-ti-mét đo thế nào? Ước từ ảnh, chưa đo bằng thước; con số không phẩy hai chỉ là một phép đo.
+
+Nguồn: generate_aruco_a4.py:3,31-36; vision.py:24-30,152-170,486-505,557-562; tests/test_vision.py:223-243; README.md mục 4.
+""")
 
 
 # ==============================================================================
-# SLIDE 14: ĐÁNH GIÁ HẠN CHẾ VÀ HƯỚNG PHÁT TRIỂN
+# Slide 6: Nhận diện vật
 # ==============================================================================
-def build_slide_14(prs):
-    slide = add_slide_with_bg(prs)
-    add_header(slide, "ĐÁNH GIÁ & ĐỊNH HƯỚNG", "ĐÁNH GIÁ HẠN CHẾ VÀ HƯỚNG PHÁT TRIỂN MỞ RỘNG")
-    add_footer(slide, 14)
-
-    # Bố cục 2 cột: Hạn chế vs Hướng phát triển
-    card_l = add_card(slide, Inches(0.8), Inches(1.60), Inches(5.7), Inches(5.18), border_color=AMBER, border_width=1.5)
-    box_lh = slide.shapes.add_textbox(Inches(1.1), Inches(1.75), Inches(5.1), Inches(0.45))
-    tf_lh = box_lh.text_frame
-    tf_lh.margin_left = tf_lh.margin_top = tf_lh.margin_right = tf_lh.margin_bottom = 0
-    p_lh = tf_lh.paragraphs[0]
-    p_lh.text = "HẠN CHẾ KỸ THUẬT HIỆN TẠI"
-    p_lh.font.name = FONT_MAIN
-    p_lh.font.size = Pt(20)
-    p_lh.font.bold = True
-    p_lh.font.color.rgb = AMBER
-
-    box_lc = slide.shapes.add_textbox(Inches(1.1), Inches(2.25), Inches(5.1), Inches(4.4))
-    tf_lc = box_lc.text_frame
-    tf_lc.word_wrap = True
-    tf_lc.margin_left = tf_lc.margin_top = tf_lc.margin_right = tf_lc.margin_bottom = 0
-
-    items_l = [
-        "Vạch bàn Cam ngang cố định: Tỉ lệ SIDE_TABLE_Y_RATIO = 0.54 cần đo đạc lại bằng tay nếu di chuyển vị trí webcam laptop.",
-        "Ước lượng vị trí đế: Tọa độ base_x, base_y ước lượng từ ảnh vẫn còn sai số ±1–2 cm nếu tờ A4 bị xê dịch.",
-        "Điều khiển servo vòng hở: Servo RC MG996R bước 5° chưa có encoder đọc phản hồi góc thực tế nên có thể bị trễ dưới tải nặng.",
-        "Phụ thuộc ánh sáng môi trường: Phân đoạn màu LAB tìm 4 góc giấy dễ bị ảnh hưởng khi phòng quá tối hoặc bị bóng sẫm che khuất.",
-        "Tốc độ khung hình: Mô hình YOLO11s trên CPU thông thường chỉ đạt 10–15 FPS nếu không có bộ tăng tốc GPU/NPU."
+def slide_06(prs):
+    s = new_slide(prs)
+    header(s, "03 · Nhận diện vật", "Tìm vật bằng màu; YOLO chỉ là tùy chọn")
+    cards = [
+        ("MẶC ĐỊNH", GREEN, "Tách màu trên giấy trắng",
+         "Dựng ảnh phẳng của tờ A4 rồi tách vật có màu đậm (cốc đỏ). Bỏ khối rộng > 8 cm, dài > 18 cm, chạm mép giấy, "
+         "hoặc dính phần đen của cánh tay: bàn tay người không bị nhận thành vật."),
+        ("CHẮC NHẤT", GREEN, "Mã ArUco ID 10–29 trên vật",
+         "Dán mã lên vật: cho vị trí chắc chắn; kích thước vật tra bảng OBJECT_SPECS."),
+        ("TÙY CHỌN · --yolo", AMBER, "YOLO11s (bộ COCO)",
+         "Nhận tên vật. Trọng số có sẵn, nhóm chưa huấn luyện lại. Bỏ 12 lớp không phải vật cần gắp; vật YOLO tìm ra cũng phải có màu."),
     ]
-    for item in items_l:
-        p = tf_lc.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(4)
+    for i, (tag, col, title, desc) in enumerate(cards):
+        x = 0.6 + i * 4.11
+        box(s, x, 1.7, 3.91, 2.55, fill=CARD, edge=col if i == 0 else EDGE, edge_w=1.5 if i == 0 else 1.0)
+        chip(s, x + 0.2, 1.88, None, 0.34, tag, edge=col, color=col, size=10.5)
+        text(s, x + 0.2, 2.34, 3.55, 0.38, title, 17, WHITE, True)
+        text(s, x + 0.2, 2.78, 3.55, 1.42, desc, 13, MUTED, spacing=1.08)
+    image(s, "ui_guide_cameras.png", 0.6, 4.45, 7.65, 2.2, mode="cover", focus=(0.5, 0.45))
+    caption(s, 0.6, 6.68, 7.65, "Màn hình bản TRƯỚC khi đơn giản hóa (02/11): YOLO gọi chi tiết robot là bottle, airplane; nắp cốc là frisbee", 11, 0.3)
+    box(s, 8.5, 4.45, 4.23, 2.2, fill=CARD)
+    card_title(s, 8.75, 4.6, 3.9, "Chọn vật nào?", AMBER, 12.5)
+    bullets(s, 8.75, 4.98, 3.85, 1.65, [
+        "Vật gần đế nhất được chọn trước",
+        [("TAB", {"bold": True, "color": AMBER}), " đổi sang vật khác"],
+        "Trung bình 10 khung cho đỡ rung",
+        "Bị che (kẹp che cốc): nhớ vị trí 120 giây",
+    ], 14, after=4)
+    footer(s, 6)
+    notes(s, """
+Biết tờ giấy rồi thì phải tìm vật. Cách mặc định là tách màu trên nền giấy trắng: chương trình dựng ảnh phẳng của tờ A4 rồi tách vật có màu đậm như cốc đỏ, không cần mã. Bàn tay người đưa vào không bị nhận thành vật, vì bộ lọc bỏ khối quá to, chạm mép giấy, hoặc dính vào phần đen của cánh tay.
 
-    card_r = add_card(slide, Inches(6.833), Inches(1.60), Inches(5.7), Inches(5.18), border_color=GREEN, border_width=1.5)
-    box_rh = slide.shapes.add_textbox(Inches(7.133), Inches(1.75), Inches(5.1), Inches(0.45))
-    tf_rh = box_rh.text_frame
-    tf_rh.margin_left = tf_rh.margin_top = tf_rh.margin_right = tf_rh.margin_bottom = 0
-    p_rh = tf_rh.paragraphs[0]
-    p_rh.text = "HƯỚNG PHÁT TRIỂN & NÂNG CẤP"
-    p_rh.font.name = FONT_MAIN
-    p_rh.font.size = Pt(20)
-    p_rh.font.bold = True
-    p_rh.font.color.rgb = GREEN
+Cách chắc nhất là dán mã ArUco số mười tới hai mươi chín lên vật. Cách thứ ba là YOLO11 bản COCO, nhóm chưa huấn luyện lại, và nó chỉ là tùy chọn. Lý do ở ảnh bên dưới: trên màn hình bản trước, YOLO gọi chi tiết robot là chai và máy bay, gọi nắp cốc là đĩa ném. Vì vậy bản hiện tại tắt YOLO mặc định.
 
-    box_rc = slide.shapes.add_textbox(Inches(7.133), Inches(2.25), Inches(5.1), Inches(4.4))
-    tf_rc = box_rc.text_frame
-    tf_rc.word_wrap = True
-    tf_rc.margin_left = tf_rc.margin_top = tf_rc.margin_right = tf_rc.margin_bottom = 0
+Khi có nhiều vật, vật gần đế nhất được chọn trước, phím TAB đổi vật; vị trí lấy trung bình mười khung cho đỡ rung, và khi càng kẹp che mất cốc thì chương trình nhớ vị trí cũ trong hai phút.
 
-    items_r = [
-        "Tự động định chuẩn 3D với solvePnP: Sử dụng ma trận camera nội quy (Intrinsic Matrix) để tự động tính tư thế 6-DOF không cần vạch bàn thủ công.",
-        "Điều khiển vòng lặp kín (Closed-loop): Bám vết trực tiếp mã ArUco ID 5 trên đầu kẹp để bù sai số cơ khí thời gian thực.",
-        "Tự động hóa toàn phần (Full-Autonomous): Tích hợp thuật toán quy hoạch quỹ đạo mượt (Trajectory Planning) gắp vật hoàn toàn tự động.",
-        "Cảm biến áp lực đầu kẹp: Gắn thêm cảm biến FSR ở ngón kẹp để điều khiển lực kẹp thích ứng với các vật mềm dễ vỡ.",
-        "Tích hợp ROS2 & IoT Cloud: Đưa trạng thái gắp lên MQTT Dashboard quản lý từ xa qua Internet."
+Nếu được hỏi: có huấn luyện YOLO không? Chưa; huấn luyện lại cho vật thật là việc có thể làm sau. Vì sao còn giữ YOLO? Để nhận tên vật khi cần; còn vị trí xăng-ti-mét luôn tính từ homography của tờ giấy. Ảnh chụp màn hình lấy ở đâu? Từ giao diện cũ trước khi đơn giản hóa; hiện tượng nhận nhầm là có thật và là lý do YOLO bị tắt.
+
+Nguồn: main.py:53 (--yolo); vision.py:43-47,271-300,365-368,476-486,491-492,507-515; control.py:68-69,542-566.
+""")
+
+
+# ==============================================================================
+# Slide 7: NHÓM 1 · Điều khiển (động học ngược)
+# ==============================================================================
+def arm_diagram(s):
+    """Cánh tay nhìn ngang ở tư thế servo vai 90°, khuỷu 90° (mô hình mặc định), tỉ lệ 1 inch = 55 mm."""
+    k = 1 / 55.0
+    table_y, sx = 5.2, 1.65
+    sy = table_y - 70 * k
+    ex, ey = sx + 105 * k * 0.7071, sy - 105 * k * 0.7071
+    wx, wy = ex + 100 * k, ey
+    tx, ty = wx + 65 * k, wy + 25 * k
+    line(s, 0.75, table_y, 6.35, table_y, MUTED, 1.5)
+    text(s, 4.95, table_y + 0.06, 1.4, 0.25, "mặt bàn", 11, MUTED, align=RIGHT)
+    box(s, sx - 0.3, table_y - 0.42, 0.6, 0.42, fill=EDGE, edge=None, shape=MSO_SHAPE.RECTANGLE)
+    line(s, sx, table_y - 0.42, sx, sy, EDGE, 7)
+    line(s, sx, sy, ex, ey, AMBER, 7)
+    line(s, ex, ey, wx, wy, AMBER, 7)
+    line(s, wx, wy, tx, wy, MUTED, 1.75, dash=True)
+    line(s, tx, wy, tx, ty, MUTED, 1.75, dash=True)
+    for (jx, jy) in ((sx, sy), (ex, ey), (wx, wy)):
+        box(s, jx - 0.1, jy - 0.1, 0.2, 0.2, fill=WHITE, edge=AMBER, edge_w=2, shape=MSO_SHAPE.OVAL)
+    box(s, tx - 0.09, ty - 0.09, 0.18, 0.18, fill=RED, edge=None, shape=MSO_SHAPE.OVAL)
+    text(s, 0.6, (sy + table_y) / 2 - 0.16, sx - 0.4 - 0.6, 0.3, "d1 = 70", 13, WHITE, True, align=RIGHT)
+    text(s, sx - 1.05, ey + 0.38, 1.25, 0.3, "L2 = 105", 13, AMBER, True, align=RIGHT)
+    text(s, (ex + wx) / 2 - 0.65, ey - 0.42, 1.3, 0.3, "L3 = 100", 13, AMBER, True, align=CENTER)
+    text(s, (wx + tx) / 2 - 0.62, wy - 0.42, 1.24, 0.3, "L4r = 65", 12, MUTED, True, align=CENTER)
+    text(s, tx + 0.12, (wy + ty) / 2 - 0.15, 1.0, 0.3, "L4z = 25", 12, MUTED, True)
+    text(s, tx - 1.0, ty + 0.14, 1.6, 0.3, "điểm kẹp", 12, RED, True, align=CENTER)
+    text(s, sx + 0.18, sy - 0.05, 0.9, 0.3, "θ2", 13, WHITE, True)
+    text(s, ex + 0.12, ey + 0.08, 0.9, 0.3, "θ3", 13, WHITE, True)
+
+
+def slide_07(prs):
+    s = new_slide(prs)
+    header(s, "04 · Nhóm 1 · Điều khiển", "Từ vị trí (X, Y) của vật tính ra góc ba servo")
+    arm_diagram(s)
+    caption(s, 0.6, 5.55, 5.9, "Mô hình mặc định (mm, đo bằng thước): servo vai 90° ↔ θ2 = 45°, servo khuỷu 90° ↔ θ3 = −45°. "
+            "Không có servo cổ tay nên hướng ngón kẹp không chọn được.", 12, 0.75)
+    steps = [
+        "Đổi (X, Y) cm trên giấy sang tọa độ robot (mm) theo vị trí và hướng của đế",
+        [("Đế: ", {"bold": True}), ("θ1 = atan2(y, x)", {"font": MONO, "bold": True, "color": AMBER})],
+        "Vai, khuỷu: giải tam giác hai khâu, chọn nghiệm khuỷu hướng lên; điểm kẹp cao 25 mm",
+        "Đổi ra góc servo, làm tròn bội số 2°; số lần bấm = độ lệch ÷ 2°",
     ]
-    for item in items_r:
-        p = tf_rc.add_paragraph()
-        p.text = f"• {item}"
-        p.font.name = FONT_MAIN
-        p.font.size = Pt(14.5)
-        p.font.color.rgb = PRIMARY_TEXT
-        p.space_after = Pt(4)
+    for i, st in enumerate(steps):
+        y = 1.72 + i * 0.78
+        dot(s, 6.85, y + 0.02, i + 1, d=0.38, size=14)
+        text(s, 7.38, y, 5.35, 0.72, [st] if isinstance(st, list) else st, 15.5, WHITE, spacing=1.05)
+    box(s, 6.85, 4.95, 5.88, 1.9, fill=CARD, edge=AMBER, edge_w=1.25)
+    text(s, 7.1, 5.07, 5.5, 0.28, "VÍ DỤ · CỐC Ở (20,1; 7,4) CM", 12, AMBER, True, spc=60)
+    text(s, 7.1, 5.37, 5.5, 0.45, "đế 74° · vai 58° · khuỷu 90°", 24, WHITE, True)
+    text(s, 7.1, 5.98, 1.75, 0.42, "Từ Home 90/90/90:", 13, MUTED, anchor=MIDDLE)
+    keycap(s, 8.88, 5.98, "D", 0.44, 0.42, 16)
+    text(s, 9.38, 5.98, 0.6, 0.42, "× 8", 17, WHITE, True, anchor=MIDDLE)
+    keycap(s, 10.02, 5.98, "S", 0.44, 0.42, 16)
+    text(s, 10.52, 5.98, 0.7, 0.42, "× 16", 17, WHITE, True, anchor=MIDDLE)
+    text(s, 11.25, 5.98, 1.4, 0.42, "khuỷu đã đúng", 12, GREEN, True, anchor=MIDDLE)
+    text(s, 7.1, 6.48, 5.5, 0.3, "robot x = 240 mm, y = −73 mm · dùng mô hình đã hiệu chỉnh (slide 11)", 11, MUTED)
+    footer(s, 7)
+    notes(s, """
+Biết vật ở X, Y, nhóm một tính ba servo cần ở góc nào: đây là bài toán động học ngược.
 
-    set_speaker_notes(slide,
-        "Nhìn nhận một cách khách quan, hệ thống vẫn tồn tại một số hạn chế nhất định: vị trí vạch mặt bàn của webcam ngang "
-        "hiện vẫn phụ thuộc vào tỉ lệ đặt trước là 0.54 nên cần canh chỉnh lại nếu dời vị trí laptop, và góc servo bước 5 độ vẫn là điều khiển vòng hở "
-        "chưa có encoder phản hồi. Trong giai đoạn phát triển tiếp theo, nhóm định hướng tích hợp thuật toán solvePnP để tự động hiệu chuẩn không gian camera 3 chiều, "
-        "kích hoạt vòng điều khiển kín dựa trên mã ArUco ID 5 gắn ở đầu kẹp, và tiến tới tự động hóa toàn phần quỹ đạo chuyển động của robot."
-    )
+Cánh tay nhìn ngang như hình: trục vai cao bảy mươi mi-li-mét so với mặt bàn, khâu vai dài một trăm linh năm, khâu khuỷu dài một trăm, tâm hai ngón kẹp lệch sáu mươi lăm ra trước và hai mươi lăm xuống dưới. Đó là số đo bằng thước của mô hình mặc định; slide mười một sẽ cho thấy chúng được hiệu chỉnh lại.
 
+Có bốn bước: đổi tọa độ trên giấy sang tọa độ robot; góc đế bằng a-tan-hai của y trên x; vai và khuỷu giải tam giác hai khâu, chọn nghiệm khuỷu hướng lên, với điểm kẹp cao hai mươi lăm mi-li-mét; cuối cùng đổi ra góc servo, làm tròn bội số hai độ, rồi độ lệch chia hai là số lần bấm.
 
-# ==============================================================================
-# SLIDE 15: TỔNG KẾT ĐỀ TÀI VÀ HỎI ĐÁP (Q&A)
-# ==============================================================================
-def build_slide_15(prs):
-    slide = add_slide_with_bg(prs)
-    add_header(slide, "TỔNG KẾT & HỎI ĐÁP", "TỔNG KẾT DỰ ÁN VÀ PHIÊN HỎI ĐÁP (Q&A)")
-    add_footer(slide, 15)
+Ví dụ cốc ở hai mươi phẩy một và bảy phẩy bốn xăng-ti-mét: gợi ý đế bảy mươi bốn, vai năm mươi tám, khuỷu chín mươi độ. Từ Home, khi ba servo đều ở chín mươi độ, bấm D tám lần và S mười sáu lần; khuỷu đã đúng. Cánh tay không có servo cổ tay nên hướng ngón kẹp không chọn được.
 
-    # 3 Khối trụ cột thành công phía trên
-    col_w = Inches(3.7)
-    col_h = Inches(3.2)
-    cols_x = [Inches(0.8), Inches(4.816), Inches(8.833)]
+Nếu được hỏi: công thức có được kiểm lại không? Có: trong bộ test, chương trình đưa kết quả động học ngược vào động học thuận trên hơn một trăm điểm trong tầm với và thấy sai số dưới không phẩy một mi-li-mét. Vì sao nghiệm khuỷu hướng lên? Tam giác hai khâu có hai nghiệm; code luôn chọn khuỷu hướng lên để mỗi điểm chỉ có một bộ góc. Vật ngoài tầm với thì sao? Màn hình báo VAT NGOAI TAM VOI và cần dời vật lại gần thêm bao nhiêu mi-li-mét.
 
-    # Trụ cột 1
-    add_card(slide, cols_x[0], Inches(1.65), col_w, col_h, border_color=AMBER)
-    b1 = slide.shapes.add_textbox(cols_x[0] + Inches(0.15), Inches(1.8), col_w - Inches(0.3), col_h - Inches(0.3))
-    tf1 = b1.text_frame
-    tf1.word_wrap = True
-    p1 = tf1.paragraphs[0]
-    p1.alignment = PP_ALIGN.CENTER
-    p1.text = "ĐỘNG HỌC CHÍNH XÁC"
-    p1.font.name = FONT_MAIN
-    p1.font.size = Pt(18)
-    p1.font.bold = True
-    p1.font.color.rgb = AMBER
-    p1.space_after = Pt(8)
-
-    t1 = tf1.add_paragraph()
-    t1.text = "Làm chủ trọn vẹn giải thuật giải tích Động học thuận và Động học ngược 4-DOF nghiệm khuỷu lên. Sai số 0.000000 mm trên 455 điểm kiểm thử không gian."
-    t1.font.name = FONT_MAIN
-    t1.font.size = Pt(15)
-    t1.font.color.rgb = PRIMARY_TEXT
-
-    # Trụ cột 2
-    add_card(slide, cols_x[1], Inches(1.65), col_w, col_h, border_color=GREEN)
-    b2 = slide.shapes.add_textbox(cols_x[1] + Inches(0.15), Inches(1.8), col_w - Inches(0.3), col_h - Inches(0.3))
-    tf2 = b2.text_frame
-    tf2.word_wrap = True
-    p2 = tf2.paragraphs[0]
-    p2.alignment = PP_ALIGN.CENTER
-    p2.text = "THỊ GIÁC KÉP THÔNG MINH"
-    p2.font.name = FONT_MAIN
-    p2.font.size = Pt(18)
-    p2.font.bold = True
-    p2.font.color.rgb = GREEN
-    p2.space_after = Pt(8)
-
-    t2 = tf2.add_paragraph()
-    t2.text = "Hợp nhất ArUco định vị không gian và YOLO11s nhận diện linh hoạt. Tự động xác nhận gắp bằng 2 camera độc lập với ngưỡng đồng thuận 80%."
-    t2.font.name = FONT_MAIN
-    t2.font.size = Pt(15)
-    t2.font.color.rgb = PRIMARY_TEXT
-
-    # Trụ cột 3
-    add_card(slide, cols_x[2], Inches(1.65), col_w, col_h, border_color=AMBER)
-    b3 = slide.shapes.add_textbox(cols_x[2] + Inches(0.15), Inches(1.8), col_w - Inches(0.3), col_h - Inches(0.3))
-    tf3 = b3.text_frame
-    tf3.word_wrap = True
-    p3 = tf3.paragraphs[0]
-    p3.alignment = PP_ALIGN.CENTER
-    p3.text = "TRẢI NGHIỆM TRỰC QUAN"
-    p3.font.name = FONT_MAIN
-    p3.font.size = Pt(18)
-    p3.font.bold = True
-    p3.font.color.rgb = AMBER
-    p3.space_after = Pt(8)
-
-    t3 = tf3.add_paragraph()
-    t3.text = "Giao diện HƯỚNG DẪN GẮP chuẩn Dark Theme hiện đại, nút Keycap cam trực quan hóa từng phím bấm. Hỗ trợ tự động bước Auto-Step và chế độ mô phỏng."
-    t3.font.name = FONT_MAIN
-    t3.font.size = Pt(15)
-    t3.font.color.rgb = PRIMARY_TEXT
-
-    # Khung Q&A lớn phía dưới
-    qa_card = add_card(slide, Inches(0.8), Inches(5.05), Inches(11.733), Inches(1.65),
-                       bg_color=RGBColor(32, 35, 40), border_color=AMBER, border_width=1.5)
-    qa_box = slide.shapes.add_textbox(Inches(1.0), Inches(5.15), Inches(11.333), Inches(1.45))
-    tf_qa = qa_box.text_frame
-    tf_qa.vertical_anchor = MSO_ANCHOR.MIDDLE
-
-    p_qa1 = tf_qa.paragraphs[0]
-    p_qa1.alignment = PP_ALIGN.CENTER
-    p_qa1.text = "XIN CHÂN THÀNH CẢM ƠN QUÝ THẦY CÔ VÀ CÁC BẠN ĐÃ LẮNG NGHE!"
-    p_qa1.font.name = FONT_MAIN
-    p_qa1.font.size = Pt(22)
-    p_qa1.font.bold = True
-    p_qa1.font.color.rgb = AMBER
-
-    p_qa2 = tf_qa.add_paragraph()
-    p_qa2.alignment = PP_ALIGN.CENTER
-    p_qa2.text = "PHIÊN HỎI ĐÁP & ĐÓNG GÓP Ý KIẾN (Q&A)"
-    p_qa2.font.name = FONT_MAIN
-    p_qa2.font.size = Pt(18)
-    p_qa2.font.bold = True
-    p_qa2.font.color.rgb = PRIMARY_TEXT
-
-    set_speaker_notes(slide,
-        "Tóm lại, đề tài đã xây dựng thành công một hệ thống hỗ trợ gắp vật hoàn chỉnh cho cánh tay robot 4-DOF, "
-        "làm chủ từ bài toán giải tích động học ngược, xử lý ảnh thị giác máy tính với ArUco và YOLO11s, "
-        "cho đến thiết kế giao diện hướng dẫn người dùng trực quan. Hệ thống chứng minh tính khả thi cao và mở ra tiềm năng ứng dụng lớn "
-        "trong các dây chuyền phân loại sản phẩm mini. Nhóm chúng em xin chân thành cảm ơn quý thầy cô và các bạn đã chú ý lắng nghe, "
-        "và chúng em rất mong nhận được những câu hỏi và ý kiến đóng góp quý báu."
-    )
+Nguồn: control.py:36-67,98-161,174-195,221-245; tests/test_control.py:16-35; 05_SO_LIEU_VA_NGUON.md mục 3 và 16 (ví dụ tính lại bằng check_facts.py --deep).
+""")
 
 
 # ==============================================================================
-# HÀM ĐIỀU PHỐI CHÍNH
+# Slide 8: Màn hình hai phần
 # ==============================================================================
-def main():
-    print("=" * 70)
-    print("KHỞI TẠO BỘ SLIDE THUYẾT TRÌNH: Project_IoT_ThuyetTrinh.pptx")
-    print("=" * 70)
+def slide_08(prs):
+    s = new_slide(prs)
+    header(s, "04 · Màn hình hai phần", "Màn hình chỉ nói một việc: bấm phím nào, mấy lần")
+    image(s, "ui_screen_before.png", 0.6, 1.66, 8.2, None, mode="fit")
+    caption(s, 0.6, 6.38, 8.2, "Màn hình thật của chương trình, chạy trên ảnh camera thật đã lưu (20:27); cánh tay MÔ PHỎNG "
+            "(chân trang ghi USB Arduino: MO PHONG). Chữ không dấu vì OpenCV không vẽ được dấu.", 11.5, 0.55)
+    rx, rw = 9.1, 3.63
+    dot(s, rx, 1.72, 1, d=0.4, size=14)
+    text(s, rx + 0.52, 1.72, rw - 0.52, 0.35, "Phần 1 · Điều khiển", 16, AMBER, True)
+    text(s, rx + 0.52, 2.08, rw - 0.52, 0.95, "phím to, số lần, hạ / quay bao nhiêu độ; ba hàng servo: góc hiện tại → góc đích", 13, WHITE, spacing=1.05)
+    dot(s, rx, 3.08, 2, GREEN, d=0.4, size=14)
+    text(s, rx + 0.52, 3.08, rw - 0.52, 0.35, "Phần 2 · Success", 16, GREEN, True)
+    text(s, rx + 0.52, 3.44, rw - 0.52, 0.7, "CHƯA XONG, còn N lần bấm; hoặc XONG! khi cả ba servo tới góc", 13, WHITE, spacing=1.05)
+    box(s, rx, 4.3, rw, 1.32, fill=CARD)
+    text(s, rx + 0.18, 4.4, rw - 0.3, 0.28, "TRÁI / PHẢI NHÌN THEO CAM NGANG", 10.5, MUTED, True, spc=30)
+    keycap(s, rx + 0.18, 4.75, "A", 0.44, 0.42, 16)
+    text(s, rx + 0.7, 4.75, 1.2, 0.42, "sang phải", 14, WHITE, anchor=MIDDLE)
+    keycap(s, rx + 1.9, 4.75, "D", 0.44, 0.42, 16)
+    text(s, rx + 2.42, 4.75, 1.2, 0.42, "sang trái", 14, WHITE, anchor=MIDDLE)
+    text(s, rx + 0.18, 5.24, rw - 0.3, 0.3, "W S vai · I K khuỷu · mỗi lần 2°", 12.5, MUTED)
+    text(s, rx, 5.82, rw, 0.95, [[("Trong ảnh: ", {"color": MUTED}), "cốc ở (16,5; 13,8) cm"],
+                                 [("→ ", {"color": AMBER}), ("BẤM S × 15", {"color": AMBER, "bold": True}), ", hạ vai 30°"],
+                                 "đế đã đúng · còn 18 lần bấm"], 13, WHITE, spacing=1.08)
+    footer(s, 8)
+    notes(s, """
+Đây là màn hình của chương trình, chạy trên ảnh camera thật đã lưu với cánh tay mô phỏng, nên chân trang ghi mô phỏng. Hai khung camera ở trên có lưới tọa độ, vòng DICH quanh cốc và dấu KEP là chỗ đầu kẹp theo mô hình.
 
-    # 1. Sinh ảnh giao diện mẫu từ code nếu chưa có
-    generate_guide_screen_asset()
+Bên dưới là hai phần nối nhau bằng một mũi tên. Phần một vẽ từ Plan của nhóm một: một lệnh to. Trong ảnh, cốc ở mười sáu phẩy năm và mười ba phẩy tám xăng-ti-mét, lệnh là bấm S mười lăm lần, hạ vai ba mươi độ, còn mười tám lần bấm. Ba hàng bên dưới là ba servo; hàng nào đã đúng thì ghi ĐÃ ĐÚNG, như hàng đế chỉ lệch hai độ. Phần hai vẽ từ kết quả của nhóm hai: chưa xong, còn bao nhiêu lần bấm, hoặc XONG.
 
-    # 2. Khởi tạo đối tượng Presentation
-    prs = create_deck()
+Chữ không dấu vì OpenCV không vẽ được dấu tiếng Việt. Trái phải nhìn theo camera MacBook đặt trước robot, nên phím A quay đế sang phải, phím D sang trái. Màn hình chỉ cho biết phải bấm gì; người điều khiển là người bấm.
 
-    # 3. Dựng tuần tự 15 slide kỹ thuật
-    print("Đang dựng Slide 1: Tiêu đề đề tài...")
-    build_slide_1(prs)
+Nếu được hỏi: có tự gửi phím không? Không; chương trình chỉ gửi phím khi người bấm. Vì sao chỉ một lệnh to? Để người điều khiển làm theo được ngay, không phải đọc bảng số. Vì sao thứ tự đế, rồi vai, rồi khuỷu? Là thứ tự code lập lệnh; hàng nào đã đúng thì được bỏ qua. Ảnh camera là ảnh cũ mà vẫn có gợi ý? Ảnh là khung camera thật lúc hai mươi giờ hai mươi bảy, chương trình đọc nó như camera đang chạy, còn cánh tay mô phỏng đặt ở Home. Gợi ý trên ảnh này là đế 88, vai 60, khuỷu 84, gần tư thế người thật sự ôm cốc lúc hai mươi giờ ba mươi hai, khoảng 85, 60, 90 (đọc từ màn hình bản cũ); nhưng chưa rõ lần ôm đó có nằm trong mười mẫu khớp hay không, nên chỉ nói là gần.
 
-    print("Đang dựng Slide 2: Bài toán và mục tiêu giải pháp...")
-    build_slide_2(prs)
+Nguồn: screen.py:157-239,249-259; main.py:155-180; control.py:211-217; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
+""")
 
-    print("Đang dựng Slide 3: Kiến trúc và thiết bị phần cứng...")
-    build_slide_3(prs)
 
-    print("Đang dựng Slide 4: Kiến trúc phần mềm và luồng dữ liệu...")
-    build_slide_4(prs)
+# ==============================================================================
+# Slide 9: NHÓM 2 · Success
+# ==============================================================================
+def slide_09(prs):
+    s = new_slide(prs)
+    header(s, "05 · Nhóm 2 · Success", "XONG khi ba servo tới góc gợi ý và giữ yên một giây")
+    rows = [("± 2°", "mỗi servo lệch không quá một bước bấm so với góc gợi ý (lệch 3° là chưa)"),
+            ("3 servo", "đế, vai, khuỷu; tay kẹp không tính"),
+            ("1 giây", "giữ đúng liên tục một giây mới đếm thêm một lần thành công")]
+    for i, (big, desc) in enumerate(rows):
+        y = 1.72 + i * 1.02
+        box(s, 0.6, y, 5.95, 0.9, fill=CARD)
+        text(s, 0.8, y, 1.75, 0.9, big, 30, GREEN, True, anchor=MIDDLE)
+        text(s, 2.6, y, 3.8, 0.9, desc, 14.5, WHITE, anchor=MIDDLE, spacing=1.05)
+    chip(s, 0.6, 4.83, 2.9, 0.38, "ĐÃ KIỂM: 7 TEST + CHUỖI ĐẦU–CUỐI", edge=GREEN, color=GREEN, size=10)
+    chip(s, 3.62, 4.83, 2.93, 0.38, "CHƯA ĐẾM TRÊN CÁNH TAY THẬT", edge=RED, color=RED, size=10)
+    image(s, "ui_screen_done.png", 6.85, 1.72, 5.88, None, mode="fit")
+    caption(s, 6.85, 5.1, 5.88, "Mô phỏng: bấm đủ phím theo lệnh thì phần 2 báo XONG! và đếm 1 lần (ảnh camera thật đã lưu, 20:32:52)", 11, 0.4)
+    for i, (title, col, body) in enumerate([
+        ("Vì sao kẹp không tính", AMBER, "Cốc thon dần xuống đáy: hai ngón đẩy cốc ra ở 150–160°; cốc đổ khoảng 3 lần trong buổi thử."),
+        ("Giới hạn của chữ XONG", RED, "Arduino báo lại góc đã RA LỆNH; MG996R không báo vị trí thật. XONG = đã bấm đủ phím, chưa phải đo thấy kẹp sát cốc."),
+    ]):
+        x = 0.6 + i * 6.15
+        box(s, x, 5.58, 5.98, 1.27, fill=CARD, edge=col, edge_w=1.0)
+        card_title(s, x + 0.2, 5.68, 5.6, title, col, 12)
+        text(s, x + 0.2, 5.98, 5.6, 0.85, body, 13.5, WHITE, spacing=1.05)
+    footer(s, 9)
+    notes(s, """
+Nhóm hai chỉ trả lời một câu: ba servo đế, vai, khuỷu đã tới góc nhóm một gợi ý chưa. Nó không biết gì về camera, động học hay cổng USB, chỉ đọc Plan.
 
-    print("Đang dựng Slide 5: Hệ tọa độ bàn và lưới ArUco...")
-    build_slide_5(prs)
+Quy tắc có ba điều. Mỗi servo lệch không quá một bước bấm, tức hai độ, là đã tới; nhóm chọn hai độ vì mô hình hình học vốn chỉ chính xác cỡ đó. Chỉ tính ba servo của cánh tay, không tính tay kẹp. Và cả ba phải giữ đúng liên tục một giây mới đếm thêm một lần thành công; lướt qua thì không đếm.
 
-    print("Đang dựng Slide 6: Nhận diện vật thể YOLO11s và ArUco...")
-    build_slide_6(prs)
+Tay kẹp không tính vì cốc nhóm dùng thon dần xuống đáy: khép hai ngón tới một trăm năm mươi, một trăm sáu mươi độ thì cốc bị đẩy ra, và trong buổi thử cốc đổ khoảng ba lần.
 
-    print("Đang dựng Slide 7: Động học 4-DOF và quy đổi servo...")
-    build_slide_7(prs)
+Hai điều nhóm nói thẳng. Chữ XONG nghĩa là ba góc lệnh đã tới, vì MG996R không báo vị trí thật; nó chưa phải bằng chứng hai ngón kẹp đang sát cốc. Và ảnh bên phải là mô phỏng trên ảnh thật đã lưu; trên cánh tay thật nhóm chưa có lần đếm nào cho bản này.
 
-    print("Đang dựng Slide 8: Chuyển đổi tọa độ A4 sang Robot...")
-    build_slide_8(prs)
+Nếu được hỏi: vì sao giữ một giây? Để lướt qua mục tiêu không bị tính là thành công. Có thể kiểm bằng camera không? Bản trước có làm, bằng hai tín hiệu từ hai camera; nhóm đã bỏ để mã đơn giản. Đếm ở đâu? Ở dòng Thanh cong: N lan trên phần hai; chưa ghi ra file. Không thấy vật thì sao? Không bao giờ báo xong: trạng thái là chưa thấy vật.
 
-    print("Đang dựng Slide 9: Quy trình gắp 5 bước và thứ tự an toàn...")
-    build_slide_9(prs)
+Nguồn: success.py:16-17,19,22-75; tests/test_success.py (7 test); tests/test_end_to_end.py:11-47; robot_arm_4dof.ino:70-83; README.md mục 6; ảnh ui_screen_done (tạo bằng slides/tools/make_screen_images.py).
+""")
 
-    print("Đang dựng Slide 10: Tự động xác nhận gắp 2 camera...")
-    build_slide_10(prs)
 
-    print("Đang dựng Slide 11: Giao thức truyền thông Arduino...")
-    build_slide_11(prs)
+# ==============================================================================
+# Slide 10: Thử trên cánh tay thật
+# ==============================================================================
+def slide_10(prs):
+    s = new_slide(prs)
+    header(s, "06 · Thử trên cánh tay thật", "Cốc đỏ được kẹp, chuyển sang trái và đặt xuống")
+    x0, w, gap = 1.62, 3.63, 0.12
+    h = w * 9 / 16
+    cols = [("demo_06_grip", "20:32:52 · KẸP"), ("demo_07_carry", "20:33:02 · CHUYỂN SANG TRÁI"), ("demo_08_place", "20:33:12 · ĐẶT XUỐNG")]
+    for c, (stem, lab) in enumerate(cols):
+        x = x0 + c * (w + gap)
+        text(s, x, 1.66, w, 0.3, lab, 13, AMBER, True, align=CENTER)
+        image(s, f"{stem}_side.jpg", x, 2.0, w, h)
+        image(s, f"{stem}_top.jpg", x, 2.0 + h + gap, w, h)
+    for r, lab in enumerate(["CAM\nNGANG", "CAM\nTRÊN"]):
+        y = 2.0 + r * (h + gap)
+        text(s, 0.6, y, 0.92, h, lab.split("\n"), 13, MUTED, True, anchor=MIDDLE, spacing=1.0)
+    chip(s, 0.6, 6.35, 3.3, 0.42, "NGƯỜI BẤM PHÍM · KHÔNG TỰ ĐỘNG", fill=AMBER, color=DARK, size=11.5)
+    text(s, 4.1, 6.3, 8.63, 0.55, "02/11/2026 · khung cắt từ video, cách nhau 10 giây · màn hình bản trước khi đơn giản hóa · "
+         "cốc đổ khoảng 3 lần và được dựng lại bằng tay · chưa có tỉ lệ thành công", 12, MUTED, spacing=1.05)
+    footer(s, 10)
+    notes(s, """
+Đây là bằng chứng cánh tay thật làm được việc. Ba cột cách nhau mười giây trong buổi thử ngày hai tháng mười một, hàng trên là camera ngang, hàng dưới là camera trên: cốc nằm giữa hai ngón kẹp, cốc được chuyển sang trái, rồi đặt xuống và cánh tay rút về. Nhóm làm vòng này nhiều lần.
 
-    print("Đang dựng Slide 12: Thiết kế giao diện người dùng (HUD & Guide)...")
-    build_slide_12(prs)
+Ba điều cần nói rõ. Đây là người bấm phím nhìn hình hai camera, trên màn hình bản trước khi đơn giản hóa, chưa phải tự động. Cốc bị đổ khoảng ba lần và được dựng lại bằng tay. Và đây chưa phải số liệu tỉ lệ thành công: nhóm chưa có tỉ lệ nào.
 
-    print("Đang dựng Slide 13: Kết quả kiểm thử động học và thực nghiệm...")
-    build_slide_13(prs)
+Góc servo lúc kẹp, đọc từ màn hình bản cũ: đế khoảng tám mươi lăm, vai sáu mươi đến sáu mươi lăm, khuỷu tám mươi lăm đến chín mươi độ. Chính những lần ôm cốc như thế này là dữ liệu để hiệu chỉnh mô hình, ở slide tiếp theo.
 
-    print("Đang dựng Slide 14: Đánh giá hạn chế và hướng phát triển...")
-    build_slide_14(prs)
+Nếu được hỏi: có video không? [...điền: có / không; nếu có thì chiếu đoạn 20–30 giây]. Kẹp có giữ chắc không? Không hẳn: cốc đổ khoảng ba lần, và các lần thử sau cho thấy cốc thon bị đẩy ra ở 150–160 độ.
 
-    print("Đang dựng Slide 15: Tổng kết dự án và phiên hỏi đáp (Q&A)...")
-    build_slide_15(prs)
+Nguồn: ảnh demo_06, demo_07, demo_08 (khung cắt từ video 02/11/2026, 20:32:52 đến 20:33:12); 05_SO_LIEU_VA_NGUON.md mục 7.
+""")
 
-    # 4. Xuất file PPTX
-    out_dir = os.path.join(PROJECT_ROOT, "slides")
-    os.makedirs(out_dir, exist_ok=True)
-    out_pptx = os.path.join(out_dir, "Project_IoT_ThuyetTrinh.pptx")
-    prs.save(out_pptx)
 
-    # 5. Xác minh file xuất ra
-    file_size = os.path.getsize(out_pptx)
-    num_slides = len(prs.slides)
-    print("=" * 70)
-    print(f"XUẤT THÀNH CÔNG: {out_pptx}")
-    print(f"Tổng số slide: {num_slides} slide (Yêu cầu: 15 slide)")
-    print(f"Kích thước file: {file_size:,} bytes ({file_size / (1024*1024):.2f} MB)")
-    print("=" * 70)
+# ==============================================================================
+# Slide 11: Sự cố 1 · mô hình lệch và hiệu chỉnh
+# ==============================================================================
+def slide_11(prs):
+    s = new_slide(prs)
+    header(s, "07 · Sự cố 1", "Mô hình lệch 3,5–5,9 cm; hiệu chỉnh bằng 10 lần ôm còn 8,5 mm", size=26)
+    card_title(s, 0.6, 1.72, 5.4, "Đầu kẹp theo mô hình mặc định cách cốc thật", MUTED, 12)
+    for i, (big, desc) in enumerate([("5,4 cm", "ôm lúc 20:32 · servo [85, 60, 90]"),
+                                     ("3,5 cm", "ôm lúc 20:46 · servo [80, 70, 75]"),
+                                     ("5,9 cm", "ôm lúc 21:03 · servo [75, 85, 50]")]):
+        y = 2.06 + i * 0.62
+        text(s, 0.6, y, 1.75, 0.55, big, 26, RED, True, anchor=MIDDLE)
+        text(s, 2.4, y, 3.6, 0.55, desc, 14, WHITE, anchor=MIDDLE)
+    text(s, 0.6, 3.98, 5.45, 0.55, "Cùng chiều, cùng cỡ: lệch có hệ thống, nên sửa được bằng cách khớp lại mô hình", 13.5, MUTED, spacing=1.05)
+    card_title(s, 0.6, 4.66, 5.4, "Cách sửa: hiệu chỉnh bằng các lần ôm cốc", GREEN, 12)
+    steps(s, 0.6, 5.02, 5.45, [
+        "Người bấm phím cho hai ngón ôm quanh cốc; ghi 3 góc servo và vị trí cốc",
+        "10 lần ở các chỗ khác nhau; khớp vị trí, hướng đế, 2 góc chuẩn và càng kẹp (Levenberg–Marquardt, numpy)",
+        "Lưu vào calibration.json",
+    ], 13, dot_color=GREEN, d=0.3, gap=0.1)
+    image(s, "calib_before_after_side.jpg", 6.33, 1.7, 6.4, 3.5)
+    caption(s, 6.33, 5.25, 6.4, "Khung cam NGANG lúc ôm cốc 21:03: dấu MAC DINH (mô hình mặc định) cách cốc ≈ 5 cm, dấu SAU HIEU CHINH ≈ 1 cm. "
+            "Lần ôm này nằm trong 10 mẫu khớp: minh họa, không phải kiểm độc lập.", 11, 0.6)
+    for i, (big, desc) in enumerate([("8,5 mm", ["sai số khớp (RMS)", "trên 10 mẫu"]), ("11,6 mm", ["bỏ-một-mẫu", "(leave-one-out)"])]):
+        x = 6.33 + i * 3.25
+        box(s, x, 5.98, 3.15, 0.87, fill=CARD, edge=GREEN, edge_w=1.0)
+        text(s, x + 0.15, 5.98, 1.5, 0.87, big, 21, GREEN, True, anchor=MIDDLE)
+        text(s, x + 1.62, 5.98, 1.48, 0.87, desc, 11.5, WHITE, anchor=MIDDLE, spacing=1.02)
+    footer(s, 11)
+    notes(s, """
+Đây là chỗ nhóm học được nhiều nhất. Gợi ý trên màn hình tính từ mô hình cánh tay chứ không đo bằng camera, nên mô hình lệch thì gợi ý nào cũng lệch.
 
-    assert num_slides == 15, f"Lỗi: Số lượng slide không đúng: {num_slides} != 15"
-    assert file_size > 50000, f"Lỗi: File PPTX quá nhỏ: {file_size} bytes"
+Bằng chứng ở cột trái: người điều khiển bấm phím cho hai ngón kẹp ôm quanh cốc, nhóm ghi ba góc servo và vị trí cốc. Đưa ba tư thế đầu vào mô hình mặc định, đầu kẹp theo mô hình cách cốc thật năm phẩy bốn, ba phẩy năm và năm phẩy chín xăng-ti-mét, cùng chiều, cùng cỡ: lỗi có hệ thống chứ không phải nhiễu.
 
+Cách sửa là hiệu chỉnh bằng trình diễn: mười lần ôm cốc ở các chỗ khác nhau, khớp lại vị trí và hướng đế, hai góc chuẩn của vai và khuỷu, và càng kẹp, bằng thuật toán Levenberg–Marquardt viết thuần numpy. Sai số khớp còn tám phẩy năm mi-li-mét, và mười một phẩy sáu khi bỏ lần lượt từng mẫu. Trong ảnh, dấu cam là mô hình mặc định, dấu xanh là sau hiệu chỉnh, sát cốc; lần ôm này nằm trong mười mẫu nên chỉ là minh họa.
+
+Giới hạn nhóm nói thẳng: tám phẩy năm là sai số trên chính mười mẫu dùng để khớp; nhóm chưa thử bấm theo gợi ý mới trên cánh tay thật; và hiệu chỉnh chỉ đúng với tờ giấy và chỗ đặt robot lúc đo.
+
+Nếu được hỏi: nguyên nhân lệch là gì? Có ba: vị trí và hướng của đế khác mặc định; hai góc chuẩn của vai và khuỷu khi servo ở chín mươi độ khác bốn mươi lăm độ, vì phụ thuộc cách lắp cần servo mà thước không đo được; và càng kẹp gắn cứng vào khâu khuỷu nên điểm kẹp quay theo khâu đó, trong khi mô hình cũ giữ độ lệch cố định theo phương ngang. con số năm phẩy bốn có độc lập không? Màn hình bản cũ lúc hai mươi giờ ba mươi hai báo sai số đầu kẹp năm mươi sáu mi-li-mét, cùng cỡ. Vì sao không đo lại bằng thước? Thước đo được chiều dài các khâu, không đo được góc lắp cần servo; hiệu chỉnh bằng trình diễn làm được cả hai việc. Ví dụ sau hiệu chỉnh? Cốc ở hai mươi phẩy một và bảy phẩy bốn cho gợi ý bảy mươi bốn, năm mươi tám, chín mươi; hai tư thế người căn tay quanh cốc ở chỗ đó cho đầu kẹp theo mô hình cách cốc khoảng năm đến sáu mi-li-mét, nhưng chưa rõ hai tư thế đó có nằm trong mười mẫu khớp hay không, nên chỉ nói là gần. Vì sao ảnh ghi khoảng năm xăng-ti-mét mà cột trái ghi năm phẩy chín? Cột trái dùng vị trí cốc ghi lúc ôm; ảnh đo lại từ camera ngang với độ chính xác khoảng một xăng-ti-mét; hai số cùng cỡ.
+
+Nguồn: calibration.json (mục arm, claw, arm_fit); calibration.py:16-20,77-105; arm_fit.py:1-45; tests/test_arm_fit.py:80-91; 05_SO_LIEU_VA_NGUON.md mục 8 và 16; ảnh calib_before_after_side.
+""")
+
+
+# ==============================================================================
+# Slide 12: Sự cố 2 · servo kẹp nóng
+# ==============================================================================
+def slide_12(prs):
+    s = new_slide(prs)
+    header(s, "07 · Sự cố 2", "Servo kẹp nóng vì xung PWM không bao giờ nghỉ")
+    box(s, 0.6, 1.72, 4.85, 3.85, fill=CARD, edge=RED, edge_w=1.0)
+    card_title(s, 0.85, 1.9, 4.4, "Nguyên nhân", RED)
+    steps(s, 0.85, 2.38, 4.4, [
+        "Firmware cũ không bao giờ ngắt xung: kẹp giữ vật hay chạm chốt chặn thì servo bị ép liên tục, đứng yên cũng vậy",
+        "Lệnh đóng kẹp cũ 175° (xung ≈ 2,74 ms), vượt dải 0,5–2,5 ms của MG996R",
+    ], 15.5, dot_color=RED, d=0.36, gap=0.3, fg=WHITE, spacing=1.08)
+    box(s, 5.7, 1.72, 7.03, 3.85, fill=CARD, edge=GREEN, edge_w=1.0)
+    card_title(s, 5.95, 1.9, 6.5, "Cách xử lý trong firmware", GREEN)
+    fixes = [
+        "Giới hạn cứng góc kẹp 160°; mỗi lần bấm kẹp chỉ nhích 5°",
+        "Kẹp mở hết cỡ (95°) mà 5 giây không có lệnh → ngắt xung",
+        "Kẹp đã khép quá 60 giây → ngắt xung (vật có thể tuột)",
+        None,  # Hàng phím X / Z vẽ riêng
+        "Màn hình biết tay đang nghỉ: CANH TAY DANG NGHI",
+    ]
+    for i, st in enumerate(fixes):
+        y = 2.38 + i * 0.6
+        dot(s, 5.95, y, i + 1, GREEN, d=0.36, size=13)
+        if st is None:
+            keycap(s, 6.48, y - 0.03, "X", 0.42, 0.4, 15)
+            text(s, 6.98, y - 0.03, 2.0, 0.4, "kẹp nghỉ ngay", 15.5, WHITE, anchor=MIDDLE)
+            keycap(s, 8.95, y - 0.03, "Z", 0.42, 0.4, 15)
+            text(s, 9.45, y - 0.03, 3.1, 0.4, "cả 4 servo nghỉ", 15.5, WHITE, anchor=MIDDLE)
+        else:
+            text(s, 6.48, y + 0.02, 6.1, 0.4, st, 15.5, WHITE)
+    done = "ĐÃ NẠP VÀ KIỂM TRÊN MẠCH THẬT (02/11, 21:42 và 21:54)"
+    chip(s, 0.6, 5.85, None, 0.44, done, edge=GREEN, color=GREEN, size=11.5)
+    chip(s, 0.6 + chip_w(done, 11.5) + 0.2, 5.85, None, 0.44, "CHƯA ĐO NHIỆT ĐỘ SERVO", edge=RED, color=RED, size=11.5)
+    footer(s, 12)
+    notes(s, """
+Sự cố thứ hai là phần cứng: servo tay kẹp bị nóng. Có hai nguyên nhân. Firmware cũ không bao giờ ngắt xung PWM, nên khi kẹp giữ vật hay chạm chốt chặn thì servo bị ép liên tục. Và lệnh đóng cũ một trăm bảy mươi lăm độ cho xung khoảng hai phẩy bảy bốn mi-li-giây, vượt dải không phẩy năm đến hai phẩy năm của MG996R.
+
+Firmware mới xử lý theo từng lớp: giới hạn cứng góc kẹp một trăm sáu mươi độ; kẹp mở hết cỡ năm giây không có lệnh thì ngắt xung, kẹp đã khép quá sáu mươi giây cũng ngắt; phím X cho kẹp nghỉ ngay, phím Z cho cả bốn servo nghỉ; và màn hình biết khi tay đang nghỉ.
+
+Firmware này đã nạp lúc chín giờ bốn mươi hai và chín giờ năm mươi tư tối ngày hai tháng mười một, và kiểm trên mạch thật. Nhưng nhóm chưa đo nhiệt độ servo, nên chưa có con số nguội đi bao nhiêu.
+
+Nếu được hỏi: phím Z có gì cần chú ý? Cả bốn servo mất xung nên cánh tay tự sụp theo trọng lực: phải hạ đầu kẹp tựa xuống chỗ trống trước. Màn hình biết tay đang nghỉ nên ghi CANH TAY DANG NGHI thay vì tin các góc cũ. vì sao không dùng cảm biến nhiệt? Chưa có trong phần cứng; đây là việc có thể thêm. Giới hạn một trăm sáu mươi có vượt dải xung không? Có, hơi vượt: xung khoảng hai phẩy năm sáu mi-li-giây so với dải danh định hai phẩy năm; chủ máy chấp nhận để kẹp chặt hơn và vẫn có tự nhả xung sau sáu mươi giây. Vì sao ngắt xung khi mở hết cỡ thì hàm khép lại? Khi mất xung, hai hàm rơi thành hình chữ V hẹp, khe còn khoảng một đến hai xăng-ti-mét (ước lượng từ ảnh), nên khi tiếp cận phải bấm J lại.
+
+Nguồn: robot_arm_4dof.ino:16-23,160-176,191-201; control.py (trạng thái relaxed, cảnh báo FIRMWARE CU KHONG CO PHIM Z); README.md mục 6; 05_SO_LIEU_VA_NGUON.md mục 6.
+""")
+
+
+# ==============================================================================
+# Slide 13: Kết quả: đã có và chưa kiểm chứng
+# ==============================================================================
+def slide_13(prs):
+    s = new_slide(prs)
+    header(s, "08 · Kết quả", "Đã có bằng chứng, và những điều chưa kiểm chứng")
+    box(s, 0.6, 1.72, 5.95, 3.55, fill=CARD, edge=GREEN, edge_w=1.25)
+    card_title(s, 0.85, 1.88, 5.5, "Đã có bằng chứng", GREEN)
+    bullets(s, 0.85, 2.3, 5.5, 2.9, [
+        "Hệ tọa độ từ tờ A4 chạy trên cả hai camera (ảnh thật)",
+        "Cánh tay thật ôm cốc và chuyển sang trái khi người bấm phím (02/11)",
+        "Mô hình khớp 10 lần ôm thật: 8,5 mm, bỏ-một-mẫu 11,6 mm",
+        "Firmware chống nóng và phím Z đã nạp, kiểm trên mạch thật",
+        "109 test tự động pass, không cần camera hay Arduino",
+    ], 15, after=8, mark_color=GREEN)
+    box(s, 6.78, 1.72, 5.95, 3.55, fill=CARD, edge=RED, edge_w=1.25)
+    card_title(s, 7.03, 1.88, 5.5, "Chưa kiểm chứng", RED)
+    bullets(s, 7.03, 2.3, 5.5, 2.9, [
+        "Số lần XONG trên cánh tay thật: bản mới mới chạy bằng test và ảnh đã lưu",
+        "Bấm đúng theo gợi ý mới thì hai ngón có ôm quanh cốc không",
+        "Kẹp giữ chắc cốc thon (cần ma sát hoặc vật thân thẳng)",
+        "Nhiệt độ servo kẹp sau khi thêm ngắt xung",
+        "Hiệu chỉnh cho tờ giấy mới hoặc robot đặt chỗ khác",
+        "Dashboard IoT / MQTT, cảm biến lực: có trong kế hoạch 28/10, chưa làm",
+    ], 14, after=5, mark="–", mark_color=RED)
+    stats = [("109 / 109", ["test tự động pass", "(≈ 9 giây)"], GREEN),
+             ("11", ["tệp test, từ động học", "tới màn hình và Serial"], WHITE),
+             ("0", ["lần đếm XONG trên", "cánh tay thật (bản mới)"], RED)]
+    for i, (big, desc, col) in enumerate(stats):
+        x = 0.6 + i * 4.11
+        bw = text_w(big, 30, True) + 0.3
+        box(s, x, 5.5, 3.91, 1.35, fill=BG2, edge=None)
+        text(s, x + 0.22, 5.5, bw, 1.35, big, 30, col, True, anchor=MIDDLE)
+        text(s, x + 0.22 + bw, 5.5, 3.91 - 0.3 - bw, 1.35, desc, 13, MUTED, anchor=MIDDLE, spacing=1.05)
+    footer(s, 13)
+    notes(s, """
+Slide này nói thật những gì nhóm có và chưa có.
+
+Có bằng chứng: hệ tọa độ chạy trên cả hai camera; cánh tay thật ôm cốc và chuyển sang trái khi người bấm phím; mô hình khớp mười lần ôm thật với sai số tám phẩy năm mi-li-mét; firmware chống nóng đã nạp và kiểm trên mạch; và một trăm linh chín test tự động đều pass trong khoảng chín giây, không cần camera hay Arduino thật.
+
+Chưa kiểm chứng: số lần XONG trên cánh tay thật cho bản mới; bấm theo gợi ý mới thì hai ngón có ôm quanh cốc không; kẹp giữ chắc cốc thon; nhiệt độ servo; hiệu chỉnh cho tờ giấy mới; và dashboard IoT với MQTT, cảm biến lực, vốn có trong kế hoạch ngày hai mươi tám tháng mười nhưng chưa làm.
+
+Tóm lại: một trăm linh chín trên một trăm linh chín test pass, và chưa có lần đếm XONG nào trên cánh tay thật.
+
+Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Nhóm đơn giản hóa mã ngay trong ngày để giải thích được trong một phút; chạy bản mới với cánh tay là bước đầu của việc tiếp theo. Test gồm những gì? Điều khiển 29, nhìn 15, camera 13, hiệu chỉnh 11, Serial 9, chương trình chính 8, success 7, độ bền 6, khớp mô hình 5, màn hình 4, đầu–cuối 2. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm sẽ thêm MQTT từ gói JSON hiện có.
+
+Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; lệnh .venv/bin/python -m pytest -q (109 passed, 03/11/2026).
+""")
+
+
+# ==============================================================================
+# Slide 14: Hạn chế và việc tiếp theo
+# ==============================================================================
+def slide_14(prs):
+    s = new_slide(prs)
+    header(s, "09 · Hướng phát triển", "Hạn chế hiện tại và việc tiếp theo")
+    box(s, 0.6, 1.72, 5.95, 4.15, fill=CARD, edge=AMBER, edge_w=1.0)
+    card_title(s, 0.85, 1.88, 5.5, "Hạn chế", AMBER)
+    bullets(s, 0.85, 2.32, 5.5, 3.5, [
+        "Vòng hở: XONG dựa trên góc lệnh, MG996R không báo vị trí thật",
+        "Hiệu chỉnh gắn với một tờ giấy và một chỗ đặt robot",
+        "Tay kẹp hai ngón phi tuyến, chưa giữ chắc cốc thon",
+        "YOLO bản COCO chưa huấn luyện lại, hay gọi nhầm",
+        "Chưa có tỉ lệ thành công, chưa đo nhiệt độ servo",
+    ], 16, after=13)
+    box(s, 6.78, 1.72, 5.95, 4.15, fill=CARD, edge=GREEN, edge_w=1.0)
+    card_title(s, 7.03, 1.88, 5.5, "Việc tiếp theo", GREEN)
+    steps(s, 7.03, 2.32, 5.5, [
+        "Chạy bản mới trên cánh tay thật, đếm số lần XONG",
+        "Dán ma sát lên hai ngón hoặc dùng vật thân thẳng, rồi mới tính kẹp vào success",
+        "Hiệu chỉnh lại cho tờ giấy mới bằng arm_fit.py",
+        "Đo đầu kẹp bằng camera để có vòng kín, thay vì tin góc lệnh",
+        "Dashboard IoT (MQTT) từ gói JSON sẵn có, nếu đề bài yêu cầu",
+    ], 15, dot_color=GREEN, d=0.34, gap=0.17)
+    box(s, 0.6, 6.12, 12.13, 0.76, fill=BG2, edge=None, radius=0.06)
+    text(s, 0.85, 6.12, 2.6, 0.76, "HAI LỖI TÍCH HỢP ĐÃ SỬA", 11.5, AMBER, True, anchor=MIDDLE, spc=40)
+    bullets(s, 3.55, 6.19, 9.0, 0.66, [
+        "Thứ tự camera trên macOS đổi giữa các lần chạy → tìm camera theo tên",
+        "Arduino Uno tự reset khi cổng USB bị mở lại → giữ một kết nối duy nhất",
+    ], 12.5, after=2, indent=0.2)
+    footer(s, 14)
+    notes(s, """
+Từ đó nhóm thấy năm hạn chế. Lớn nhất là vòng hở: chữ XONG dựa trên góc Arduino đã ra lệnh, vì MG996R không báo vị trí thật. Hiệu chỉnh gắn với một tờ giấy và một chỗ đặt robot. Tay kẹp chưa giữ chắc cốc thon. YOLO bản COCO hay gọi nhầm. Và chưa có tỉ lệ thành công, chưa đo nhiệt độ servo.
+
+Việc tiếp theo, theo thứ tự: chạy bản mới trên cánh tay thật và đếm số lần XONG; dán ma sát lên hai ngón hoặc dùng vật thân thẳng, rồi mới tính kẹp vào success; hiệu chỉnh lại cho tờ giấy mới; đo đầu kẹp bằng camera để có vòng kín; và thêm dashboard IoT qua MQTT nếu đề bài yêu cầu.
+
+Dải dưới là hai lỗi tích hợp khó thấy nhóm đã sửa: thứ tự camera trên macOS đổi giữa các lần chạy, nên nhóm tìm camera theo tên; và Arduino Uno tự reset mỗi khi cổng USB bị mở lại, nên chương trình giữ một kết nối duy nhất và báo khi Arduino vừa reset.
+
+Nếu được hỏi: chương trình phát hiện Arduino reset thế nào? Gói JSON có thời gian chạy t; t quay về gần không là Arduino vừa khởi động lại, màn hình báo ARDUINO VUA RESET. Vì sao camera đổi thứ tự? OpenCV đánh số camera theo uniqueID, còn danh sách của hệ điều hành xếp camera dùng gần nhất lên đầu. đo đầu kẹp bằng camera thế nào? Ví dụ dán mã ArUco lên càng kẹp và dùng chính homography của tờ giấy; đây là hướng đề xuất, chưa làm. Có làm tự động không? Về kỹ thuật là gửi phím theo Plan; nhóm chỉ nên làm lại khi đo được độ lệch còn lại.
+
+Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 8, 9, 10, 13; cameras.py:4-12,75-115; control.py (ArduinoSerialLink: mở lại cổng, phát hiện reset); README.md mục 5 và 6.
+""")
+
+
+# ==============================================================================
+# Slide 15: Tóm lại + hỏi đáp
+# ==============================================================================
+def slide_15(prs):
+    s = new_slide(prs)
+    text(s, 0.6, 0.62, 12.1, 0.3, "TÓM LẠI", 13, AMBER, True, spc=120)
+    box(s, 0.6, 0.92, 0.8, 0.05, fill=AMBER, edge=None, shape=MSO_SHAPE.RECTANGLE)
+    for i, (st, col) in enumerate([("Hai camera biến tờ A4 thành thước đo bằng cm.", WHITE),
+                                   ("Nhóm 1 biến vị trí vật thành phím cần bấm.", AMBER),
+                                   ("Nhóm 2 báo ba servo đã tới góc gợi ý chưa.", GREEN)]):
+        y = 1.3 + i * 0.95
+        dot(s, 0.6, y + 0.08, i + 1, col, d=0.5, size=18)
+        text(s, 1.35, y, 11.3, 0.7, st, 30, WHITE, True, anchor=MIDDLE)
+    for i, (k, v) in enumerate([("Mã nguồn", "github.com/DuongNAD/Project_IoT"), ("Video demo", "[...]")]):
+        x = 0.6 + i * 6.15
+        box(s, x, 4.3, 5.98, 0.75, fill=CARD)
+        text(s, x + 0.25, 4.3, 1.6, 0.75, k, 13, MUTED, True, anchor=MIDDLE)
+        text(s, x + 1.85, 4.3, 4.0, 0.75, v, 16, WHITE, True, anchor=MIDDLE)
+    box(s, 0.6, 5.35, 12.13, 1.45, fill=CARD, edge=AMBER, edge_w=1.5)
+    text(s, 0.6, 5.5, 12.13, 0.65, "Nhóm em cảm ơn thầy cô và các bạn đã lắng nghe!", 28, AMBER, True, align=CENTER)
+    text(s, 0.6, 6.2, 12.13, 0.4, "HỎI ĐÁP", 15, MUTED, True, align=CENTER, spc=200)
+    footer(s, 15)
+    notes(s, """
+Tóm lại trong ba câu. Hai camera biến tờ giấy A4 thành thước đo bằng xăng-ti-mét. Nhóm một biến vị trí vật thành phím cần bấm. Và nhóm hai báo ba servo đã tới góc gợi ý chưa.
+
+Nhóm không cho rằng hệ thống đã hoàn hảo: những điều ở slide mười ba là thật. Nhưng nhóm hiểu từng phần, mã đủ ngắn để giải thích trong một phút, và có thể sửa bất kỳ phần nào ngay tại đây. Mã nguồn ở GitHub theo đường dẫn trên slide.
+
+Nếu thầy cô muốn, nhóm demo trực tiếp: [...điền kịch bản demo 2–3 phút].
+
+Nhóm em cảm ơn thầy cô và các bạn, và xin nhận câu hỏi.
+
+Nếu được hỏi: việc nào làm trước? Chạy bản mới trên cánh tay thật để có số lần XONG đầu tiên, vì đó là chỗ còn thiếu bằng chứng nhất.
+
+Nguồn: README.md; 05_SO_LIEU_VA_NGUON.md mục 4 đến 8.
+""")
+
+
+# ==============================================================================
+def build(out_path=OUT_PPTX):
+    prs = Presentation()
+    prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
+    for make in (slide_01, slide_02, slide_03, slide_04, slide_05, slide_06, slide_07, slide_08,
+                 slide_09, slide_10, slide_11, slide_12, slide_13, slide_14, slide_15):
+        make(prs)
+    assert len(prs.slides) == TOTAL
+    props = prs.core_properties  # Mẫu mặc định của python-pptx ghi người sửa "Steve Canny", ngày tạo 2013
+    props.title = "Hệ thống hỗ trợ gắp vật cho cánh tay robot 4 bậc tự do bằng thị giác máy tính"
+    props.subject = "Đồ án IoT: hai camera chỉ bấm phím nào, mấy lần; success kiểm ba góc servo"
+    props.last_modified_by = ""
+    props.created = props.modified = datetime.now().replace(microsecond=0)
+    prs.save(out_path)
+    missing = sorted({n for n in REQUIRED_IMAGES if not os.path.exists(os.path.join(REAL_DIR, n))})
+    print(f"Đã lưu {out_path} ({len(prs.slides)} slide)")
+    if missing:
+        print(f"⚠️ Thiếu {len(missing)} ảnh trong {REAL_DIR} (slide hiện khung '[Ảnh: ...]'): {', '.join(missing)}")
+    return out_path
+
+
+REQUIRED_IMAGES = [
+    "demo_06_grip_side.jpg", "demo_06_grip_top.jpg", "demo_07_carry_side.jpg", "demo_07_carry_top.jpg",
+    "demo_08_place_side.jpg", "demo_08_place_top.jpg", "hw_overview_top.jpg", "hw_overview_side.jpg",
+    "hw_electronics.jpg", "hw_arm_gripper.jpg", "sw_annot_top.jpg", "sw_annot_side.jpg", "ui_guide_cameras.png",
+    "ui_screen_before.png", "ui_screen_done.png", "calib_before_after_side.jpg",
+]
 
 if __name__ == "__main__":
-    main()
+    build()
