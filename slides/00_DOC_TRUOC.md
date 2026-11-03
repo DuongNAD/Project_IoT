@@ -4,7 +4,8 @@ Bộ tài liệu để **Antigravity (Gemini 4 Argon)** dựng slide thuyết tr
 Mình đã chuẩn bị nội dung, lời nói, ảnh thật, prompt ảnh AI, số liệu đã kiểm, và kiểm tra chất lượng tự động. Việc còn lại là bạn **dán prompt**
 và **điền các chỗ trống**.
 
-> **Cập nhật 03/11/2026 ≈ 20:40: bộ slide đã dựng xong** là `slides/Project_IoT_ThuyetTrinh.pptx` (+ `.pdf`): **15 slide** nền tối giống màn hình app,
+> **Cập nhật 03/11/2026 ≈ 22:35: bộ slide đã dựng xong** là `slides/Project_IoT_ThuyetTrinh.pptx` (+ `.pdf`): **16 slide** theo màu slide Gamota,
+> chia cho 4 người trình bày (linh kiện → computer vision → code điều khiển → success; điền tên ở bảng `TEAM` đầu `build_slides.py`),
 > nội dung rút từ `01` và số liệu ở `05`. Dựng lại: `python3 slides/build_slides.py` → `python3 slides/export_pdf.py` → `python3 slides/render_previews.py`;
 > kiểm: `python3 slides/verify_slides.py` (số trang, ghi chú, chân trang, chữ "mô phỏng", thiết kế đã bỏ, chỗ `[...]` còn phải điền).
 > Kịch bản 25 slide kiểu Gamota trong `01`–`06` dưới đây vẫn giữ làm phương án dựng bằng Antigravity.
