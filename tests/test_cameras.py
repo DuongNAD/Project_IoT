@@ -147,6 +147,7 @@ def test_camera_list_is_sorted_like_opencv_whatever_order_the_os_reports(monkeyp
         def uniqueID(self):
             return UNIQUE_IDS[self.name]
 
+    monkeypatch.setattr(C.sys, "platform", "darwin")  # Chạy test trên Windows vẫn đi nhánh macOS
     for os_order in (OPENCV_ORDER, SYSTEM_PROFILER_ORDER, list(reversed(OPENCV_ORDER))):
         fake = types.SimpleNamespace(
             AVMediaTypeVideo="vide",
@@ -161,6 +162,7 @@ def test_camera_list_falls_back_to_system_profiler_with_the_same_order(monkeypat
     import subprocess
     import sys
 
+    monkeypatch.setattr(C.sys, "platform", "darwin")
     monkeypatch.setitem(sys.modules, "AVFoundation", None)  # Chưa cài PyObjC: import báo lỗi
     cams = [{"_name": n, "spcamera_unique-id": UNIQUE_IDS[n]} for n in SYSTEM_PROFILER_ORDER]
     result = subprocess.CompletedProcess([], 0, stdout=json.dumps({"SPCameraDataType": cams}))
@@ -168,3 +170,31 @@ def test_camera_list_falls_back_to_system_profiler_with_the_same_order(monkeypat
     assert C.list_camera_names() == (OPENCV_ORDER, "system_profiler")
     monkeypatch.setattr(C.subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(OSError("không có system_profiler")))
     assert C.list_camera_names() == ([], "none")
+
+
+def test_camera_list_on_windows_follows_directshow_order(monkeypatch):
+    """Windows: tên lấy từ pygrabber theo thứ tự DirectShow, đúng chỉ số khi mở bằng cv2.CAP_DSHOW."""
+    import sys
+    import types
+
+    monkeypatch.setattr(C.sys, "platform", "win32")
+    graph = types.SimpleNamespace(get_input_devices=lambda: ["Iriun Webcam", "Integrated Webcam"])
+    fake = types.SimpleNamespace(FilterGraph=lambda: graph)
+    monkeypatch.setitem(sys.modules, "pygrabber", types.SimpleNamespace(dshow_graph=fake))
+    monkeypatch.setitem(sys.modules, "pygrabber.dshow_graph", fake)
+    assert C.list_camera_names() == (["Iriun Webcam", "Integrated Webcam"], "dshow")
+    monkeypatch.setitem(sys.modules, "pygrabber.dshow_graph", None)  # Chưa cài pygrabber
+    assert C.list_camera_names() == ([], "none")
+
+
+def test_windows_laptop_webcam_is_the_side_camera(monkeypatch):
+    # Máy Dell: điện thoại (Iriun) treo trên làm cam TREN, webcam tích hợp của laptop làm cam NGANG
+    monkeypatch.setattr(C, "list_camera_names", lambda: (["Iriun Webcam", "Integrated Webcam"], "dshow"))
+    assert C.top_spec().current_source() == 0
+    assert C.builtin_spec().current_source() == 1
+
+
+def test_bare_ip_means_ip_webcam_over_wifi():
+    spec = C.parse_camera_arg("192.168.1.5", "side")
+    assert (spec.kind, spec.value) == ("url", "http://192.168.1.5:8080/video")
+    assert C.parse_camera_arg("10.0.0.7:4747", "top").value == "http://10.0.0.7:4747/video"

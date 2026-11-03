@@ -13,8 +13,10 @@ số cũng không tin thứ tự thô của hệ điều hành.
 
 import json
 import os
+import re
 import shutil
 import subprocess
+import sys
 import threading
 import time
 
@@ -34,7 +36,7 @@ PHONE_ROTATE = cv2.ROTATE_180  # Điện thoại đang đặt ngược nên xoay
 
 # Từ khóa nhận diện camera theo tên (chữ thường)
 TOP_KEYWORDS = ("obsbot",)
-BUILTIN_KEYWORDS = ("macbook", "facetime", "built-in", "imac")
+BUILTIN_KEYWORDS = ("macbook", "facetime", "built-in", "imac", "integrated")  # "integrated": webcam laptop Windows (Dell)
 VIRTUAL_KEYWORDS = ("virtual", "desk view")  # Camera ảo (OBS Virtual Camera, Desk View), không phải thiết bị thật
 
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".bmp")
@@ -81,8 +83,16 @@ def list_camera_names():
     """
     Tên các camera theo ĐÚNG thứ tự chỉ số của cv2.VideoCapture(index) trên macOS (xem đầu tệp: sắp theo uniqueID).
     Dùng PyObjC (AVFoundation); không có thì dùng system_profiler (cũng có uniqueID nên sắp được y hệt).
-    Trả về (danh sách tên, nguồn: 'avfoundation' | 'system_profiler' | 'none').
+    Windows: thứ tự DirectShow của pygrabber, trùng chỉ số khi mở bằng cv2.CAP_DSHOW (xem CameraStream._open).
+    Trả về (danh sách tên, nguồn: 'avfoundation' | 'system_profiler' | 'dshow' | 'none').
     """
+    if sys.platform == "win32":
+        try:
+            from pygrabber.dshow_graph import FilterGraph
+
+            return list(FilterGraph().get_input_devices()), "dshow"
+        except Exception:  # Chưa cài pygrabber
+            return [], "none"
     try:
         import AVFoundation
 
@@ -115,11 +125,14 @@ def pick_camera_index(names, keywords, exclude=()):
 # 2. Điện thoại Android qua adb
 # ==============================================================================
 def find_adb():
+    exe = "adb.exe" if sys.platform == "win32" else "adb"
     candidates = [shutil.which("adb")]
     for env in ("ANDROID_HOME", "ANDROID_SDK_ROOT"):
         if os.environ.get(env):
-            candidates.append(os.path.join(os.environ[env], "platform-tools", "adb"))
+            candidates.append(os.path.join(os.environ[env], "platform-tools", exe))
     candidates.append(os.path.expanduser("~/Library/Android/sdk/platform-tools/adb"))
+    if os.environ.get("LOCALAPPDATA"):  # Chỗ Android Studio cài SDK trên Windows
+        candidates.append(os.path.join(os.environ["LOCALAPPDATA"], "Android", "Sdk", "platform-tools", exe))
     return next((p for p in candidates if p and os.path.exists(p)), None)
 
 
@@ -214,6 +227,7 @@ def parse_camera_arg(arg, role, rotate=None):
       obsbot | mac | phone         theo tên thiết bị
       0, 1, 2 ...                  chỉ số OpenCV cố định
       http://... | rtsp://...      luồng mạng
+      192.168.1.5[:8080]           điện thoại chạy IP Webcam qua Wi-Fi (thành http://192.168.1.5:8080/video)
       đường/dẫn/tệp.mp4 | .jpg     video phát lặp hoặc ảnh tĩnh
       chuỗi khác                   một phần tên camera (VD: logitech)
     rotate: 0/90/180/270 độ (None = mặc định theo loại camera).
@@ -236,6 +250,10 @@ def parse_camera_arg(arg, role, rotate=None):
         return CameraSpec(f"Index {text}", "index", int(text), rotate=rot)
     if low.startswith(("http://", "https://", "rtsp://", "rtmp://")):
         return CameraSpec("Luong mang", "url", text, rotate=rot)
+    ip = re.fullmatch(r"(\d{1,3}(?:\.\d{1,3}){3})(?::(\d+))?", text)
+    if ip:
+        url = f"http://{ip.group(1)}:{ip.group(2) or 8080}/video"
+        return CameraSpec("IP Webcam", "url", url, rotate=rot, hint="Mo IP Webcam > Start server, cung Wi-Fi voi may tinh")
     if os.path.isfile(text):
         kind = "image" if low.endswith(IMAGE_EXTENSIONS) else "file"
         return CameraSpec(os.path.basename(text), kind, os.path.abspath(text), rotate=rot)
@@ -290,7 +308,10 @@ class CameraStream:
             self.static_frame = cv2.imread(source)
             self.source = source if self.static_frame is not None else None
             return
-        cap = cv2.VideoCapture(source)
+        if isinstance(source, int) and sys.platform == "win32":
+            cap = cv2.VideoCapture(source, cv2.CAP_DSHOW)  # Cùng thứ tự với tên camera của pygrabber, mở nhanh hơn MSMF
+        else:
+            cap = cv2.VideoCapture(source)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         self.cap = cap
         self.source = source

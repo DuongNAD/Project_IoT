@@ -96,7 +96,7 @@ def test_stream_reconnects_when_the_device_appears_later(monkeypatch):
         return (["OBSBOT Meet SE", "Camera MacBook Air"] if present["value"] else ["Camera MacBook Air"]), "avfoundation"
 
     class FakeCapture:
-        def __init__(self, source):
+        def __init__(self, source, api=None):  # api: cv2.CAP_DSHOW khi chạy test trên Windows
             self.source = source
 
         def set(self, *args):
@@ -138,7 +138,7 @@ def test_dropped_camera_shows_the_waiting_screen_and_forgets_stale_objects(tmp_p
     state = {"alive": True}
 
     class FlakyCapture:
-        def __init__(self, source):
+        def __init__(self, source, api=None):  # api: cv2.CAP_DSHOW khi chạy test trên Windows
             pass
 
         def set(self, *args):

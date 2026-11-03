@@ -6,18 +6,9 @@ Tự động nhận diện baud rate (9600 của firmware hiện tại hoặc 11
 
 import sys
 import time
-import glob
 import serial
 
-DEFAULT_PORT = "/dev/cu.usbmodemFX2348N1"
-
-def find_port():
-    ports = glob.glob("/dev/cu.usbmodem*") + glob.glob("/dev/cu.usbserial*")
-    if DEFAULT_PORT in ports:
-        return DEFAULT_PORT
-    if ports:
-        return ports[0]
-    return DEFAULT_PORT
+from control import find_arduino_port
 
 def detect_firmware(port):
     """Thử kết nối ở 9600 và 115200 để xác định giao thức firmware đang nạp."""
@@ -113,7 +104,10 @@ def test_sweep_base(ser, mode):
     print("=" * 50 + "\n")
 
 if __name__ == "__main__":
-    port = find_port()
+    port = find_arduino_port()
+    if port is None:
+        print("❌ Không thấy cổng USB của Arduino (kiểm tra cáp / driver CH340 trong Device Manager)")
+        sys.exit(1)
     print(f"🔌 Đang mở cổng {port}...")
     try:
         ser, baud, mode = detect_firmware(port)

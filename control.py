@@ -248,6 +248,38 @@ def plan_moves(now, goal):
 # ==============================================================================
 # 4. CỔNG USB SERIAL TỚI ARDUINO (TƯƠNG THÍCH CẢ FIRMWARE CŨ LẪN MỚI)
 # ==============================================================================
+# Windows / Linux: chỉ xét cổng USB thật (có VID), bỏ cổng Bluetooth ảo và cổng modem của điện thoại cắm USB
+NOT_ARDUINO_PORT_WORDS = ("modem", "mobile", "bluetooth")
+ARDUINO_PORT_HINTS = ("arduino", "ch340", "ch341", "cp210", "ftdi", "usb serial", "usb-serial")
+
+
+def find_arduino_port():
+    """
+    Cổng USB của Arduino, None nếu chưa cắm cáp. macOS: /dev/cu.usbmodem* / /dev/cu.usbserial* (như trước);
+    Windows: COMx, Linux: /dev/ttyACM* ... lấy từ danh sách cổng của pyserial, ưu tiên cổng có tên Arduino / CH340 / CP210x / FTDI.
+    """
+    mac_ports = sorted(glob.glob("/dev/cu.usbmodem*") + glob.glob("/dev/cu.usbserial*"))
+    if mac_ports:
+        return mac_ports[0]
+    if serial is None:
+        return None
+    try:
+        from serial.tools import list_ports
+
+        ports = [
+            p for p in list_ports.comports()
+            if p.vid is not None and not any(w in f"{p.description} {p.manufacturer or ''}".lower() for w in NOT_ARDUINO_PORT_WORDS)
+        ]
+    except Exception:
+        return None
+
+    def rank(p):
+        text = f"{p.description} {p.manufacturer or ''}".lower()
+        return (0 if any(h in text for h in ARDUINO_PORT_HINTS) else 1, p.device)
+
+    return min(ports, key=rank).device if ports else None
+
+
 class ArduinoSerialLink:
     """
     Luồng nền đọc/gửi tín hiệu qua cáp USB với Arduino (9600 baud):
@@ -287,8 +319,7 @@ class ArduinoSerialLink:
             self.thread.start()
 
     def _find_port(self):
-        ports = sorted(glob.glob("/dev/cu.usbmodem*") + glob.glob("/dev/cu.usbserial*"))
-        return ports[0] if ports else None
+        return find_arduino_port()
 
     def apply_key_locally(self, cmd):
         """Áp dụng đúng logic switch(cmd) của Arduino (bước SERVO_STEPS) để cập nhật góc servo."""
@@ -391,7 +422,17 @@ class ArduinoSerialLink:
                 self.last_rx_time = time.time()
 
     def _port_exists(self):
-        return self.port is not None and os.path.exists(self.port)
+        if self.port is None:
+            return False
+        if not self.port.upper().startswith("COM"):
+            return os.path.exists(self.port)
+        # Windows: COMx không phải đường dẫn tệp nên hỏi danh sách cổng (không thì lỗi đọc thoáng qua nào cũng mở lại cổng, Arduino bị reset)
+        try:
+            from serial.tools import list_ports
+
+            return any(p.device.upper() == self.port.upper() for p in list_ports.comports())
+        except Exception:
+            return False
 
     def _open_port(self):
         """

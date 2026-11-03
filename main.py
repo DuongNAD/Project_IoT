@@ -315,7 +315,9 @@ class App:
 def main(argv=None):
     args = parse_args(argv)
     try:
-        sys.stdout.reconfigure(line_buffering=True)  # Chạy qua pipe (| tee) vẫn thấy log ngay, không đợi đầy bộ đệm
+        # Chạy qua pipe (| tee) vẫn thấy log ngay, không đợi đầy bộ đệm. Terminal Windows (cp1252) không in được emoji:
+        # thay bằng '?' thay vì làm chương trình sập
+        sys.stdout.reconfigure(line_buffering=True, errors="replace")
     except (AttributeError, ValueError):
         pass
     if args.list_cameras:

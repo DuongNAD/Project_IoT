@@ -47,6 +47,10 @@ uv run python main.py
 
 macOS hỏi quyền **Camera** lần đầu cho ứng dụng đang chạy lệnh (Terminal, PyCharm...): bấm OK.
 
+**Windows** (máy Dell): `uv sync` cài thêm `pygrabber` để đọc tên camera theo đúng thứ tự DirectShow: điện thoại (Iriun / DroidCam) làm cam TREN,
+`Integrated Webcam` làm cam NGANG. Thiếu `pygrabber` thì chỉ rõ chỉ số: `--top 0 --side 1`. Cổng Arduino là `COMx`, tự tìm theo tên CH340 / Arduino.
+Điện thoại chạy IP Webcam qua Wi-Fi thì truyền địa chỉ app hiện: `--side 192.168.1.5` (thành `http://192.168.1.5:8080/video`).
+
 ```bash
 uv run python main.py --list-cameras    # xem camera nào đang được gán cho vai trò nào
 uv run python main.py --no-serial       # chạy mô phỏng, không mở cổng USB Arduino (không gửi phím xuống robot)

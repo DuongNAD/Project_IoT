@@ -167,3 +167,45 @@ def test_arm_relaxed_flag_follows_the_firmware_json_and_the_simulated_keys():
         sim.apply_key_locally("z")
         sim.apply_key_locally(key)
         assert not sim.get_arm_relaxed(), key
+
+
+def fake_port_info(device, description, manufacturer=None, vid=0x2341):
+    import types
+
+    return types.SimpleNamespace(device=device, description=description, manufacturer=manufacturer, vid=vid)
+
+
+def test_windows_arduino_port_is_found_among_com_ports(monkeypatch):
+    import serial.tools.list_ports as list_ports
+
+    ports = [
+        fake_port_info("COM3", "Standard Serial over Bluetooth link (COM3)", "Microsoft"),  # Cổng Bluetooth ảo: bỏ
+        fake_port_info("COM4", "Samsung Mobile USB Modem", "SAMSUNG"),  # Điện thoại cắm USB: bỏ
+        fake_port_info("COM1", "Communications Port (COM1)", vid=None),  # Không phải USB: bỏ
+        fake_port_info("COM9", "USB Composite Device"),
+        fake_port_info("COM7", "USB-SERIAL CH340 (COM7)", "wch.cn"),
+    ]
+    monkeypatch.setattr(g.glob, "glob", lambda pattern: [])  # Không có /dev/cu.usbmodem* như trên macOS
+    monkeypatch.setattr(list_ports, "comports", lambda: ports)
+    assert g.find_arduino_port() == "COM7"  # Cổng có tên CH340 được ưu tiên
+    monkeypatch.setattr(list_ports, "comports", lambda: ports[:4])
+    assert g.find_arduino_port() == "COM9"  # Không có tên quen thì lấy cổng USB còn lại
+    monkeypatch.setattr(list_ports, "comports", lambda: ports[:3])
+    assert g.find_arduino_port() is None
+
+
+def test_macos_port_still_comes_from_dev_cu(monkeypatch):
+    monkeypatch.setattr(g.glob, "glob", lambda pattern: ["/dev/cu.usbmodem1101"] if "usbmodem" in pattern else [])
+    assert g.find_arduino_port() == "/dev/cu.usbmodem1101"
+
+
+def test_com_port_existence_is_checked_against_the_port_list(monkeypatch):
+    """COMx không phải đường dẫn tệp: nếu hỏi os.path.exists thì lỗi đọc thoáng qua nào cũng mở lại cổng và Arduino bị reset."""
+    import serial.tools.list_ports as list_ports
+
+    link = g.ArduinoSerialLink(enabled=False)
+    link.port = "COM7"
+    monkeypatch.setattr(list_ports, "comports", lambda: [fake_port_info("COM7", "USB-SERIAL CH340")])
+    assert link._port_exists()
+    monkeypatch.setattr(list_ports, "comports", lambda: [])
+    assert not link._port_exists()  # Rút cáp

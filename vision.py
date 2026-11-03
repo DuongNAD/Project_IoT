@@ -366,7 +366,10 @@ class ObjectWorker:
 
             model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "yolo11s.pt")
             self.model = YOLO(model_path if os.path.exists(model_path) else "yolo11s.pt")
-            if torch.backends.mps.is_available():
+            # GPU NVIDIA (Windows / Linux) cần bản torch có CUDA; pip mặc định cài bản chỉ chạy CPU
+            if torch.cuda.is_available():
+                self.device = "cuda:0"
+            elif torch.backends.mps.is_available():
                 self.device = "mps"
         except Exception as e:
             print(f"⚠️ Không tải được YOLO, chỉ còn tách vật theo màu: {e}")
