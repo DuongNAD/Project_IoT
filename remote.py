@@ -18,6 +18,7 @@ Chỉ cần OpenCV, numpy, pyserial (có sẵn trong dự án). Chữ trên cử
 """
 
 import argparse
+import re
 import threading
 import time
 import urllib.error
@@ -49,23 +50,40 @@ FONT, AA = cv2.FONT_HERSHEY_SIMPLEX, cv2.LINE_AA
 # ==============================================================================
 # 1. Bluetooth: cổng COM của HC-05
 # ==============================================================================
+PORT_TAGS = {"hc05": "<- HC-05", "maybe": "<- co the la HC-05", "other": "(thiet bi khac: dien thoai, laptop...)", "incoming": "(chieu vao, khong dung)"}
+
+
+def port_kind(p):
+    """
+    Loại cổng: "hc05" (tên có HC-05), "maybe" (cổng Bluetooth gọi đi, không mang mã hãng: kiểu HC-05), "other" (thiết bị có mã hãng VID / PID
+    như điện thoại, laptop: HC-05 không gửi mã này), "incoming" (chiều vào), None (không phải cổng Bluetooth).
+    Windows: ghép đôi tạo 2 cổng "Standard Serial over Bluetooth link"; cổng Outgoing có địa chỉ thiết bị trong hwid, cổng Incoming có 000000000000.
+    """
+    name = f"{p.device} {p.description}".lower()
+    hwid = (p.hwid or "").lower()
+    if not any(w in f"{name} {hwid}" for w in ("bluetooth", "bthenum", "hc-0", "hc0")):
+        return None
+    if "000000000000" in hwid or "incoming" in name or p.device.startswith("/dev/tty."):
+        return "incoming"
+    if any(h in name for h in ("hc-05", "hc05", "hc-06", "hc06")):
+        return "hc05"
+    if "localmfg" in hwid:
+        return "maybe"
+    return "other"
+
+
+def com_number(device):
+    m = re.search(r"(\d+)$", device)
+    return int(m.group(1)) if m else 0
+
+
 def bluetooth_ports(ports=None):
-    """
-    Các cổng có thể là HC-05, cổng hợp nhất đứng đầu.
-    Windows: ghép đôi HC-05 tạo 2 cổng "Standard Serial over Bluetooth link"; cổng Outgoing (Dell gọi đi) có địa chỉ HC-05 trong hwid,
-    cổng Incoming có 000000000000 nên bỏ. macOS: /dev/cu.HC-05...
-    """
+    """Cổng tự chọn được: chỉ cổng chắc / có thể là HC-05 (COM10 xếp sau COM4). Cổng của thiết bị khác không tự chọn: dùng --port."""
     if ports is None:
         ports = list_ports.comports() if list_ports is not None else []
-    found = []
-    for p in ports:
-        text = f"{p.device} {p.description} {p.hwid}".lower()
-        if not any(w in text for w in ("bluetooth", "bthenum", "hc-0", "hc0")):
-            continue
-        if "000000000000" in text or "incoming" in text or p.device.startswith("/dev/tty."):
-            continue
-        found.append(p)
-    found.sort(key=lambda p: (0 if any(h in f"{p.device} {p.description}".lower() for h in ("hc-05", "hc05", "hc-06", "hc06")) else 1, p.device))
+    rank = {"hc05": 0, "maybe": 1}
+    found = [p for p in ports if port_kind(p) in rank]
+    found.sort(key=lambda p: (rank[port_kind(p)], com_number(p.device), p.device))
     return [p.device for p in found]
 
 
@@ -78,6 +96,7 @@ class BluetoothLink:
         self.port_arg, self.port, self.baud = port, port, baud
         self.serial = serial_module or serial
         self.ser = None
+        self.attempt = 0                 # Tự chọn cổng: lần thử thứ mấy (cổng không nối được thì lần sau thử cổng kế tiếp)
         self.state = "dang tim cong..."  # Dòng chữ cho thanh trạng thái
         self.lock = threading.Lock()
         self.running = True
@@ -90,15 +109,18 @@ class BluetoothLink:
 
     def open_once(self):
         """Thử mở cổng một lần; True nếu đã nối."""
-        port = self.port_arg or next(iter(bluetooth_ports()), None)
-        if port is None:
-            self.state = "chua thay cong Bluetooth (da ghep doi HC-05 chua?)"
+        candidates = [self.port_arg] if self.port_arg else bluetooth_ports()
+        if not candidates:
+            self.state = "chua thay HC-05: ghep doi, hoac chay voi --port COMx"
             return False
+        port = candidates[self.attempt % len(candidates)]
         self.port, self.state = port, f"dang noi {port}..."
         try:
             ser = self.serial.Serial(port, self.baud, timeout=0, write_timeout=1)
         except Exception:
-            self.state = f"khong noi duoc {port} (HC-05 co dien? xa qua?)"
+            self.attempt += 1
+            more = ", thu cong khac" if len(candidates) > 1 else ""
+            self.state = f"khong noi duoc {port}: HC-05 co dien? o gan?{more}"
             return False
         with self.lock:
             self.ser = ser
@@ -232,7 +254,7 @@ def compose(screen, mac_text, mac_ok, bt_text, bt_ok, note="", note_col=WHITE):
     for row, (text, ok) in enumerate(((mac_text, mac_ok), (bt_text, bt_ok))):
         y = 21 + row * 25
         cv2.circle(bar, (18, y - 5), 6, GREEN if ok else RED, -1, AA)
-        put(bar, text[:70], 32, y, 0.55, GREEN if ok else AMBER)
+        put(bar, text[:80], 32, y, 0.55, GREEN if ok else AMBER)
     if note:
         put(bar, note, w - 16, 36, 0.7, note_col, 2, right=True)
     return np.vstack([bar, screen])
@@ -253,9 +275,15 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
     if args.list_ports:
-        for p in (list_ports.comports() if list_ports is not None else []):
-            print(f"{p.device:14s} {p.description}  [{p.hwid}]")
-        print("Cổng Bluetooth sẽ dùng:", ", ".join(bluetooth_ports()) or "chưa có (ghép đôi HC-05 trong cài đặt Bluetooth trước)")
+        ports = list_ports.comports() if list_ports is not None else []
+        for p in sorted(ports, key=lambda p: (com_number(p.device), p.device)):
+            print(f"{p.device:8s} {PORT_TAGS.get(port_kind(p), ''):40s} {p.description}  [{p.hwid}]")
+        auto = bluetooth_ports(ports)
+        if auto:
+            print("Tự chọn cổng:", ", ".join(auto), "(thử lần lượt nếu cổng đầu không nối được)")
+        else:
+            print("Chưa thấy cổng nào giống HC-05: ghép đôi HC-05 trong cài đặt Bluetooth, hoặc chỉ rõ --port COMx")
+            print("Tìm số cổng: Settings > Bluetooth & devices > Devices > More Bluetooth settings > tab COM Ports, dòng Outgoing tên HC-05")
         return
     view, bt, gate = MacView(args.mac), BluetoothLink(args.port, args.baud), KeyGate()
     note, note_col, note_at = "", WHITE, 0.0

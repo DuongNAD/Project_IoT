@@ -13,13 +13,31 @@ def port(device, description="n/a", hwid="n/a"):
     return types.SimpleNamespace(device=device, description=description, hwid=hwid)
 
 
-def test_windows_outgoing_bluetooth_port_is_chosen_and_incoming_is_skipped():
-    ports = [
-        port("COM3", "USB-SERIAL CH340 (COM3)", "USB VID:PID=1A86:7523"),
-        port("COM6", "Standard Serial over Bluetooth link (COM6)", r"BTHENUM\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0000\7&1&0&000000000000_00000003"),
-        port("COM5", "Standard Serial over Bluetooth link (COM5)", r"BTHENUM\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0002\7&1&0&98D331F5A1B2_C00000000"),
-    ]
-    assert R.bluetooth_ports(ports) == ["COM5"]  # Arduino USB (CH340) và cổng Incoming đều bị bỏ
+BT = r"BTHENUM\{00001101-0000-1000-8000-00805F9B34FB}"
+LINK = "Standard Serial over Bluetooth link"
+
+# Đúng danh sách cổng trên máy Dell ngày 04/11 (chưa ghép đôi HC-05): 4 cổng gọi đi đều của thiết bị có mã hãng, 4 cổng chiều vào
+DELL_PORTS = [
+    port("COM7", f"{LINK} (COM7)", BT + r"_VID&000105D6_PID&000A\7&22F3A30B&0&EC9C17975A95_C00000000"),
+    port("COM3", f"{LINK} (COM3)", BT + r"_LOCALMFG&0000\7&22F3A30B&0&000000000000_00000000"),
+    port("COM8", f"{LINK} (COM8)", BT + r"_LOCALMFG&0000\7&22F3A30B&0&000000000000_00000001"),
+    port("COM6", f"{LINK} (COM6)", BT + r"_LOCALMFG&0000\7&22F3A30B&0&000000000000_00000002"),
+    port("COM9", f"{LINK} (COM9)", BT + r"_LOCALMFG&0000\7&22F3A30B&0&000000000000_00000005"),
+    port("COM4", f"{LINK} (COM4)", BT + r"_VID&00010075_PID&A013\7&22F3A30B&0&6CDDBCB31F4F_C00000000"),
+    port("COM5", f"{LINK} (COM5)", BT + r"_VID&000102B0_PID&0000\7&22F3A30B&0&3409C9A9AE6C_C00000000"),
+    port("COM10", f"{LINK} (COM10)", BT + r"_VID&000105D6_PID&000A\7&22F3A30B&0&E0DC476B250C_C00000000"),
+]
+HC05_OUT = port("COM12", f"{LINK} (COM12)", BT + r"_LOCALMFG&0002\7&22F3A30B&0&98D331F5A1B2_C00000000")
+
+
+def test_phones_and_laptops_are_never_auto_picked_only_the_hc05_style_port():
+    assert R.bluetooth_ports(DELL_PORTS) == []  # Chưa ghép đôi HC-05: không đoán bừa sang điện thoại (trước đây chọn nhầm COM10)
+    usb = port("COM13", "USB-SERIAL CH340 (COM13)", "USB VID:PID=1A86:7523")
+    assert R.bluetooth_ports(DELL_PORTS + [HC05_OUT, usb]) == ["COM12"]  # HC-05 không gửi mã hãng: cổng gọi đi kiểu LOCALMFG
+    kinds = {p.device: R.port_kind(p) for p in DELL_PORTS + [HC05_OUT, usb]}
+    assert kinds["COM12"] == "maybe" and kinds["COM10"] == "other" and kinds["COM3"] == "incoming" and kinds["COM13"] is None
+    second = port("COM2", f"{LINK} (COM2)", BT + r"_LOCALMFG&0002\7&1&0&98D331AAAAAA_C00000000")
+    assert R.bluetooth_ports([HC05_OUT, second]) == ["COM2", "COM12"]  # Xếp theo số cổng, không theo chữ ("COM12" < "COM2")
 
 
 def test_macos_hc05_port_is_preferred_and_the_incoming_port_is_skipped():
@@ -82,6 +100,21 @@ def test_keys_go_out_over_bluetooth_and_a_lost_link_is_reported():
     handle.fail_write = True
     assert not bt.send("w") and not bt.connected and "rot ket noi" in bt.state and handle.closed
     bt.close()
+
+
+def test_auto_pick_tries_the_next_candidate_after_a_failure(monkeypatch):
+    monkeypatch.setattr(R, "bluetooth_ports", lambda ports=None: ["COM12", "COM14"])
+    tried = []
+
+    def Serial(port, baud, timeout=None, write_timeout=None):
+        tried.append(port)
+        if port == "COM12":
+            raise OSError("semaphore timeout")
+        return FakeSerial()
+
+    bt = R.BluetoothLink(serial_module=types.SimpleNamespace(Serial=Serial), start=False)
+    assert not bt.open_once() and "thu cong khac" in bt.state
+    assert bt.open_once() and bt.port == "COM14" and tried == ["COM12", "COM14"]
 
 
 def test_missing_or_unreachable_hc05_is_explained(monkeypatch):
