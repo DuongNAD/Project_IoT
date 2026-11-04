@@ -2,7 +2,7 @@
 
 Mọi con số, tên linh kiện và nhận định trên slide **chỉ được lấy từ file này**. Kiểm tra lần cuối: **03/11/2026 khoảng 20:40**, sau khi gộp phần làm
 trên máy Windows vào bản hai nhóm nối nhau (`control.py` → `success.py`). Mã đã lên GitHub (`main` = `e3f2d85`); test chạy thật bằng
-`.venv/bin/python -m pytest -q` (109 test pass). Bộ slide đã dựng: `Project_IoT_ThuyetTrinh.pptx` (16 slide, 4 người trình bày, `build_slides.py`).
+`.venv/bin/python -m pytest -q` (109 test pass). Bộ slide đã dựng: `Project_IoT_ThuyetTrinh.pptx` (25 slide, 4 phần cho 4 người, `build_slides.py`).
 
 Kiểm lại bằng máy sau mỗi lần sửa mã: `.venv/bin/python -B slides/tools/check_facts.py` (so các hằng số ở mục 17 và mọi dẫn `file:dòng` trong các file `.md` với mã hiện tại).
 
