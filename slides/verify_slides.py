@@ -4,7 +4,7 @@ Kiểm bộ slide (slides/Project_IoT_ThuyetTrinh.pptx) trước khi chiếu.
     python3 slides/verify_slides.py
 
 LỖI (thoát mã 1): sai số trang hoặc khổ 16:9, ghi chú diễn giả thiếu / quá ngắn / thiếu dòng "Nguồn:", thiếu số trang ở góc phải dưới (từ slide 2),
-     hình vượt mép slide, ảnh bị kéo méo, slide 8 / 9 (màn hình chạy trên ảnh đã lưu) thiếu chữ "mô phỏng",
+     hình vượt mép slide, ảnh bị kéo méo, slide màn hình / success (chạy trên ảnh đã lưu) thiếu chữ "mô phỏng",
      nhắc tên tệp đã xóa hay thiết kế đã bỏ (S1/S2, 5 bước, Auto-Step, attempts.csv, phím Y/E, cửa sổ HƯỚNG DẪN GẮP).
 CẢNH BÁO: phông lạ, chữ nhỏ hơn 10 pt, khung "[Ảnh: ...]" (thiếu ảnh), cụm từ rủi ro ở mục CẤM NÓI (05_SO_LIEU_VA_NGUON.md mục 14).
 Cuối cùng in các chỗ "[...]" còn phải điền.
@@ -19,11 +19,14 @@ from pptx.util import Emu
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "tools"))
-from qa_deck import REMOVED_DESIGN, RISKY  # noqa: E402  (cùng danh sách với công cụ kiểm bộ 25 slide)
+from qa_deck import REMOVED_DESIGN, RISKY  # noqa: E402  (cùng danh sách với công cụ kiểm bộ slide)
 
 PPTX = os.path.join(HERE, "Project_IoT_ThuyetTrinh.pptx")
-TOTAL = 25
-SIMULATED_SCREEN_SLIDES = {18, 21}  # màn hình "lệnh bấm phím" và "success" (chạy trên ảnh đã lưu)
+sys.path.insert(0, HERE)
+from build_slides import ORDER, num  # noqa: E402  (số trang lấy từ thứ tự slide, khỏi sửa tay khi thêm slide)
+
+TOTAL = len(ORDER)
+SIMULATED_SCREEN_SLIDES = {num("screen"), num("success")}  # màn hình "lệnh bấm phím" và "success" (chạy trên ảnh đã lưu)
 DELETED_NAMES = ("grasp_assist_4dof", "guide_screen", "test_ik", "GraspAssist4DOF", "STAGE_NAMES", "fake_assist")
 FONTS = {"Arial", "Courier New"}
 EMU_IN = 914400

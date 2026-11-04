@@ -380,13 +380,14 @@ def caption(slide, x, y, w, s, size=11, h=0.45, color=MUTED, align=LEFT):
 SECTIONS = {  # phần -> (số phần, tên phần, các slide phần đó trình bày sau slide ngăn)
     "hw": ("01", "Linh kiện", ["parts", "comp1", "comp2", "circuit", "heat"]),
     "cv": ("02", "Computer vision", ["a4", "objects"]),
-    "ctrl": ("03", "Code điều khiển", ["flow", "fwcode", "ik", "screen", "calib"]),
+    "ctrl": ("03", "Code điều khiển", ["flow", "fwcode", "ik", "screen", "remote", "calib"]),
     "succ": ("04", "Success", ["success", "trial", "results", "limits"]),
 }
 TITLES = {
     "parts": "Danh sách linh kiện", "comp1": "Arduino Uno R3 và PCA9685", "comp2": "Servo, nguồn, HC-05, camera",
     "circuit": "Sơ đồ mạch", "heat": "Bảo vệ servo kẹp", "a4": "Hệ tọa độ từ tờ A4", "objects": "Nhận diện vật",
     "flow": "Lưu đồ thuật toán", "fwcode": "Code firmware", "ik": "Động học ngược", "screen": "Giao diện chương trình",
+    "remote": "Điều khiển từ xa",
     "calib": "Hiệu chỉnh mô hình", "success": "Điều kiện hoàn thành", "trial": "Thử nghiệm trên cánh tay thật",
     "results": "Kết quả", "limits": "Hạn chế, hướng phát triển",
 }
@@ -571,7 +572,7 @@ def slide_system(prs, n):
     box(s, M, 5.62, CW, 1.0, fill=BG2)
     code = [("plan   = self.control.update(self.tracker.objects)", "# khối điều khiển"),
             ("result = self.success.update(plan)", "# khối success"),
-            ("screen = build_screen(..., plan, result)", "# màn hình (main.py:171-174)")]
+            ("screen = build_screen(..., plan, result)", "# màn hình (main.py:192-195)")]
     text(s, M + 0.25, 5.74, CW - 0.4, 0.85, [[(c.ljust(53), {}), (k, {"color": MUTED})] for c, k in code], 12.5, INK, font=MONO,
          spacing=1.12)
     footer(s, n)
@@ -584,9 +585,9 @@ Khối điều khiển tính góc cần tới của ba servo và lập danh sác
 
 Người dùng bấm phím theo gợi ý. Phím được gửi xuống Arduino qua USB ở 9600 baud; Arduino điều khiển bốn servo qua PCA9685 và gửi lại gói JSON chứa bốn góc servo, khoảng 5 gói mỗi giây. Phần cứng này là phần một, em trình bày tiếp theo.
 
-Nếu được hỏi: chương trình có tự gửi phím không? Không, chỉ gửi khi người dùng bấm. Vì sao trong code gọi là nhóm 1, nhóm 2? Đó là tên hai khối trong mã nguồn (control.py, success.py). Có dùng Bluetooth không? Firmware hỗ trợ nhận phím từ module HC-05 ở chân D2, D3, nhưng chương trình trên laptop dùng cáp USB.
+Nếu được hỏi: chương trình có tự gửi phím không? Không, chỉ gửi khi người dùng bấm. Vì sao trong code gọi là nhóm 1, nhóm 2? Đó là tên hai khối trong mã nguồn (control.py, success.py). Có dùng Bluetooth không? Có, khi điều khiển từ xa: máy Dell gửi phím qua module HC-05 ở chân D2, D3 (slide Điều khiển từ xa); laptop đặt cạnh cánh tay vẫn dùng cáp USB.
 
-Nguồn: README.md (sơ đồ đầu trang, mục 1 và 3); main.py:171-174; robot_arm_4dof.ino:6,8,86,203-207; control.py (ArduinoSerialLink).
+Nguồn: README.md (sơ đồ đầu trang, mục 1 và 3); main.py:192-195; robot_arm_4dof.ino:6,8,86,203-207; control.py (ArduinoSerialLink).
 """)
 
 
@@ -603,12 +604,13 @@ def slide_divider(prs, n, key):
     text(s, M, 4.38, 6.6, 0.45, name(key), 22, TEXT2)
     box(s, 7.75, 1.3, W - M - 7.75, 4.55, fill=CARD)
     label(s, 8.05, 1.55, 4.3, "Phần này gồm", TEXT2, 10.5)
+    row = min(0.68, 3.6 / len(keys))  # 5 mục cao 0,68 inch; nhiều mục hơn thì co lại cho vừa thẻ
     for i, k in enumerate(keys):
-        y = 2.0 + i * 0.68
+        y = 2.0 + i * row
         rule(s, 8.05, y, W - M - 8.35)
-        text(s, 8.05, y + 0.16, 0.7, 0.4, str(num(k)), 16, col, True)
-        text(s, 8.75, y + 0.16, W - M - 9.1, 0.4, TITLES[k], 16, INK)
-    rule(s, 8.05, 2.0 + len(keys) * 0.68, W - M - 8.35)
+        text(s, 8.05, y + row / 2 - 0.18, 0.7, 0.4, str(num(k)), 16, col, True)
+        text(s, 8.75, y + row / 2 - 0.18, W - M - 9.1, 0.4, TITLES[k], 16, INK)
+    rule(s, 8.05, 2.0 + len(keys) * row, W - M - 8.35)
     x = M
     for k, (no, nm, _ks) in SECTIONS.items():
         lab = f"{no}  {nm}"
@@ -622,7 +624,7 @@ def slide_divider(prs, n, key):
     intro = {
         "hw": "Tiếp theo là phần linh kiện, gồm: danh sách linh kiện, giới thiệu các linh kiện chính, sơ đồ mạch và giải pháp bảo vệ servo kẹp. Mỗi linh kiện được trình bày theo thông số và vai trò trong hệ thống.",
         "cv": "Em là {cv}, phụ trách computer vision cùng {succ}. Phần này xác định vị trí vật trên bàn theo xăng-ti-mét, gồm hai nội dung: hệ tọa độ từ tờ A4 với bốn mã ArUco, và nhận diện vật.",
-        "ctrl": "Em là {ctrl}, phụ trách code điều khiển: firmware trên Arduino và khối điều khiển trên laptop. Phần này gồm lưu đồ thuật toán, code firmware, động học ngược, giao diện chương trình và hiệu chỉnh mô hình cánh tay.",
+        "ctrl": "Em là {ctrl}, phụ trách code điều khiển: firmware trên Arduino và khối điều khiển trên laptop. Phần này gồm lưu đồ thuật toán, code firmware, động học ngược, giao diện chương trình, điều khiển từ xa và hiệu chỉnh mô hình cánh tay.",
         "succ": "Em là {succ}, phụ trách khối success cùng {cv}. Phần cuối gồm điều kiện hoàn thành, thử nghiệm trên cánh tay thật, kết quả, hạn chế và hướng phát triển.",
     }[key]
     notes(s, intro + """
@@ -644,7 +646,7 @@ def slide_parts(prs, n):
         ("Mạch PCA9685 (16 kênh PWM)", "1", "Tạo xung PWM cho servo"),
         ("Servo MG996R", "4", "Đế, vai, khuỷu, kẹp"),
         ("Nguồn tổ ong 5–6 V", "1", "Cấp nguồn cho servo"),
-        ("Module Bluetooth HC-05", "1", "Bluetooth (tùy chọn)"),
+        ("Module Bluetooth HC-05", "1", "Nhận phím từ máy Dell"),
         ("Khung cánh tay 4 bậc tự do, tay kẹp", "1", "Cơ khí"),
         ("Camera OBSBOT Meet SE", "1", "Camera phía trên"),
         ("Camera MacBook (có sẵn)", "1", "Camera phía trước"),
@@ -665,7 +667,7 @@ def slide_parts(prs, n):
         text(s, M + 5.7, y, CW - 5.8, rh, role, 13, TEXT2, anchor=MIDDLE)
     footer(s, n)
     notes(s, """
-Đây là danh sách linh kiện. Arduino Uno R3 là vi điều khiển chính: nhận phím từ laptop và điều khiển mạch PCA9685. PCA9685 tạo xung PWM cho bốn servo MG996R ở đế, vai, khuỷu và kẹp. Nguồn tổ ong 5–6 V cấp riêng cho servo. Module HC-05 dùng để nhận phím qua Bluetooth, không bắt buộc. Phần quan sát gồm camera OBSBOT phía trên, camera MacBook phía trước và tờ A4 in bốn mã ArUco. Laptop chạy chương trình Python và cấp nguồn cho Arduino qua USB.
+Đây là danh sách linh kiện. Arduino Uno R3 là vi điều khiển chính: nhận phím từ laptop và điều khiển mạch PCA9685. PCA9685 tạo xung PWM cho bốn servo MG996R ở đế, vai, khuỷu và kẹp. Nguồn tổ ong 5–6 V cấp riêng cho servo. Module HC-05 nhận phím qua Bluetooth khi điều khiển từ xa bằng máy Dell. Phần quan sát gồm camera OBSBOT phía trên, camera MacBook phía trước và tờ A4 in bốn mã ArUco. Laptop chạy chương trình Python và cấp nguồn cho Arduino qua USB.
 
 Nếu được hỏi: mua linh kiện ở đâu, giá bao nhiêu? [...điền nếu thầy cô hỏi]. Khung cánh tay làm bằng vật liệu gì? [...điền].
 
@@ -736,7 +738,7 @@ def slide_comp2(prs, n):
         ("Nguồn tổ ong 5–6 V", "Nguồn xung 5–6 V",
          "Cấp riêng cho servo qua PCA9685 · chung GND", False),
         ("Module Bluetooth HC-05", "Bluetooth SPP · UART 9600 baud",
-         "Nối D2, D3 của Arduino · tùy chọn", False),
+         "Nối D2, D3 · nhận phím từ máy Dell", False),
         ("Hai camera 1920 × 1080", "OBSBOT Meet SE (trên) · camera MacBook (ngang)",
          "Cùng quan sát tờ A4 có 4 mã ArUco", False),
     ]
@@ -761,7 +763,7 @@ Tiếp theo là các linh kiện còn lại. Bốn servo MG996R dùng bánh răn
 
 Nguồn tổ ong 5–6 V cấp riêng cho servo qua cổng V+ của PCA9685, vì servo tiêu thụ dòng lớn; GND được nối chung.
 
-HC-05 là module Bluetooth nối chân D2, D3 của Arduino. Firmware nhận phím từ HC-05 giống như từ USB; chương trình trên laptop dùng USB nên module này là tùy chọn.
+HC-05 là module Bluetooth nối chân D2, D3 của Arduino. Firmware nhận phím từ HC-05 giống như từ USB. Khi điều khiển từ xa, máy Dell gửi phím qua HC-05, còn Mac vẫn nhận góc servo qua USB.
 
 Hai camera có độ phân giải 1920 × 1080: OBSBOT Meet SE đặt phía trên để tính vị trí vật, camera MacBook đặt phía trước để quan sát độ cao tay kẹp.
 
@@ -831,14 +833,14 @@ def slide_circuit(prs, n):
     line(s, px + pw_ / 2, 4.75, px + pw_ / 2, 4.08, ORANGE, 3.0, head=True)
     text(s, px + pw_ / 2 + 0.12, 4.25, 2.0, 0.3, "V+ / GND · cổng xanh", 10, ORANGE, True)
     # HC-05
-    block(px, 5.85, pw_, 0.75, "HC-05 (tùy chọn)", "TXD → D2 · RXD ← D3", fill=CARD, edge=INDIGO)
+    block(px, 5.85, pw_, 0.75, "HC-05 (Bluetooth)", "TXD → D2 · RXD ← D3", fill=CARD, edge=INDIGO)
     for y_pin, x_turn, y_end, lab in ((4.45, 6.3, 6.07, "TXD → D2"), (4.85, 6.6, 6.38, "RXD ← D3")):
         line(s, ax + aw + 0.05, y_pin, x_turn, y_pin, INDIGO, 1.75)
         line(s, x_turn, y_pin, x_turn, y_end, INDIGO, 1.75)
         line(s, x_turn, y_end, px - 0.05, y_end, INDIGO, 1.75)
     # Chú giải
     legend = [(TEAL, "tín hiệu: I²C, xung servo"), (ORANGE, "nguồn servo 5–6 V"), (INK, "USB, 5 V logic"),
-              (MUTED, "GND (nối chung)"), (INDIGO, "HC-05 (tùy chọn)")]
+              (MUTED, "GND (nối chung)"), (INDIGO, "HC-05 (Bluetooth)")]
     for i, (col, lab) in enumerate(legend):
         y = 5.48 + i * 0.26
         box(s, M, y + 0.1, 0.3, 0.06, fill=col)
@@ -984,7 +986,7 @@ Tiếp theo, {ctrl} trình bày phần code điều khiển.
 
 Nếu được hỏi: có huấn luyện YOLO không? Chưa; huấn luyện cho vật thật là hướng phát triển. Vì sao vẫn giữ YOLO? Để nhận tên vật khi cần; vị trí theo xăng-ti-mét luôn tính từ homography của tờ giấy.
 
-Nguồn: main.py:53 (--yolo); vision.py:43-47,271-300,365-368,476-486,491-492,507-515; control.py:68-69,542-566.
+Nguồn: main.py:58 (--yolo); vision.py:43-47,271-300,365-368,476-486,491-492,507-515; control.py:68-69,542-566.
 """)
 
 
@@ -1054,7 +1056,7 @@ Bên phải là chương trình Python trên laptop, chạy ở mỗi khung hìn
 
 Nếu được hỏi: vì sao firmware đọc HC-05 trước USB? Để phím từ Bluetooth không bị bỏ qua khi USB cũng có dữ liệu; mỗi vòng chỉ đọc một ký tự. Vì sao không gửi trực tiếp lệnh góc? Để Arduino chỉ cần xử lý từng phím, giống khi điều khiển bằng tay.
 
-Nguồn: robot_arm_4dof.ino:84-208; main.py:164-180,204-214; control.py:606-618 (press); success.py.
+Nguồn: robot_arm_4dof.ino:84-208; main.py:185-203,227-237; control.py:606-618 (press); success.py.
 """)
 
 
@@ -1232,7 +1234,67 @@ Chữ không dấu vì OpenCV không hiển thị được dấu tiếng Việt.
 
 Nếu được hỏi: chương trình có tự gửi phím không? Không; chỉ gửi khi người dùng bấm. Vì sao chỉ hiển thị một lệnh chính? Để người điều khiển thực hiện ngay, không cần đọc bảng số. Thứ tự lệnh thế nào? Đế, rồi vai, rồi khuỷu; servo đã đạt được bỏ qua. Ảnh đã lưu thì gợi ý lấy từ đâu? Chương trình đọc khung hình đã lưu như camera đang chạy; cánh tay mô phỏng đặt ở Home.
 
-Nguồn: screen.py:157-239,249-259; main.py:155-180; control.py:211-217; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
+Nguồn: screen.py:157-239,249-259; main.py:176-203; control.py:211-217; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
+""")
+
+
+# ==============================================================================
+# 03 · Code điều khiển · điều khiển từ xa: Mac (camera, xử lý) + máy Dell (Bluetooth)
+# ==============================================================================
+def slide_remote(prs, n):
+    s = new_slide(prs)
+    header(s, "03 · Code điều khiển", "Điều khiển từ xa", "ctrl")
+
+    def block(x, y, w, h, tag, title, desc, tag_color, fill=CARD, edge=None):
+        box(s, x, y, w, h, fill=fill, edge=edge, edge_w=2.0)
+        text(s, x + 0.18, y + 0.14, w - 0.36, 0.25, tag, 10, tag_color, True)
+        text(s, x + 0.18, y + 0.42, w - 0.36, 0.32, title, 15, INK, True)
+        text(s, x + 0.18, y + 0.8, w - 0.36, 0.5, desc, 11.5, TEXT2, spacing=1.05)
+
+    bw, bh = 3.2, 1.55
+    mac_x, uno_x, top = M, 5.35, 2.0
+    dell_x, dell_y, dell_h = 3.08, 4.6, 1.45
+    block(mac_x, top, bw, bh, "MAC · main.py", "Camera + xử lý", "2 camera · vision · control · success", TEAL, edge=TEAL)
+    block(uno_x, top, bw, bh, "ARDUINO UNO", "Servo + HC-05", "Firmware giữ nguyên", ORANGE, fill=ORANGE_SOFT)
+    block(dell_x, dell_y, bw, dell_h, "DELL · remote.py", "Người điều khiển", "Cách ~2 m · bàn phím", TEAL, edge=LINE)
+    # USB: Arduino báo góc servo về Mac
+    uy = top + 0.78
+    line(s, uno_x - 0.05, uy, mac_x + bw + 0.05, uy, MUTED, 1.75, head=True)
+    text(s, mac_x + bw, uy - 0.36, uno_x - mac_x - bw, 0.28, "USB · góc servo", 10.5, MUTED, align=CENTER)
+    # Wi-Fi: Mac gửi ảnh màn hình sang Dell
+    wx, ly = mac_x + 1.1, dell_y + dell_h / 2
+    line(s, wx, top + bh + 0.05, wx, ly, TEAL, 1.75, dash=True)
+    line(s, wx, ly, dell_x - 0.05, ly, TEAL, 1.75, head=True, dash=True)
+    text(s, wx + 0.12, top + bh + 0.3, 1.8, 0.6, [[("Wi-Fi", {"bold": True})], "ảnh 2 cam + XONG"], 11.5, TEAL, spacing=1.05)
+    # Bluetooth: Dell gửi phím tới HC-05
+    bx = uno_x + 2.1
+    line(s, dell_x + bw + 0.05, ly, bx, ly, TEAL, 2.5)
+    line(s, bx, ly, bx, top + bh + 0.05, TEAL, 2.5, head=True)
+    text(s, bx + 0.14, top + bh + 0.3, 1.4, 0.6, [[("Bluetooth", {"bold": True})], "phím"], 11.5, TEAL, spacing=1.05)
+
+    rx, rw = 9.05, W - M - 9.05
+    label(s, rx, 1.98, rw, "Một lần bấm phím", TEXT2, 10.5)
+    y = steps(s, rx, 2.35, rw, ["Dell gõ D, gửi qua Bluetooth", "Uno quay đế 2°", "Góc mới về Mac qua USB",
+                                "Mac tính lại lệnh, ảnh mới về Dell"], 13.5, d=0.32, gap=0.12)
+    box(s, rx, y + 0.15, rw, 1.32, fill=BG2)
+    label(s, rx + 0.2, y + 0.25, rw - 0.3, "Chuẩn bị", TEXT2, 10)
+    bullets(s, rx + 0.2, y + 0.55, rw - 0.35, 0.9, ["HC-05 ghép đôi với Dell", "Hai máy cùng Wi-Fi", "Mac cắm USB vào Uno"],
+            12.5, after=2)
+    cw_ = chip(s, M, 6.28, "Chưa thử trên phần cứng thật", ORANGE, ORANGE_SOFT, 10)
+    text(s, M + cw_ + 0.15, 6.28, 7.4 - cw_, 0.34, "Đã chạy thử với cánh tay mô phỏng", 11.5, TEXT2, anchor=MIDDLE)
+    footer(s, n)
+    notes(s, """
+Đây là cách điều khiển từ xa. Mac đặt cạnh cánh tay, chạy chương trình với hai camera và cắm USB vào Arduino. Người điều khiển ngồi ở máy Dell, cách khoảng 2 m, chạy chương trình remote.py.
+
+Hệ thống có ba đường nối. Wi-Fi: Mac gửi ảnh màn hình, gồm hai camera, lệnh bấm phím và kết quả success, sang Dell, tối đa 10 ảnh mỗi giây. Bluetooth: Dell gửi phím tới module HC-05 trên mạch Arduino. USB: sau mỗi phím, Arduino gửi góc servo mới về Mac; Mac tính lại lệnh, kiểm tra success, và ảnh mới về Dell.
+
+Ảnh không gửi qua Bluetooth vì HC-05 chạy 9600 baud, khoảng 1 KB mỗi giây, trong khi một ảnh màn hình khoảng 120 KB, tức gần 2 phút cho một ảnh. Firmware không cần sửa: nó đã nhận phím từ HC-05 và gửi góc qua USB.
+
+Phím H về Home và Z ngắt xung phải bấm hai lần trong 2 giây mới được gửi, để tránh bấm nhầm.
+
+Nếu được hỏi: vì sao Mac vẫn cắm USB? Để nhận góc servo và cấp nguồn cho Arduino; không có góc thì không tính được lệnh và success. Vì sao không gửi phím qua Wi-Fi? Làm được qua Mac; nhóm dùng Bluetooth để module HC-05 trên mạch nhận phím trực tiếp. Hai máy khác mạng thì sao? Dùng điểm phát Wi-Fi của điện thoại, hoặc ngrok. Đường dẫn có mã 6 số đổi mỗi lần chạy, để người khác cùng mạng không xem hay bấm được. Đã thử trên phần cứng thật chưa? Chưa; mới chạy thử với cánh tay mô phỏng trên một máy.
+
+Nguồn: remote.py; phone.py; main.py (start_phone); robot_arm_4dof.ino (đọc HC-05 trước USB); README.md mục 2.
 """)
 
 
@@ -1392,7 +1454,7 @@ def slide_results(prs, n):
         "Hiệu chỉnh cho tờ giấy mới",
         "Dashboard IoT / MQTT",
     ], 16, after=8, mark="—", mark_color=ORANGE, indent=0.3)
-    stats = [("109 / 109", ["test tự động", "đều đạt"], TEAL),
+    stats = [("122 / 122", ["test tự động", "đều đạt"], TEAL),
              ("11", ["tệp test"], INK),
              ("8,5 mm", ["sai số hiệu chỉnh", "trên 10 mẫu"], TEAL)]
     sw = (CW - 0.5) / 3
@@ -1406,13 +1468,13 @@ def slide_results(prs, n):
     notes(s, """
 Slide này tổng hợp những việc đã thực hiện và chưa thực hiện.
 
-Đã thực hiện: hệ tọa độ chung cho hai camera; kẹp và di chuyển cốc trên cánh tay thật bằng bàn phím; hiệu chỉnh mô hình từ 10 mẫu với sai số 8,5 mm; firmware bảo vệ servo kẹp đã nạp và kiểm tra; giao diện gợi ý phím và kiểm tra góc. 109 test tự động đều đạt, chạy khoảng 9 giây, không cần camera hay Arduino.
+Đã thực hiện: hệ tọa độ chung cho hai camera; kẹp và di chuyển cốc trên cánh tay thật bằng bàn phím; hiệu chỉnh mô hình từ 10 mẫu với sai số 8,5 mm; firmware bảo vệ servo kẹp đã nạp và kiểm tra; giao diện gợi ý phím và kiểm tra góc; điều khiển từ xa bằng máy Dell, mới chạy thử với cánh tay mô phỏng. 122 test tự động đều đạt, chạy khoảng 10 giây, không cần camera hay Arduino.
 
 Chưa thực hiện: đếm số lần XONG trên cánh tay thật với bản mới; kiểm tra gợi ý mới trên phần cứng; kẹp chắc vật thon; đo nhiệt độ servo; hiệu chỉnh cho tờ giấy mới; dashboard IoT qua MQTT và cảm biến lực, vốn có trong kế hoạch ngày 28/10.
 
 Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Mã được đơn giản hóa ngày 2/11; thử nghiệm bản mới trên cánh tay thật là bước tiếp theo. Test gồm những gì? Điều khiển 29, computer vision 15, camera 13, hiệu chỉnh 11, Serial 9, chương trình chính 8, success 7, độ bền 6, khớp mô hình 5, màn hình 4, đầu–cuối 2. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm có thể thêm MQTT từ gói JSON hiện có.
 
-Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; lệnh .venv/bin/python -m pytest -q (109 passed, 03/11/2026).
+Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; lệnh .venv/bin/python -m pytest -q (122 passed, 04/11/2026).
 """)
 
 
@@ -1520,6 +1582,7 @@ ORDER = [  # (khóa, hàm dựng, người nói: None = cả nhóm)
     ("fwcode", slide_fwcode, "ctrl"),
     ("ik", slide_ik, "ctrl"),
     ("screen", slide_screen, "ctrl"),
+    ("remote", slide_remote, "ctrl"),
     ("calib", slide_calib, "ctrl"),
     ("div_succ", lambda p, n: slide_divider(p, n, "succ"), "succ"),
     ("success", slide_success, "succ"),

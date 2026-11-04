@@ -100,7 +100,7 @@ Khó nhất là mắt người khó ước lượng độ sâu, và nếu mô h�
 - Vòng người (3 đoạn thẳng, mũi tên ở cuối): từ đỉnh ô 5 lên `y 2,2`, sang trái tới đỉnh ô 3, xuống ô 3; nhãn 11 pt trên đoạn ngang: `người nhìn màn hình rồi bấm phím`
 - Hàng 2, ba ô đất nung `HW` (`y 4,45`, cao 1,1) dưới ô 3, 4, 5: `Arduino Uno` / `nhận phím, gửi JSON` · `PCA9685` / `I²C 0x40 · xung 50 Hz` · `4 servo MG996R` / `đế · vai · khuỷu · kẹp`; mũi tên ngang nối ba ô; hai mũi tên dọc giữa ô 3 và Arduino: xuống `phím · USB 9600 baud`, lên `JSON ~5 gói/giây`
 - Thẻ trái hàng 2 (`card`, `x 0,8 · w 4,45 · y 4,45 · h 1,1`): nhãn `CHỈ MỘT ĐỐI TƯỢNG NỐI HAI NHÓM`; `Plan = góc hiện tại · góc cần tới · 3 lệnh bấm. Nhóm 1 sinh ra, nhóm 2 đọc.`
-- Dải dưới (`bg2`, `y 5,95 · h 0,65`): nhãn `VÌ VẬY` + ba mục đánh số 12 pt: `Người bấm phím, hệ thống gợi ý` · `Hai nhóm làm riêng được, chỉ chung một Plan` · `Kiểm được từng bước: 109 test`
+- Dải dưới (`bg2`, `y 5,95 · h 0,65`): nhãn `VÌ VẬY` + ba mục đánh số 12 pt: `Người bấm phím, hệ thống gợi ý` · `Hai nhóm làm riêng được, chỉ chung một Plan` · `Kiểm được từng bước: 122 test`
 - Chân trang (chú giải màu, 11 pt, `y 6,75`): ô xanh `Code tất định` · ô đất nung `Phần cứng` · ô xám `Trung tính`; dòng nhỏ bên phải: `Nguồn tổ ong 5–6 V riêng vào PCA9685, không lấy từ USB`
 
 **Ghi chú diễn giả**
@@ -115,9 +115,9 @@ Hai ô tiếp theo là điểm chính của thiết kế. Nhóm một lo điều
 
 Ô cuối là màn hình. Người nhìn màn hình rồi bấm phím trên laptop, như vòng mũi tên phía trên cho thấy. Phím đi qua laptop xuống Arduino qua cáp USB, chín nghìn sáu trăm baud; Arduino điều khiển bốn servo qua mạch PCA9685 và gửi ngược lên gói JSON chứa bốn góc servo, khoảng năm gói mỗi giây. Đó là phần IoT của hệ thống.
 
-**Nếu được hỏi:** người nằm ở đâu trong vòng này? Người nhìn lệnh trên màn hình rồi bấm phím; chương trình không tự gửi phím. Có Bluetooth không? Firmware có sẵn đường nhận phím từ module HC-05 ở chân D2, D3, nhưng nhóm điều khiển chủ yếu qua cáp USB.
+**Nếu được hỏi:** người nằm ở đâu trong vòng này? Người nhìn lệnh trên màn hình rồi bấm phím; chương trình không tự gửi phím. Có Bluetooth không? Có: khi điều khiển từ xa, máy Dell chạy `remote.py` gửi phím qua module HC-05 ở chân D2, D3, còn ảnh màn hình đi qua Wi-Fi.
 
-**Nguồn:** `README.md` (sơ đồ đầu trang, mục 1 và 3); `main.py:171-174`; `robot_arm_4dof.ino:6,8,86,203-207`; `control.py:251-468`.
+**Nguồn:** `README.md` (sơ đồ đầu trang, mục 1 và 3); `main.py:192-195`; `robot_arm_4dof.ino:6,8,86,203-207`; `control.py:251-468`.
 
 ---
 
@@ -128,7 +128,7 @@ Hai ô tiếp theo là điểm chính của thiết kế. Nhóm một lo điều
 - Eyebrow: `02 · PHẦN CỨNG` · Tiêu đề: `Phần cứng: Arduino Uno, PCA9685 và bốn servo MG996R`
 - Bốn ảnh, chú thích dưới ảnh: `Cam TRÊN (OBSBOT) nhìn xuống` · `Cam NGANG (MacBook) đặt thấp` · `Arduino Uno + PCA9685 + nguồn tổ ong` · `Cánh tay 4 servo, tay kẹp hai ngón`
 - Cột phải: nhãn `SERVO · PHÍM · GIỚI HẠN`, bốn hàng (chip + chữ): `KÊNH 0 · ĐẾ · A / D · 0–180°` · `KÊNH 1 · VAI · W / S · 25–155°` · `KÊNH 2 · KHUỶU · I / K · 25–155°` · `KÊNH 3 · KẸP · J / L · 95–160°`
-- Dưới bảng, ba dòng 13 pt: `Mỗi phím nhích 2° (kẹp: 5°)` · `Nguồn riêng 5–6 V vào cổng xanh của PCA9685, không lấy từ USB` · `HC-05 Bluetooth (D2/D3): firmware có sẵn, tùy chọn`
+- Dưới bảng, ba dòng 13 pt: `Mỗi phím nhích 2° (kẹp: 5°)` · `Nguồn riêng 5–6 V vào cổng xanh của PCA9685, không lấy từ USB` · `HC-05 Bluetooth (D2/D3): nhận phím từ máy Dell`
 
 **Ghi chú diễn giả**
 
@@ -197,7 +197,7 @@ Cách thứ ba là YOLO11, bản đã huấn luyện sẵn trên bộ COCO, nhó
 
 **Nếu được hỏi:** có huấn luyện YOLO không? Chưa; fine-tune cho vật thật là việc có thể làm sau. Vì sao còn giữ YOLO? Để nhận tên vật khi cần; còn vị trí xăng-ti-mét luôn tính từ homography của tờ giấy. Ảnh chụp màn hình lấy ở đâu? Từ giao diện cũ trước khi đơn giản hóa; hiện tượng nhận nhầm là có thật và là lý do YOLO bị tắt.
 
-**Nguồn:** `main.py:53`; `vision.py:43-47,271-300,365-368,476-486,491-492,507-515`; ảnh `ui_guide_cameras` (bản trước khi đơn giản hóa).
+**Nguồn:** `main.py:58`; `vision.py:43-47,271-300,365-368,476-486,491-492,507-515`; ảnh `ui_guide_cameras` (bản trước khi đơn giản hóa).
 
 ---
 
@@ -252,7 +252,7 @@ Chữ trên giao diện không có dấu vì thư viện vẽ chữ của OpenCV
 
 **Nếu được hỏi:** có tự gửi phím không? Không; chương trình chỉ gửi phím khi người bấm. Vì sao chỉ một lệnh to? Để người điều khiển làm theo được ngay, không phải đọc bảng số. Vì sao thứ tự đế, rồi vai, rồi khuỷu? Là thứ tự code lập lệnh; hàng nào đã đúng thì được bỏ qua. Ảnh camera là ảnh cũ mà vẫn có gợi ý? Ảnh là khung camera thật lúc hai mươi giờ hai mươi bảy, chương trình đọc nó như camera đang chạy, còn cánh tay mô phỏng đặt ở Home. Ảnh chụp lúc tờ giấy còn hướng ban đầu, còn file hiệu chỉnh ghi theo tờ đã xoay một trăm tám mươi độ, nên khi tạo ảnh nhóm đổi đế về hệ lúc chụp rồi tự kiểm. Gợi ý trên ảnh này là đế 88, vai 60, khuỷu 84, gần tư thế người thật sự ôm cốc lúc hai mươi giờ ba mươi hai, khoảng 85, 60, 90 (đọc từ màn hình bản cũ); nhưng chưa rõ lần ôm đó có nằm trong mười mẫu khớp hay không, nên chỉ nói là gần.
 
-**Nguồn:** `screen.py:157-239,249-259`; `main.py:155-180`; `control.py:211-217`; ảnh `ui_screen_before` (tạo bằng `tools/make_screen_images.py`).
+**Nguồn:** `screen.py:157-239,249-259`; `main.py:176-203`; `control.py:211-217`; ảnh `ui_screen_before` (tạo bằng `tools/make_screen_images.py`).
 
 ---
 
@@ -389,7 +389,7 @@ Nhóm nói rõ trạng thái: firmware cuối cùng, gồm phím Z, bước hai 
   2. `Cánh tay thật ôm được cốc và chuyển sang trái khi người bấm phím (02/11)`
   3. `Mô hình khớp 10 lần ôm thật: sai số 8,5 mm, bỏ-một-mẫu 11,6 mm`
   4. `Firmware chống nóng và phím Z đã nạp, kiểm trên mạch thật`
-  5. `109 test tự động pass: động học, success, màn hình, camera, hiệu chỉnh, Serial`
+  5. `122 test tự động pass: động học, success, màn hình, camera, hiệu chỉnh, Serial`
 - Danh sách phải (gạch "—", đất nung), nhãn `CHƯA KIỂM CHỨNG`:
   - `Số lần XONG trên cánh tay thật: bản mới mới chạy bằng test và ảnh đã lưu`
   - `Bấm đúng theo gợi ý mới rồi hai ngón có bao quanh cốc không`
@@ -397,7 +397,7 @@ Nhóm nói rõ trạng thái: firmware cuối cùng, gồm phím Z, bước hai 
   - `Nhiệt độ servo kẹp sau khi thêm ngắt xung`
   - `Hiệu chỉnh cho tờ giấy mới hoặc robot đặt chỗ khác`
   - `Dashboard IoT / MQTT, cảm biến lực: có trong kế hoạch 28/10, chưa làm`
-- Hai ô số dưới (`bg2`): `109 / 109` (teal) `test tự động pass` · `0` (đất nung) `lần đếm thành công trên cánh tay thật`
+- Hai ô số dưới (`bg2`): `122 / 122` (teal) `test tự động pass` · `0` (đất nung) `lần đếm thành công trên cánh tay thật`
 
 **Ghi chú diễn giả**
 
@@ -411,7 +411,7 @@ Hai ô số bên dưới tóm lại: một trăm linh chín trên một trăm li
 
 **Nếu được hỏi:** vì sao chưa chạy bản mới trên cánh tay thật? Nhóm đơn giản hóa mã ngay trong ngày để giải thích được trong một phút, và rút dây Arduino sau đó; chạy bản mới với cánh tay là bước đầu của việc tiếp theo. Có bắt buộc dashboard IoT không? […điền theo yêu cầu đề bài]; nếu có, nhóm sẽ thêm MQTT từ gói JSON hiện có.
 
-**Nguồn:** `05_SO_LIEU_VA_NGUON.md` mục 4, 6, 7, 8, 11, 13; lệnh `pytest -q` (109 passed, 03/11); `ls logs` (không có thư mục).
+**Nguồn:** `05_SO_LIEU_VA_NGUON.md` mục 4, 6, 7, 8, 11, 13; lệnh `pytest -q` (122 passed, 04/11); `ls logs` (không có thư mục).
 
 ---
 
@@ -466,10 +466,10 @@ Nhóm em cảm ơn thầy cô và các bạn.
 - `Hiệu chỉnh`: `calibration.py` lưu đế, góc chuẩn, càng kẹp · `arm_fit.py` khớp hình học cánh tay (ngoài ứng dụng)
 - `Công cụ`: `generate_aruco_a4.py` sinh tờ A4 4 mã
 - `Firmware`: `robot_arm_4dof/robot_arm_4dof.ino` · `flash.sh`
-- `Kiểm thử`: `tests/`: 109 test
-- Dòng cuối: `≈ 2 690 dòng Python (8 module) · 208 dòng firmware · ≈ 1 890 dòng test`
+- `Kiểm thử`: `tests/`: 122 test
+- Dòng cuối: `≈ 2 710 dòng Python (8 module) + điều khiển từ xa · 208 dòng firmware · ≈ 2 100 dòng test`
 
-**Ghi chú diễn giả.** Slide dự phòng cho câu hỏi "code nằm ở đâu". Tám module Python, gần hai nghìn bảy trăm dòng, chia theo việc. Mỗi khung hình trong main chỉ là ba dòng: nhóm một lập Plan từ các vật camera thấy, nhóm hai kết luận từ Plan, rồi vẽ màn hình. Firmware Arduino hai trăm linh tám dòng. Một trăm linh chín test chạy trong khoảng chín giây và không đụng vào camera hay cổng USB thật vì cảnh được dựng bằng camera giả lập có đáp án. **Nếu được hỏi:** chạy không cần phần cứng thế nào? `main.py --top a.jpg --side b.jpg --no-serial --headless`. **Nguồn:** `README.md` mục 3 và 7; `main.py:171-174`; `wc -l`.
+**Ghi chú diễn giả.** Slide dự phòng cho câu hỏi "code nằm ở đâu". Tám module Python, gần hai nghìn bảy trăm dòng, chia theo việc. Mỗi khung hình trong main chỉ là ba dòng: nhóm một lập Plan từ các vật camera thấy, nhóm hai kết luận từ Plan, rồi vẽ màn hình. Firmware Arduino hai trăm linh tám dòng. Một trăm linh chín test chạy trong khoảng chín giây và không đụng vào camera hay cổng USB thật vì cảnh được dựng bằng camera giả lập có đáp án. **Nếu được hỏi:** chạy không cần phần cứng thế nào? `main.py --top a.jpg --side b.jpg --no-serial --headless`. **Nguồn:** `README.md` mục 3 và 7; `main.py:192-195`; `wc -l`.
 
 ## Slide 16 · Phụ lục B · Công thức động học ngược và số đo cánh tay
 **Mẫu** hai cột · **Hình** không có
@@ -586,7 +586,7 @@ Nhóm em cảm ơn thầy cô và các bạn.
 - `Vi điều khiển` · `ESP32` · `Arduino Uno`
 - `Servo` · `6 (có cổ tay gập và xoay)` · `4 (đế, vai, khuỷu, kẹp)`
 - `Camera` · `2 webcam USB 1280×720` · `OBSBOT + MacBook, 1920×1080`
-- `Giao tiếp` · `USB Serial 115200 + MQTT` · `USB Serial 9600 (+ HC-05 tùy chọn), không MQTT`
+- `Giao tiếp` · `USB Serial 115200 + MQTT` · `USB Serial 9600; HC-05 nhận phím từ máy Dell, ảnh qua Wi-Fi; không MQTT`
 - `Nhận diện` · `ArUco; mở rộng YOLO26n-seg` · `ArUco 4 góc + tách màu; YOLO11s tùy chọn`
 - `Giám sát` · `dashboard Node-RED / web` · `màn hình OpenCV hai phần`
 - `Xác nhận` · `S1 + S2 (+ cảm biến lực)` · `ba góc servo tới góc gợi ý; không cảm biến lực`
@@ -609,7 +609,7 @@ Nhóm em cảm ơn thầy cô và các bạn.
 8. `Có tự động hoàn toàn không?` · `Không. Màn hình chỉ cho bấm phím nào, người bấm. Chế độ tự gửi phím đã bỏ để mã đơn giản.`
 9. `Vì sao kẹp không tính vào success?` · `Cốc thon bị đẩy ra ở 150–160°. Đề tài chỉ cần ba góc servo tới góc gợi ý.`
 10. `XONG nghĩa là vật đã được gắp?` · `Không. Nghĩa là ba góc lệnh đã tới góc gợi ý; MG996R không báo vị trí thật.`
-11. `Phần IoT ở đâu?` · `Arduino ↔ laptop qua USB 9600 baud, gói JSON ~5 gói/giây, Bluetooth HC-05 tùy chọn; chưa có MQTT hay đám mây.`
+11. `Phần IoT ở đâu?` · `Arduino ↔ laptop qua USB 9600 baud, gói JSON ~5 gói/giây; máy Dell bấm phím qua Bluetooth HC-05, xem ảnh qua Wi-Fi; chưa có MQTT hay đám mây.`
 12. `Đổi tờ giấy hoặc dời robot thì sao?` · `Phải hiệu chỉnh lại: khoảng 10 lần ôm cốc rồi khớp bằng arm_fit (phụ lục F).`
 
 **Ghi chú diễn giả.** Slide dự phòng, chỉ mở khi được hỏi; mỗi câu trả lời trên slide là câu trả lời ngắn nhất, nói thêm theo phần **Nếu được hỏi** của slide tương ứng. Với bất kỳ câu nào đòi một con số mà bảng số liệu không có (tỉ lệ thành công, nhiệt độ, sai số trên vật thật), câu trả lời là "chưa đo" cộng cách sẽ đo. **Nguồn:** `05_SO_LIEU_VA_NGUON.md`; kế hoạch PDF 28/10/2026 (các lý do chọn hai camera và không gắn camera lên tay).
