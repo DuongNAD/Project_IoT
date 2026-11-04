@@ -5,8 +5,9 @@ Mình đã chuẩn bị nội dung, lời nói, ảnh thật, prompt ảnh AI, s
 và **điền các chỗ trống**.
 
 > **Cập nhật 04/11/2026: bộ slide đã dựng xong** là `slides/Project_IoT_ThuyetTrinh.pptx` (+ `.pdf`): **25 slide** theo màu slide Gamota,
-> chia 4 phần cho 4 người, mỗi phần mở bằng một slide ngăn: 01 linh kiện (danh sách, giới thiệu, sơ đồ mạch, sự cố servo nóng) →
-> 02 computer vision → 03 code điều khiển (lưu đồ, code firmware, động học ngược, màn hình, hiệu chỉnh) → 04 success; tên ở bảng `TEAM` đầu `build_slides.py`,
+> chia 4 phần cho 4 người, mỗi phần mở bằng một slide ngăn: 01 linh kiện (danh sách, giới thiệu, sơ đồ mạch, bảo vệ servo kẹp) →
+> 02 computer vision → 03 code điều khiển (lưu đồ, code firmware, động học ngược, giao diện, hiệu chỉnh) → 04 success.
+> Chữ trên slide viết ngắn, từ ngữ trung tính (tiêu đề là cụm danh từ, mỗi ý vài từ); giải thích và hỏi đáp nằm trong ghi chú. Tên ở bảng `TEAM` đầu `build_slides.py`,
 > nội dung rút từ `01` và số liệu ở `05`. Dựng lại: `python3 slides/build_slides.py` → `python3 slides/export_pdf.py` → `python3 slides/render_previews.py`;
 > kiểm: `python3 slides/verify_slides.py` (số trang, ghi chú, chân trang, chữ "mô phỏng", thiết kế đã bỏ, chỗ `[...]` còn phải điền).
 > Kịch bản 25 slide kiểu Gamota trong `01`–`06` dưới đây vẫn giữ làm phương án dựng bằng Antigravity.
