@@ -77,3 +77,14 @@ def test_headless_runs_do_not_open_a_phone_server():
     args = M.parse_args(["--headless", "--no-serial"])
     assert args.phone_port == 8000 and not args.no_phone
     assert M.parse_args(["--no-phone", "--phone-port", "9000"]).phone_port == 9000
+
+
+def test_the_link_code_stays_the_same_between_runs(tmp_path):
+    path = tmp_path / ".phone_pin"
+    first = P.stored_pin(str(path))
+    assert len(first) == 6 and first.isdigit() and path.read_text().strip() == first
+    assert P.stored_pin(str(path)) == first  # Lần chạy sau dùng lại đúng mã, máy Dell khỏi đổi lệnh
+    path.write_text("abc\n")  # Tệp hỏng: tạo mã mới
+    again = P.stored_pin(str(path))
+    assert again.isdigit() and len(again) == 6 and path.read_text().strip() == again
+    assert len(P.stored_pin(str(tmp_path / "no_dir" / "pin"))) == 6  # Không ghi được tệp vẫn có mã cho lần chạy này

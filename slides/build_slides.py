@@ -572,7 +572,7 @@ def slide_system(prs, n):
     box(s, M, 5.62, CW, 1.0, fill=BG2)
     code = [("plan   = self.control.update(self.tracker.objects)", "# khối điều khiển"),
             ("result = self.success.update(plan)", "# khối success"),
-            ("screen = build_screen(..., plan, result)", "# màn hình (main.py:192-195)")]
+            ("screen = build_screen(..., plan, result)", "# màn hình (main.py:194-197)")]
     text(s, M + 0.25, 5.74, CW - 0.4, 0.85, [[(c.ljust(53), {}), (k, {"color": MUTED})] for c, k in code], 12.5, INK, font=MONO,
          spacing=1.12)
     footer(s, n)
@@ -587,7 +587,7 @@ Người dùng bấm phím theo gợi ý. Phím được gửi xuống Arduino q
 
 Nếu được hỏi: chương trình có tự gửi phím không? Không, chỉ gửi khi người dùng bấm. Vì sao trong code gọi là nhóm 1, nhóm 2? Đó là tên hai khối trong mã nguồn (control.py, success.py). Có dùng Bluetooth không? Có, khi điều khiển từ xa: máy Dell gửi phím qua module HC-05 ở chân D2, D3 (slide Điều khiển từ xa); laptop đặt cạnh cánh tay vẫn dùng cáp USB.
 
-Nguồn: README.md (sơ đồ đầu trang, mục 1 và 3); main.py:192-195; robot_arm_4dof.ino:6,8,86,203-207; control.py (ArduinoSerialLink).
+Nguồn: README.md (sơ đồ đầu trang, mục 1 và 3); main.py:194-197; robot_arm_4dof.ino:6,8,86,203-207; control.py (ArduinoSerialLink).
 """)
 
 
@@ -986,7 +986,7 @@ Tiếp theo, {ctrl} trình bày phần code điều khiển.
 
 Nếu được hỏi: có huấn luyện YOLO không? Chưa; huấn luyện cho vật thật là hướng phát triển. Vì sao vẫn giữ YOLO? Để nhận tên vật khi cần; vị trí theo xăng-ti-mét luôn tính từ homography của tờ giấy.
 
-Nguồn: main.py:58 (--yolo); vision.py:43-47,271-300,365-368,476-486,491-492,507-515; control.py:68-69,542-566.
+Nguồn: main.py:59 (--yolo); vision.py:43-47,271-300,365-368,476-486,491-492,507-515; control.py:68-69,542-566.
 """)
 
 
@@ -1056,7 +1056,7 @@ Bên phải là chương trình Python trên laptop, chạy ở mỗi khung hìn
 
 Nếu được hỏi: vì sao firmware đọc HC-05 trước USB? Để phím từ Bluetooth không bị bỏ qua khi USB cũng có dữ liệu; mỗi vòng chỉ đọc một ký tự. Vì sao không gửi trực tiếp lệnh góc? Để Arduino chỉ cần xử lý từng phím, giống khi điều khiển bằng tay.
 
-Nguồn: robot_arm_4dof.ino:84-208; main.py:185-203,227-237; control.py:606-618 (press); success.py.
+Nguồn: robot_arm_4dof.ino:84-208; main.py:187-205,229-239; control.py:606-618 (press); success.py.
 """)
 
 
@@ -1234,7 +1234,7 @@ Chữ không dấu vì OpenCV không hiển thị được dấu tiếng Việt.
 
 Nếu được hỏi: chương trình có tự gửi phím không? Không; chỉ gửi khi người dùng bấm. Vì sao chỉ hiển thị một lệnh chính? Để người điều khiển thực hiện ngay, không cần đọc bảng số. Thứ tự lệnh thế nào? Đế, rồi vai, rồi khuỷu; servo đã đạt được bỏ qua. Ảnh đã lưu thì gợi ý lấy từ đâu? Chương trình đọc khung hình đã lưu như camera đang chạy; cánh tay mô phỏng đặt ở Home.
 
-Nguồn: screen.py:157-239,249-259; main.py:176-203; control.py:211-217; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
+Nguồn: screen.py:157-239,249-259; main.py:178-205; control.py:211-217; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
 """)
 
 
@@ -1292,7 +1292,7 @@ Hệ thống có ba đường nối. Wi-Fi: Mac gửi ảnh màn hình, gồm ha
 
 Phím H về Home và Z ngắt xung phải bấm hai lần trong 2 giây mới được gửi, để tránh bấm nhầm.
 
-Nếu được hỏi: vì sao Mac vẫn cắm USB? Để nhận góc servo và cấp nguồn cho Arduino; không có góc thì không tính được lệnh và success. Vì sao không gửi phím qua Wi-Fi? Làm được qua Mac; nhóm dùng Bluetooth để module HC-05 trên mạch nhận phím trực tiếp. Hai máy khác mạng thì sao? Dùng điểm phát Wi-Fi của điện thoại, hoặc ngrok. Đường dẫn có mã 6 số đổi mỗi lần chạy, để người khác cùng mạng không xem hay bấm được. Đã thử trên phần cứng thật chưa? Chưa; mới chạy thử với cánh tay mô phỏng trên một máy.
+Nếu được hỏi: vì sao Mac vẫn cắm USB? Để nhận góc servo và cấp nguồn cho Arduino; không có góc thì không tính được lệnh và success. Vì sao không gửi phím qua Wi-Fi? Làm được qua Mac; nhóm dùng Bluetooth để module HC-05 trên mạch nhận phím trực tiếp. Hai máy khác mạng thì sao? Dùng điểm phát Wi-Fi của điện thoại, hoặc ngrok. Đường dẫn có mã 6 số, lưu trong máy và giữ nguyên giữa các lần chạy, để người khác cùng mạng không xem hay bấm được. Đã thử trên phần cứng thật chưa? Chưa; mới chạy thử với cánh tay mô phỏng trên một máy.
 
 Nguồn: remote.py; phone.py; main.py (start_phone); robot_arm_4dof.ino (đọc HC-05 trước USB); README.md mục 2.
 """)

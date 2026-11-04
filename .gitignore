@@ -16,3 +16,6 @@ captures/
 
 # Hiệu chỉnh vị trí đế robot (phím B trong main.py): riêng cho từng cách bố trí bàn, mặc định nằm trong code
 calibration.json
+
+# Mã 6 số trong đường dẫn chia sẻ màn hình (main.py tự tạo): ai có mã là xem và bấm được, không đẩy lên repo public
+.phone_pin

@@ -28,6 +28,24 @@ PHONE_KEYS = "adwsikjlhxz"  # Phím điện thoại được gửi: đúng các 
 JPEG_QUALITY = 70
 
 
+def stored_pin(path):
+    """Mã 6 số giữ nguyên giữa các lần chạy: đọc từ tệp `path`, chưa có (hoặc hỏng) thì tạo mã ngẫu nhiên và ghi vào. Xóa tệp để đổi mã."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            pin = f.read().strip()
+        if len(pin) == 6 and pin.isdigit():
+            return pin
+    except OSError:
+        pass
+    pin = f"{secrets.randbelow(10 ** 6):06d}"
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(pin + "\n")
+    except OSError:
+        pass  # Không ghi được thì mã chỉ dùng cho lần chạy này
+    return pin
+
+
 def lan_ip():
     """Địa chỉ IP của laptop trong mạng Wi-Fi (kết nối UDP không gửi gói nào, chỉ để hỏi hệ điều hành dùng card mạng nào)."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

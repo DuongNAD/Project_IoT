@@ -87,7 +87,7 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 ```
 
 - **Mac** đặt cạnh cánh tay (camera MacBook là cam NGANG), **cắm USB vào Arduino**: Arduino báo góc servo về Mac sau mỗi phím, Mac tính lại lệnh và success.
-  `main.py` chia sẻ ảnh màn hình qua Wi-Fi (`phone.py`) và in ra lệnh cho máy Dell kèm đường dẫn có mã 6 số.
+  `main.py` chia sẻ ảnh màn hình qua Wi-Fi (`phone.py`) và in ra lệnh cho máy Dell kèm đường dẫn có mã 6 số. Mã lưu trong `.phone_pin`, giữ nguyên giữa các lần chạy (đổi mạng thì chỉ IP đổi); xóa tệp này để đổi mã.
 - **Dell** chạy `remote.py`: một cửa sổ hiện màn hình của Mac, gõ `A D W S I K J L H X Z` trên bàn phím Dell thì phím đi qua Bluetooth tới HC-05.
   `H` (Home) và `Z` (nghỉ hết) phải bấm 2 lần trong 2 giây. Thanh trên cùng báo Mac (Wi-Fi) và Bluetooth đã nối chưa; `Q` thoát.
 - **Firmware không đổi**: firmware đang nạp đã nhận phím từ HC-05 và báo góc qua USB.
@@ -96,7 +96,7 @@ Chuẩn bị:
 1. Dell: ghép đôi HC-05 trong cài đặt Bluetooth (PIN thường là `1234` hoặc `0000`). Windows tạo 2 cổng COM: dùng cổng **Outgoing**
    (`uv run python remote.py --list-ports` cho biết cổng sẽ dùng). **Chỉ ghép đôi HC-05 với Dell**: HC-05 nhận một kết nối mỗi lúc.
 2. Mac và Dell vào **cùng một Wi-Fi**. Mạng trường chặn hai máy thấy nhau thì cả hai bắt điểm phát Wi-Fi của điện thoại.
-3. Mac: cắm USB Arduino, `uv run python main.py`, chép dòng `Máy Dell: uv run python remote.py --mac http://<ip Mac>:8000/<mã>/` nó in ra.
+3. Mac: cắm USB Arduino, `uv run python main.py`, chép dòng `Chạy trên máy Dell (không chạy trên Mac): python remote.py --mac http://<ip Mac>:8000/<mã>/` nó in ra.
 4. Dell: chạy đúng dòng đó (thêm `--port COM5` nếu tự tìm sai cổng).
 
 Dự phòng: Dell mở đường dẫn đó bằng trình duyệt để xem, và gửi phím bằng PuTTY (Serial, cổng COM của HC-05, 9600). Điện thoại mở đường dẫn

@@ -117,7 +117,7 @@ Hai ô tiếp theo là điểm chính của thiết kế. Nhóm một lo điều
 
 **Nếu được hỏi:** người nằm ở đâu trong vòng này? Người nhìn lệnh trên màn hình rồi bấm phím; chương trình không tự gửi phím. Có Bluetooth không? Có: khi điều khiển từ xa, máy Dell chạy `remote.py` gửi phím qua module HC-05 ở chân D2, D3, còn ảnh màn hình đi qua Wi-Fi.
 
-**Nguồn:** `README.md` (sơ đồ đầu trang, mục 1 và 3); `main.py:192-195`; `robot_arm_4dof.ino:6,8,86,203-207`; `control.py:251-468`.
+**Nguồn:** `README.md` (sơ đồ đầu trang, mục 1 và 3); `main.py:194-197`; `robot_arm_4dof.ino:6,8,86,203-207`; `control.py:251-468`.
 
 ---
 
@@ -197,7 +197,7 @@ Cách thứ ba là YOLO11, bản đã huấn luyện sẵn trên bộ COCO, nhó
 
 **Nếu được hỏi:** có huấn luyện YOLO không? Chưa; fine-tune cho vật thật là việc có thể làm sau. Vì sao còn giữ YOLO? Để nhận tên vật khi cần; còn vị trí xăng-ti-mét luôn tính từ homography của tờ giấy. Ảnh chụp màn hình lấy ở đâu? Từ giao diện cũ trước khi đơn giản hóa; hiện tượng nhận nhầm là có thật và là lý do YOLO bị tắt.
 
-**Nguồn:** `main.py:58`; `vision.py:43-47,271-300,365-368,476-486,491-492,507-515`; ảnh `ui_guide_cameras` (bản trước khi đơn giản hóa).
+**Nguồn:** `main.py:59`; `vision.py:43-47,271-300,365-368,476-486,491-492,507-515`; ảnh `ui_guide_cameras` (bản trước khi đơn giản hóa).
 
 ---
 
@@ -252,7 +252,7 @@ Chữ trên giao diện không có dấu vì thư viện vẽ chữ của OpenCV
 
 **Nếu được hỏi:** có tự gửi phím không? Không; chương trình chỉ gửi phím khi người bấm. Vì sao chỉ một lệnh to? Để người điều khiển làm theo được ngay, không phải đọc bảng số. Vì sao thứ tự đế, rồi vai, rồi khuỷu? Là thứ tự code lập lệnh; hàng nào đã đúng thì được bỏ qua. Ảnh camera là ảnh cũ mà vẫn có gợi ý? Ảnh là khung camera thật lúc hai mươi giờ hai mươi bảy, chương trình đọc nó như camera đang chạy, còn cánh tay mô phỏng đặt ở Home. Ảnh chụp lúc tờ giấy còn hướng ban đầu, còn file hiệu chỉnh ghi theo tờ đã xoay một trăm tám mươi độ, nên khi tạo ảnh nhóm đổi đế về hệ lúc chụp rồi tự kiểm. Gợi ý trên ảnh này là đế 88, vai 60, khuỷu 84, gần tư thế người thật sự ôm cốc lúc hai mươi giờ ba mươi hai, khoảng 85, 60, 90 (đọc từ màn hình bản cũ); nhưng chưa rõ lần ôm đó có nằm trong mười mẫu khớp hay không, nên chỉ nói là gần.
 
-**Nguồn:** `screen.py:157-239,249-259`; `main.py:176-203`; `control.py:211-217`; ảnh `ui_screen_before` (tạo bằng `tools/make_screen_images.py`).
+**Nguồn:** `screen.py:157-239,249-259`; `main.py:178-205`; `control.py:211-217`; ảnh `ui_screen_before` (tạo bằng `tools/make_screen_images.py`).
 
 ---
 
@@ -469,7 +469,7 @@ Nhóm em cảm ơn thầy cô và các bạn.
 - `Kiểm thử`: `tests/`: 122 test
 - Dòng cuối: `≈ 2 710 dòng Python (8 module) + điều khiển từ xa · 208 dòng firmware · ≈ 2 100 dòng test`
 
-**Ghi chú diễn giả.** Slide dự phòng cho câu hỏi "code nằm ở đâu". Tám module Python, gần hai nghìn bảy trăm dòng, chia theo việc. Mỗi khung hình trong main chỉ là ba dòng: nhóm một lập Plan từ các vật camera thấy, nhóm hai kết luận từ Plan, rồi vẽ màn hình. Firmware Arduino hai trăm linh tám dòng. Một trăm linh chín test chạy trong khoảng chín giây và không đụng vào camera hay cổng USB thật vì cảnh được dựng bằng camera giả lập có đáp án. **Nếu được hỏi:** chạy không cần phần cứng thế nào? `main.py --top a.jpg --side b.jpg --no-serial --headless`. **Nguồn:** `README.md` mục 3 và 7; `main.py:192-195`; `wc -l`.
+**Ghi chú diễn giả.** Slide dự phòng cho câu hỏi "code nằm ở đâu". Tám module Python, gần hai nghìn bảy trăm dòng, chia theo việc. Mỗi khung hình trong main chỉ là ba dòng: nhóm một lập Plan từ các vật camera thấy, nhóm hai kết luận từ Plan, rồi vẽ màn hình. Firmware Arduino hai trăm linh tám dòng. Một trăm linh chín test chạy trong khoảng chín giây và không đụng vào camera hay cổng USB thật vì cảnh được dựng bằng camera giả lập có đáp án. **Nếu được hỏi:** chạy không cần phần cứng thế nào? `main.py --top a.jpg --side b.jpg --no-serial --headless`. **Nguồn:** `README.md` mục 3 và 7; `main.py:194-197`; `wc -l`.
 
 ## Slide 16 · Phụ lục B · Công thức động học ngược và số đo cánh tay
 **Mẫu** hai cột · **Hình** không có

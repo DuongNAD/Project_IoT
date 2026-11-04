@@ -22,12 +22,13 @@ import cv2
 from calibration import apply_calibration, heading_toward, store_base_pose
 from cameras import CameraSpec, CameraStream, letterbox_inverse, list_camera_names, parse_camera_arg
 from control import ARM_CONFIG, Control, predict_tip
-from phone import PhoneServer, qr_text, status_of
+from phone import PhoneServer, qr_text, status_of, stored_pin
 from screen import CAM_H, CAM_W, SCREEN_WINDOW, build_screen
 from success import Success
 from vision import ArucoYoloTracker, draw_target, perspective_strength, px_to_cm, ui_scale
 
 CAPTURE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")  # Ảnh chụp (phím C), nằm cạnh main.py
+PIN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".phone_pin")  # Mã 6 số của đường dẫn cho Dell / điện thoại, giữ nguyên giữa các lần chạy
 
 HELP_TEXT = """💡 Làm theo lệnh to ở giữa màn hình (bấm phím trên cửa sổ video):
    A / D                 : xoay đế sang PHẢI / TRÁI (nhìn theo cam NGANG), mỗi lần 2°
@@ -66,15 +67,16 @@ def parse_args(argv=None):
 def start_phone(port):
     """Chia sẻ màn hình qua Wi-Fi (cho remote.py trên máy Dell và trang web dự phòng), in đường dẫn + mã QR. None nếu cổng bận."""
     try:
-        phone = PhoneServer(port)
+        phone = PhoneServer(port, pin=stored_pin(PIN_FILE))
     except OSError as e:
         print(f"⚠️ Không chia sẻ được màn hình ở cổng {port} ({e}): chạy lại với --phone-port khác")
         return None
     url = phone.url()
-    print(f"🖥️  Máy Dell (cùng Wi-Fi): uv run python remote.py --mac {url}")
+    print(f"🖥️  Chạy trên máy Dell (không chạy trên Mac): python remote.py --mac {url}")
     print(f"📱 Điện thoại / trình duyệt (dự phòng): mở {url}  hoặc quét mã QR dưới đây")
     print(qr_text(url))
     print(f"   Khác mạng: chạy  ngrok http {phone.port}  rồi dùng đường dẫn ngrok + /{phone.pin}/")
+    print(f"   Mã {phone.pin} giữ nguyên mỗi lần chạy (đổi mạng thì chỉ IP đổi); muốn đổi mã: xóa tệp .phone_pin")
     return phone
 
 
