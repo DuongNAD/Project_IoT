@@ -1454,8 +1454,8 @@ def slide_results(prs, n):
         "Hiệu chỉnh cho tờ giấy mới",
         "Dashboard IoT / MQTT",
     ], 16, after=8, mark="—", mark_color=ORANGE, indent=0.3)
-    stats = [("122 / 122", ["test tự động", "đều đạt"], TEAL),
-             ("11", ["tệp test"], INK),
+    stats = [("124 / 124", ["test tự động", "đều đạt"], TEAL),
+             ("13", ["tệp test"], INK),
              ("8,5 mm", ["sai số hiệu chỉnh", "trên 10 mẫu"], TEAL)]
     sw = (CW - 0.5) / 3
     for i, (big, desc, col) in enumerate(stats):
@@ -1468,13 +1468,13 @@ def slide_results(prs, n):
     notes(s, """
 Slide này tổng hợp những việc đã thực hiện và chưa thực hiện.
 
-Đã thực hiện: hệ tọa độ chung cho hai camera; kẹp và di chuyển cốc trên cánh tay thật bằng bàn phím; hiệu chỉnh mô hình từ 10 mẫu với sai số 8,5 mm; firmware bảo vệ servo kẹp đã nạp và kiểm tra; giao diện gợi ý phím và kiểm tra góc; điều khiển từ xa bằng máy Dell, mới chạy thử với cánh tay mô phỏng. 122 test tự động đều đạt, chạy khoảng 10 giây, không cần camera hay Arduino.
+Đã thực hiện: hệ tọa độ chung cho hai camera; kẹp và di chuyển cốc trên cánh tay thật bằng bàn phím; hiệu chỉnh mô hình từ 10 mẫu với sai số 8,5 mm; firmware bảo vệ servo kẹp đã nạp và kiểm tra; giao diện gợi ý phím và kiểm tra góc; điều khiển từ xa bằng máy Dell, mới chạy thử với cánh tay mô phỏng. 124 test tự động đều đạt, chạy khoảng 10 giây, không cần camera hay Arduino.
 
 Chưa thực hiện: đếm số lần XONG trên cánh tay thật với bản mới; kiểm tra gợi ý mới trên phần cứng; kẹp chắc vật thon; đo nhiệt độ servo; hiệu chỉnh cho tờ giấy mới; dashboard IoT qua MQTT và cảm biến lực, vốn có trong kế hoạch ngày 28/10.
 
 Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Mã được đơn giản hóa ngày 2/11; thử nghiệm bản mới trên cánh tay thật là bước tiếp theo. Test gồm những gì? Điều khiển 29, computer vision 15, camera 13, hiệu chỉnh 11, Serial 9, chương trình chính 8, success 7, độ bền 6, khớp mô hình 5, màn hình 4, đầu–cuối 2. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm có thể thêm MQTT từ gói JSON hiện có.
 
-Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; lệnh .venv/bin/python -m pytest -q (122 passed, 04/11/2026).
+Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; lệnh .venv/bin/python -m pytest -q (124 passed, 05/11/2026).
 """)
 
 

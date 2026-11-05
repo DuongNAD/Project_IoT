@@ -187,7 +187,7 @@ uv run python main.py --top captures/tren.jpg --side captures/ngang.jpg --no-ser
 | Cánh tay tự giật về Home | xem mục 6 (Arduino reset) |
 | Gợi ý đưa kẹp lệch vài cm | đo lại hiệu chỉnh (mục 4); kiểm tra tờ giấy không bị xê dịch |
 | Dell: `khong thay Mac` | hai máy cùng Wi-Fi chưa, `main.py` đang chạy chưa, macOS có hỏi cho Python nhận kết nối mạng (bấm Cho phép); mạng trường chặn thì dùng điểm phát điện thoại |
-| Dell: `sai ma trong duong dan` | mỗi lần chạy `main.py` mã đổi: chép lại dòng mới nó in ra |
+| Dell: `sai ma trong duong dan` | mã trong đường dẫn không khớp `.phone_pin` (gõ nhầm, hoặc tệp bị xóa nên `main.py` tạo mã mới): chép lại dòng `python remote.py --mac ...` mới nhất `main.py` in ra |
 | Dell: `chua thay cong Bluetooth` / `khong noi duoc COMx` | ghép đôi HC-05; HC-05 có điện (đèn nháy); Mac / điện thoại khác đang nối HC-05 thì ngắt ra; thử `--port` cổng Outgoing |
 
 ## 9. Đã bỏ khi đơn giản hóa (2026-11-02)

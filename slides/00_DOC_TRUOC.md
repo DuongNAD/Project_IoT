@@ -4,9 +4,9 @@ Bộ tài liệu để **Antigravity (Gemini 4 Argon)** dựng slide thuyết tr
 Mình đã chuẩn bị nội dung, lời nói, ảnh thật, prompt ảnh AI, số liệu đã kiểm, và kiểm tra chất lượng tự động. Việc còn lại là bạn **dán prompt**
 và **điền các chỗ trống**.
 
-> **Cập nhật 04/11/2026: bộ slide đã dựng xong** là `slides/Project_IoT_ThuyetTrinh.pptx` (+ `.pdf`): **25 slide** theo màu slide Gamota,
+> **Cập nhật 05/11/2026: bộ slide đã dựng xong** là `slides/Project_IoT_ThuyetTrinh.pptx` (+ `.pdf`): **26 slide** theo màu slide Gamota,
 > chia 4 phần cho 4 người, mỗi phần mở bằng một slide ngăn: 01 linh kiện (danh sách, giới thiệu, sơ đồ mạch, bảo vệ servo kẹp) →
-> 02 computer vision → 03 code điều khiển (lưu đồ, code firmware, động học ngược, giao diện, hiệu chỉnh) → 04 success.
+> 02 computer vision → 03 code điều khiển (lưu đồ, code firmware, động học ngược, giao diện, điều khiển từ xa, hiệu chỉnh) → 04 success.
 > Chữ trên slide viết ngắn, từ ngữ trung tính (tiêu đề là cụm danh từ, mỗi ý vài từ); giải thích và hỏi đáp nằm trong ghi chú. Tên ở bảng `TEAM` đầu `build_slides.py`,
 > nội dung rút từ `01` và số liệu ở `05`. Dựng lại: `python3 slides/build_slides.py` → `python3 slides/export_pdf.py` → `python3 slides/render_previews.py`;
 > kiểm: `python3 slides/verify_slides.py` (số trang, ghi chú, chân trang, chữ "mô phỏng", thiết kế đã bỏ, chỗ `[...]` còn phải điền).

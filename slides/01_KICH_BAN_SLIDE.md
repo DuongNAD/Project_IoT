@@ -100,7 +100,7 @@ Khó nhất là mắt người khó ước lượng độ sâu, và nếu mô h�
 - Vòng người (3 đoạn thẳng, mũi tên ở cuối): từ đỉnh ô 5 lên `y 2,2`, sang trái tới đỉnh ô 3, xuống ô 3; nhãn 11 pt trên đoạn ngang: `người nhìn màn hình rồi bấm phím`
 - Hàng 2, ba ô đất nung `HW` (`y 4,45`, cao 1,1) dưới ô 3, 4, 5: `Arduino Uno` / `nhận phím, gửi JSON` · `PCA9685` / `I²C 0x40 · xung 50 Hz` · `4 servo MG996R` / `đế · vai · khuỷu · kẹp`; mũi tên ngang nối ba ô; hai mũi tên dọc giữa ô 3 và Arduino: xuống `phím · USB 9600 baud`, lên `JSON ~5 gói/giây`
 - Thẻ trái hàng 2 (`card`, `x 0,8 · w 4,45 · y 4,45 · h 1,1`): nhãn `CHỈ MỘT ĐỐI TƯỢNG NỐI HAI NHÓM`; `Plan = góc hiện tại · góc cần tới · 3 lệnh bấm. Nhóm 1 sinh ra, nhóm 2 đọc.`
-- Dải dưới (`bg2`, `y 5,95 · h 0,65`): nhãn `VÌ VẬY` + ba mục đánh số 12 pt: `Người bấm phím, hệ thống gợi ý` · `Hai nhóm làm riêng được, chỉ chung một Plan` · `Kiểm được từng bước: 122 test`
+- Dải dưới (`bg2`, `y 5,95 · h 0,65`): nhãn `VÌ VẬY` + ba mục đánh số 12 pt: `Người bấm phím, hệ thống gợi ý` · `Hai nhóm làm riêng được, chỉ chung một Plan` · `Kiểm được từng bước: 124 test`
 - Chân trang (chú giải màu, 11 pt, `y 6,75`): ô xanh `Code tất định` · ô đất nung `Phần cứng` · ô xám `Trung tính`; dòng nhỏ bên phải: `Nguồn tổ ong 5–6 V riêng vào PCA9685, không lấy từ USB`
 
 **Ghi chú diễn giả**
@@ -389,7 +389,7 @@ Nhóm nói rõ trạng thái: firmware cuối cùng, gồm phím Z, bước hai 
   2. `Cánh tay thật ôm được cốc và chuyển sang trái khi người bấm phím (02/11)`
   3. `Mô hình khớp 10 lần ôm thật: sai số 8,5 mm, bỏ-một-mẫu 11,6 mm`
   4. `Firmware chống nóng và phím Z đã nạp, kiểm trên mạch thật`
-  5. `122 test tự động pass: động học, success, màn hình, camera, hiệu chỉnh, Serial`
+  5. `124 test tự động pass: động học, success, màn hình, camera, hiệu chỉnh, Serial`
 - Danh sách phải (gạch "—", đất nung), nhãn `CHƯA KIỂM CHỨNG`:
   - `Số lần XONG trên cánh tay thật: bản mới mới chạy bằng test và ảnh đã lưu`
   - `Bấm đúng theo gợi ý mới rồi hai ngón có bao quanh cốc không`
@@ -397,7 +397,7 @@ Nhóm nói rõ trạng thái: firmware cuối cùng, gồm phím Z, bước hai 
   - `Nhiệt độ servo kẹp sau khi thêm ngắt xung`
   - `Hiệu chỉnh cho tờ giấy mới hoặc robot đặt chỗ khác`
   - `Dashboard IoT / MQTT, cảm biến lực: có trong kế hoạch 28/10, chưa làm`
-- Hai ô số dưới (`bg2`): `122 / 122` (teal) `test tự động pass` · `0` (đất nung) `lần đếm thành công trên cánh tay thật`
+- Hai ô số dưới (`bg2`): `124 / 124` (teal) `test tự động pass` · `0` (đất nung) `lần đếm thành công trên cánh tay thật`
 
 **Ghi chú diễn giả**
 
@@ -411,7 +411,7 @@ Hai ô số bên dưới tóm lại: một trăm linh chín trên một trăm li
 
 **Nếu được hỏi:** vì sao chưa chạy bản mới trên cánh tay thật? Nhóm đơn giản hóa mã ngay trong ngày để giải thích được trong một phút, và rút dây Arduino sau đó; chạy bản mới với cánh tay là bước đầu của việc tiếp theo. Có bắt buộc dashboard IoT không? […điền theo yêu cầu đề bài]; nếu có, nhóm sẽ thêm MQTT từ gói JSON hiện có.
 
-**Nguồn:** `05_SO_LIEU_VA_NGUON.md` mục 4, 6, 7, 8, 11, 13; lệnh `pytest -q` (122 passed, 04/11); `ls logs` (không có thư mục).
+**Nguồn:** `05_SO_LIEU_VA_NGUON.md` mục 4, 6, 7, 8, 11, 13; lệnh `pytest -q` (124 passed, 05/11); `ls logs` (không có thư mục).
 
 ---
 
@@ -466,7 +466,7 @@ Nhóm em cảm ơn thầy cô và các bạn.
 - `Hiệu chỉnh`: `calibration.py` lưu đế, góc chuẩn, càng kẹp · `arm_fit.py` khớp hình học cánh tay (ngoài ứng dụng)
 - `Công cụ`: `generate_aruco_a4.py` sinh tờ A4 4 mã
 - `Firmware`: `robot_arm_4dof/robot_arm_4dof.ino` · `flash.sh`
-- `Kiểm thử`: `tests/`: 122 test
+- `Kiểm thử`: `tests/`: 124 test
 - Dòng cuối: `≈ 2 710 dòng Python (8 module) + điều khiển từ xa · 208 dòng firmware · ≈ 2 100 dòng test`
 
 **Ghi chú diễn giả.** Slide dự phòng cho câu hỏi "code nằm ở đâu". Tám module Python, gần hai nghìn bảy trăm dòng, chia theo việc. Mỗi khung hình trong main chỉ là ba dòng: nhóm một lập Plan từ các vật camera thấy, nhóm hai kết luận từ Plan, rồi vẽ màn hình. Firmware Arduino hai trăm linh tám dòng. Một trăm linh chín test chạy trong khoảng chín giây và không đụng vào camera hay cổng USB thật vì cảnh được dựng bằng camera giả lập có đáp án. **Nếu được hỏi:** chạy không cần phần cứng thế nào? `main.py --top a.jpg --side b.jpg --no-serial --headless`. **Nguồn:** `README.md` mục 3 và 7; `main.py:194-197`; `wc -l`.

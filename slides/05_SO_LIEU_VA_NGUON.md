@@ -2,7 +2,7 @@
 
 Mọi con số, tên linh kiện và nhận định trên slide **chỉ được lấy từ file này**. Kiểm tra lần cuối: **03/11/2026 khoảng 20:40**, sau khi gộp phần làm
 trên máy Windows vào bản hai nhóm nối nhau (`control.py` → `success.py`). Mã đã lên GitHub (`main` = `e3f2d85`); test chạy thật bằng
-`.venv/bin/python -m pytest -q` (122 test pass). Bộ slide đã dựng: `Project_IoT_ThuyetTrinh.pptx` (26 slide, 4 phần cho 4 người, `build_slides.py`).
+`.venv/bin/python -m pytest -q` (124 test pass, chạy lại 05/11). Bộ slide đã dựng: `Project_IoT_ThuyetTrinh.pptx` (26 slide, 4 phần cho 4 người, `build_slides.py`).
 
 Kiểm lại bằng máy sau mỗi lần sửa mã: `.venv/bin/python -B slides/tools/check_facts.py` (so các hằng số ở mục 17 và mọi dẫn `file:dòng` trong các file `.md` với mã hiện tại).
 
@@ -173,9 +173,9 @@ Nhãn trạng thái:
 
 | Mục | Giá trị | Nhãn | Nguồn |
 |---|---|---|---|
-| Kiểm thử | **122 test** pass trong 10,4 giây: `test_control` 29, `test_vision` 15, `test_cameras` 13, `test_calibration` 11, `test_serial_link` 9, `test_remote` 8, `test_main` 8, `test_success` 7, `test_robustness` 6, `test_phone` 5, `test_arm_fit` 5, `test_screen` 4, `test_end_to_end` 2 (13 tệp test) | ĐO | `.venv/bin/python -m pytest -q`, 04/11 |
+| Kiểm thử | **124 test** pass trong khoảng 11 giây: `test_control` 29, `test_vision` 15, `test_cameras` 13, `test_calibration` 11, `test_serial_link` 9, `test_remote` 9, `test_main` 8, `test_success` 7, `test_robustness` 6, `test_phone` 6, `test_arm_fit` 5, `test_screen` 4, `test_end_to_end` 2 (13 tệp test) | ĐO | `.venv/bin/python -m pytest -q`, 05/11 |
 | Không chạm phần cứng | không test nào đụng camera, cổng Serial hay `calibration.json` thật; cảnh dựng bằng camera giả lập có đáp án chính xác | CODE | `README.md` mục 7 |
-| Quy mô | 8 module Python ≈ **2 710 dòng** (`main.py` 363 · `control.py` 620 · `success.py` 75 · `screen.py` 271 · `vision.py` 691 · `cameras.py` 415 · `calibration.py` 140 · `arm_fit.py` 141) + điều khiển từ xa `phone.py` 323 · `remote.py` 293 + firmware 208 dòng + `generate_aruco_a4.py` 225 dòng + 13 file test ≈ 2 100 dòng | CODE | `wc -l` (04/11) |
+| Quy mô | 8 module Python ≈ **2 710 dòng** (`main.py` 363 · `control.py` 620 · `success.py` 75 · `screen.py` 271 · `vision.py` 691 · `cameras.py` 415 · `calibration.py` 140 · `arm_fit.py` 141) + điều khiển từ xa `phone.py` 341 · `remote.py` 321 + firmware 208 dòng + `generate_aruco_a4.py` 225 dòng + 13 file test ≈ 2 140 dòng | CODE | `wc -l` (05/11) |
 | Chạy không cần phần cứng | `main.py --top a.jpg --side b.jpg --no-serial --headless --seconds 10 --dump-dir out/` → `dual_view.png`, ảnh chú thích của 2 camera, `summary.json` (có `nhom_1_dieu_khien` và `nhom_2_success`) | CODE | `README.md` mục 7; `main.py:307-331` |
 | Mỗi khung hình là ba dòng | `plan = control.update(tracker.objects)` → `result = success.update(plan)` → `build_screen(…, plan, result)` | CODE | `README.md` mục 3; `main.py:194-197` |
 | Repo | `github.com/DuongNAD/Project_IoT`: nhánh `main` (`e3f2d85`, 03/11/2026) đã có bản hai nhóm (`control.py`, `success.py`, `screen.py`, `vision.py`, `cameras.py`, `calibration.py`, `arm_fit.py`, `tests/`, `README.md`) và phần gộp từ máy Windows. `captures/`, `calibration.json` và `slides/assets/real/` nằm trong `.gitignore`; riêng `slides/Project_IoT_ThuyetTrinh.pptx`, `.pdf` và `slides/preview/` **đang được git theo dõi và có nhúng ảnh thật** | CODE | `git log`; `.gitignore`; `slides/.gitignore` |
@@ -300,7 +300,7 @@ CALIB_CLAW = 183.7 0.0 0.0
 CALIB_FIT = n:10 rms:8.5 loo:11.6
 PY_LINES = 2716
 FIRMWARE_LINES = 208
-TESTS = 122
+TESTS = 124
 HUG_ERR_CM = 5.4 3.5 5.9
 GOAL_CUP_20_1_7_4 = 74 58 90
 KEYS_FROM_HOME = d:8 s:16
