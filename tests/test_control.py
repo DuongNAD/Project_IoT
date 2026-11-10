@@ -146,16 +146,12 @@ def test_following_the_moves_with_the_keys_reaches_the_goal(ctl):
     assert all(m.degrees == 0 for m in after.moves)
 
 
-def test_nearest_object_to_the_base_is_chosen_first_and_tab_cycles(ctl):
+def test_nearest_object_to_the_base_is_chosen(ctl):
     near, far = obj(15.0, 5.0, "gan"), obj(25.0, 15.0, "xa")
     plan = ctl.update([far, near])
-    assert plan.target_name == "gan" and plan.selected_idx == 0 and plan.n_objects == 2
-    ctl.next_target()
-    assert ctl.update([far, near]).target_name == "xa"
-    for _ in range(3):  # Chọn xong thì vật đó được giữ qua các khung sau, không nhảy lại
-        assert ctl.update([far, near]).target_name == "xa"
-    ctl.next_target()
-    assert ctl.update([far, near]).target_name == "gan"
+    assert plan.target_name == "gan" and plan.n_objects == 2
+    for _ in range(3):  # Chọn xong thì vật đó được giữ qua các khung sau, không nhảy sang vật kia
+        assert ctl.update([far, near]).target_name == "gan"
 
 
 def test_selected_object_does_not_flip_between_two_at_similar_distance(ctl):

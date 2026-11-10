@@ -975,7 +975,7 @@ def slide_objects(prs, n):
     label(s, bx + 0.25, 4.38, 3.6, "Chọn mục tiêu", TEAL, 10.5)
     bullets(s, bx + 0.25, 4.78, W - M - bx - 0.45, 1.75, [
         "Ưu tiên vật gần đế nhất",
-        [("TAB", {"bold": True}), " đổi vật"],
+        [("R", {"bold": True}), " chốt đích"],
         "Trung bình 10 khung hình",
         "Lưu vị trí 120 s khi bị che",
     ], 15, after=9)
@@ -985,13 +985,13 @@ Sau khi có hệ tọa độ, chương trình tìm vật bằng cách tách màu
 
 Tâm của khối màu đổi ra xăng-ti-mét, rồi được bù thị sai như slide trước. Ảnh bên dưới là khung camera trên: vòng xanh quanh cốc kèm tọa độ X, Y.
 
-Khi có nhiều vật, vật gần đế nhất được chọn trước, phím TAB để đổi vật. Vị trí được lấy trung bình 10 khung hình để giảm nhiễu, và được lưu trong 120 giây khi tay kẹp che vật.
+Khi có nhiều vật, vật gần đế nhất được chọn. Vị trí được lấy trung bình 10 khung hình để giảm nhiễu, và được lưu trong 120 giây khi tay kẹp che vật. Phím R chốt đích theo vị trí lúc bấm: camera vẫn chạy nhưng góc cần tới không đổi, kể cả khi tay kẹp che hoặc đẩy lệch vật; bấm R lần nữa để đích lại theo camera.
 
 Tiếp theo, {succ} trình bày nửa sau của phần này: hỗ trợ gắp.
 
 Nếu được hỏi: vì sao không dùng YOLO? Bản trước có YOLO11 nhưng hay nhận nhầm bộ phận robot, nên nhóm bỏ để mã đơn giản; tách màu đủ cho cốc màu đậm. Vật màu trắng hoặc xám thì sao? Chưa nhận được; đây là một hạn chế.
 
-Nguồn: vision.py:68-96; tests/test_vision.py:74-105; control.py:68-69,542-566.
+Nguồn: vision.py:68-95; tests/test_vision.py:74-105; control.py:68-69,547-581 (chọn vật, R).
 """)
 
 
@@ -1061,7 +1061,7 @@ Bên phải là chương trình Python trên laptop, chạy ở mỗi khung hìn
 
 Nếu được hỏi: vì sao firmware đọc HC-05 trước USB? Để phím từ Bluetooth không bị bỏ qua khi USB cũng có dữ liệu; mỗi vòng chỉ đọc một ký tự. Vì sao không gửi trực tiếp lệnh góc? Để Arduino chỉ cần xử lý từng phím, giống khi điều khiển bằng tay.
 
-Nguồn: robot_arm_4dof.ino:84-208; main.py:132-144,175-199; control.py:606-618 (press); success.py.
+Nguồn: robot_arm_4dof.ino:84-208; main.py:132-144,175-197; control.py:612-624 (press); success.py.
 """)
 
 

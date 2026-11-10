@@ -45,11 +45,11 @@ Nhãn trạng thái:
 | Mã ArUco của tờ | 4 mã `DICT_4X4_50`, ID 0–3, cạnh 2,8 cm, cách mép 0,25 cm, sát 4 góc | CODE | `vision.py:17-18`; `generate_aruco_a4.py:16-22` |
 | Hệ tọa độ | gốc ở góc ngoài mã ID 0; X chạy ID 0 → ID 1 (29,7 cm); Y chạy ID 0 → ID 3 (21,0 cm); gắn với **tờ giấy**, không phụ thuộc camera nào nhìn | CODE | `README.md` mục 4; `calibration.py:5-8` |
 | Homography | từ các mã ArUco 0–3 (cần ≥ 2 mã), cho **cả hai camera**; ảnh phẳng của tờ giấy dựng bằng `warpPerspective` | CODE | `vision.py:45-62,71` |
-| Che mất mã | nhớ vị trí từng mã nên che 1–3 mã vẫn còn lưới; dời camera hoặc tờ giấy thì bấm `U` để quên | CODE + MÔ PHỎNG | `README.md` mục 4; `main.py:193-196`; `tests/test_vision.py:48` |
+| Che mất mã | nhớ vị trí từng mã nên che 1–3 mã vẫn còn lưới; dời camera hoặc tờ giấy thì bấm `U` để quên | CODE + MÔ PHỎNG | `README.md` mục 4; `main.py:191-194`; `tests/test_vision.py:48` |
 | **Cách tìm vật** | tách màu HSV trên ảnh phẳng của tờ giấy: độ bão hòa ≥ 90, sáng ≥ 60; bỏ khối < 1,5 cm² (nhiễu, dây điện) hoặc > 50 cm² (bàn tay, không lọt miệng kẹp), khối cách mép giấy dưới 1 cm, khối hơn 30% dính phần đen của cánh tay | CODE | `vision.py:68-96`; `tests/test_vision.py:74-105` |
 | YOLO | **đã bỏ** ngày 10/11 khi rút gọn phần 2 (trước đó là tùy chọn `--yolo`, mặc định tắt, bản COCO chưa fine-tune, có nhận nhầm) | CODE | `README.md` mục 9 |
 | Kích thước cốc đỏ số 3 | thân 34 mm, nắp ≈ 40 mm, cao 50 mm (độ cao dùng để bù thị sai) | ĐO | `vision.py:23` |
-| Chọn vật | vật gần đế nhất được chọn trước; `TAB` đổi vật; vật được nhận lại ở khung sau nếu tâm dời ≤ 4 cm; trung bình 10 khung; che mất vật thì nhớ vị trí 120 s | CODE | `control.py:68-69,506-541`; `tests/test_control.py:149-184` |
+| Chọn vật | vật gần đế nhất được chọn (phím `TAB` đổi vật đã bỏ ngày 10/11); vật được nhận lại ở khung sau nếu tâm dời ≤ 4 cm; trung bình 10 khung; che mất vật thì nhớ vị trí 120 s; `R` chốt đích theo vị trí lúc bấm (bấm lại để theo camera) | CODE | `control.py:68-69,547-581`; `tests/test_control.py:149-197` |
 | **Hiệu chỉnh phối cảnh cam TRÊN** | cam treo cao ≈ 46 cm nhìn xuống; vật cao 5 cm hiện lệch ≈ 1 cm; công thức `p_thật = n + (p_đo − n)·(H − h)/H` (n: tâm ảnh, H: 46 cm, h: độ cao vật). Một phép đo ngày 02/11: cam TRÊN (20,6; 6,8) cm, cam MacBook (20,0; 7,8) cm, lệch **1,2 cm**; sau hiệu chỉnh còn **0,2 cm** | CODE + ĐO (một vị trí cốc) | `vision.py:22-23,77-93`; `tests/test_vision.py:64-71` |
 | Độ cao 46 cm của cam TRÊN | ước từ ảnh (≈ 27 px/cm ở mặt bàn); không đo bằng thước | ƯỚC LƯỢNG | `vision.py:22`; ghi chú phiên 02/11 |
 
@@ -72,7 +72,7 @@ Nhãn trạng thái:
 | **Ví dụ tính được** | với `calibration.json` hiện tại, cốc ở **(20,1; 7,4) cm** → robot x = 240 mm, y = −73 mm → gợi ý **đế 74°, vai 58°, khuỷu 90°**. Từ Home 90/90/90: đế −16° = phím **D × 8**, vai −32° = phím **S × 16**, khuỷu 0 (đã đúng) | CODE (tính lại 02/11 23:07) | mục 16; `main.py` chạy `--headless` 22:46 cho cùng kế hoạch (ghi chú phiên) |
 | Ví dụ trên ảnh màn hình (slide 8) | khung camera thật 20:27: cốc ở **(16,5; 13,8) cm** → gợi ý **[đế 88°, vai 60°, khuỷu 84°]**; từ Home: **S × 15** (hạ vai 30°), **K × 3** (khuỷu xuống 6°), đế lệch 2° nên `DA DUNG`; còn **18 lần bấm** | MÔ PHỎNG (chương trình chạy trên ảnh đã lưu; đế đổi sang hệ lúc chụp, xem mục 5) | ảnh `ui_screen_before.png`; `slides/tools/make_screen_images.py` |
 | Cổng USB | 9600 baud, đọc nền, **mở tay cầm mới trước khi đóng tay cầm cũ** (để DTR không hạ), không đóng cổng vì một lỗi đọc thoáng qua, tự nhận ra Arduino reset khi thời gian chạy `t` quay về 0 | CODE | `control.py:251-468`; `tests/test_serial_link.py:96-150` |
-| Gửi phím | app chỉ gửi phím khi **người bấm**; không còn chế độ tự gửi (Auto-Step đã bỏ) | CODE | `control.py:565-576`; `main.py:175-199` |
+| Gửi phím | app chỉ gửi phím khi **người bấm**; không còn chế độ tự gửi (Auto-Step đã bỏ) | CODE | `control.py:612-624`; `main.py:175-197` |
 
 ## 4. NHÓM 2 · Success (`success.py`): đã tới chưa?
 
@@ -99,7 +99,7 @@ Nhãn trạng thái:
 | Ô 2 | `CHUA XONG` + `con N lan bam`, hoặc **`XONG!`** màu xanh khi cả ba servo tới góc; `Thanh cong: N lan` | CODE | `screen.py:62-71` |
 | Trạng thái khác | ô 1 ghi `Chua thay vat`, `Vat ngoai tam voi`, `Tay dang nghi` hoặc `Khong can bam them`; ô 2 ghi `CHUA XONG` | CODE | `screen.py:21-26` |
 | Trên hai camera | vòng **DICH** (chỗ vật) và dấu **KEP** (đầu kẹp theo mô hình) vẽ trên mặt giấy; lưới 5 cm; viền tờ giấy; dòng `Luoi A4: thay n/4 ma ArUco` | CODE | `main.py:123-130`; `vision.py:112-127,141-163` |
-| Chân trang | trạng thái USB (`DA KET NOI` hoặc `MO PHONG`), hàng phím tắt; banner `ARDUINO VUA RESET` hoặc `FIRMWARE CU KHONG CO PHIM Z` | CODE | `screen.py:73-76`; `control.py:550-552,572` |
+| Chân trang | trạng thái USB (`DA KET NOI` hoặc `MO PHONG`), hàng phím tắt; banner `ARDUINO VUA RESET` hoặc `FIRMWARE CU KHONG CO PHIM Z` | CODE | `screen.py:73-76`; `control.py:593-596,619` |
 | Chữ **không dấu** | OpenCV `putText` không vẽ được dấu tiếng Việt: giữ nguyên, nói rõ khi thuyết trình | CODE | `screen.py:10` |
 | Ảnh màn hình trên slide | `ui_screen_before.png` (khung camera 20:27) và `ui_screen_done.png` (khung 20:32:52, sau khi **mô phỏng** bấm 21 phím theo lệnh) là màn hình **thật của chương trình (giao diện trước khi rút gọn `screen.py` ngày 10/11; chạy lại `make_screen_images.py` trên Mac để có giao diện mới), chạy trên ảnh camera thật đã lưu, cánh tay MÔ PHỎNG** (chân trang ghi `USB Arduino: MO PHONG`, tiêu đề camera ghi `anh da luu`): không phải lần chạy trực tiếp. Ảnh chụp lúc tờ giấy còn hướng ban đầu còn `calibration.json` ghi theo tờ đã xoay 180°, nên script đổi đế về hệ lúc chụp rồi tự kiểm (dấu `KEP` đã hiệu chỉnh cách cốc ≤ 2 cm, không thì dừng). Hai ảnh cho cốc lệch 1,5 cm vì hai ngón kẹp che cốc ở khung 20:32:52 | MÔ PHỎNG | `slides/tools/make_screen_images.py` |
 
@@ -171,8 +171,8 @@ Nhãn trạng thái:
 |---|---|---|---|
 | Kiểm thử | **93 test**: `test_control` 30, `test_calibration` 11, `test_serial_link` 9, `test_vision` 8, `test_success` 7, `test_main` 7, `test_robustness` 6, `test_cameras` 5, `test_arm_fit` 5, `test_screen` 3, `test_end_to_end` 2 (11 tệp test). Chạy ngày 10/11 trên máy Windows: 85 đạt; 8 test mở cửa sổ OpenCV lỗi vì bản OpenCV ở máy này không có phần cửa sổ, thay các hàm cửa sổ bằng hàm rỗng thì đạt cả 93. **Chưa chạy lại trên Mac** | ĐO | `pytest -q`, 10/11/2026 |
 | Không chạm phần cứng | không test nào đụng camera, cổng Serial hay `calibration.json` thật; cảnh dựng bằng camera giả lập có đáp án chính xác | CODE | `README.md` mục 7 |
-| Quy mô | 8 module Python ≈ **1 630 dòng** (`main.py` 291 · `control.py` 639 · `success.py` 58 · `screen.py` 79 · `vision.py` 163 · `cameras.py` 118 · `calibration.py` 140 · `arm_fit.py` 141) + firmware 208 dòng + `generate_aruco_a4.py` 29 dòng + 11 file test ≈ 1 520 dòng. Phần 2 (vision, cameras, screen, success, generate_aruco_a4) từ 1 677 còn 447 dòng | CODE | `wc -l` (10/11) |
-| Chạy không cần phần cứng | `main.py --top a.jpg --side b.jpg --no-serial --headless --seconds 10 --dump-dir out/` → `dual_view.png`, ảnh chú thích của 2 camera, `summary.json` (có `nhom_1_dieu_khien` và `nhom_2_success`) | CODE | `README.md` mục 7; `main.py:238-262` |
+| Quy mô | 8 module Python ≈ **1 615 dòng** (`main.py` 289 · `control.py` 626 · `success.py` 58 · `screen.py` 79 · `vision.py` 163 · `cameras.py` 118 · `calibration.py` 140 · `arm_fit.py` 141) + firmware 208 dòng + `generate_aruco_a4.py` 29 dòng + 11 file test ≈ 1 520 dòng. Phần 2 (vision, cameras, screen, success, generate_aruco_a4) từ 1 677 còn 447 dòng | CODE | `wc -l` (10/11) |
+| Chạy không cần phần cứng | `main.py --top a.jpg --side b.jpg --no-serial --headless --seconds 10 --dump-dir out/` → `dual_view.png`, ảnh chú thích của 2 camera, `summary.json` (có `nhom_1_dieu_khien` và `nhom_2_success`) | CODE | `README.md` mục 7; `main.py:236-260` |
 | Mỗi khung hình là ba dòng | `plan = control.update(vision.objects)` → `result = success.update(plan)` → `build_screen(…, plan, result)` | CODE | `README.md` mục 3; `main.py:135-138` |
 | Repo | `github.com/DuongNAD/Project_IoT`: nhánh `main` (`e3f2d85`, 03/11/2026) đã có bản hai nhóm (`control.py`, `success.py`, `screen.py`, `vision.py`, `cameras.py`, `calibration.py`, `arm_fit.py`, `tests/`, `README.md`) và phần gộp từ máy Windows. `captures/`, `calibration.json` và `slides/assets/real/` nằm trong `.gitignore`; riêng `slides/Project_IoT_ThuyetTrinh.pptx`, `.pdf` và `slides/preview/` **đang được git theo dõi và có nhúng ảnh thật** | CODE | `git log`; `.gitignore`; `slides/.gitignore` |
 | Sao lưu bản trước khi đơn giản hóa | `~/Documents/project/Project_IoT_backup_truoc_don_gian_hoa_2026-11-02.tgz` (14 MB, ngoài repo) | CODE | `README.md` mục 9 |
@@ -294,7 +294,7 @@ CALIB_BASE = 13.83 31.67 -92.4
 CALIB_THETA = 60.2 -58.6
 CALIB_CLAW = 183.7 0.0 0.0
 CALIB_FIT = n:10 rms:8.5 loo:11.6
-PY_LINES = 1629
+PY_LINES = 1614
 FIRMWARE_LINES = 208
 TESTS = 93
 HUG_ERR_CM = 5.4 3.5 5.9

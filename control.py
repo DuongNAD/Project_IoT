@@ -527,7 +527,6 @@ class Plan:
     usb_ok: bool = False
     port: str = None
     n_objects: int = 0
-    selected_idx: int = 0
     banner: str = ""
     locked: bool = False        # Đích đã chốt bằng phím R (không theo camera nữa cho tới khi bấm R lần nữa)
 
@@ -539,7 +538,6 @@ class Control:
         self.link = ArduinoSerialLink(baud=9600, enabled=serial_enabled)
         self.objects = []            # Các vật camera đang thấy, đã sắp theo khoảng cách tới đế
         self.selected = None         # Vật đang chọn lần cuối thấy rõ: {"x_cm", "y_cm", "name", "ts"}
-        self.selected_idx = 0
         self.history = deque(maxlen=10)  # Trung bình trượt 10 khung vị trí vật cho khỏi nhảy theo nhiễu
         self.locked = None           # Vị trí vật chốt bằng phím R; None = theo dõi liên tục theo camera
         self.seen_resets = 0
@@ -568,18 +566,7 @@ class Control:
             self.history.clear()  # Đổi sang vật khác / vật bị dời đi: bỏ trung bình của vị trí cũ
         self.history.append((obj["x_cm"], obj["y_cm"]))
         mean = np.mean(self.history, axis=0)
-        self.selected_idx = idx
         self.selected = {"x_cm": float(mean[0]), "y_cm": float(mean[1]), "name": obj["name"], "ts": now}
-
-    def next_target(self):
-        """Phím TAB: chuyển sang vật tiếp theo trong danh sách."""
-        if self.objects:
-            self.selected_idx = (self.selected_idx + 1) % len(self.objects)
-            obj = self.objects[self.selected_idx]
-            self.history.clear()
-            self.selected = {"x_cm": obj["x_cm"], "y_cm": obj["y_cm"], "name": obj["name"], "ts": time.time()}
-            if self.locked is not None:
-                self.locked = dict(self.selected)  # Đang chốt: chốt sang vật mới chọn
 
     def toggle_lock(self, now=None):
         """Phím R: chốt vị trí vật đang thấy làm đích cố định / bỏ chốt để theo camera lại.
@@ -611,7 +598,7 @@ class Control:
             target = self.locked  # Đích đã chốt bằng R: camera vẫn chạy nhưng không đổi đích
         else:
             target = self.selected if self.selected is not None and now - self.selected["ts"] <= TARGET_MEMORY_S else None
-        base = dict(now=list(servo_now), usb_ok=usb_ok, port=port, n_objects=len(self.objects), selected_idx=self.selected_idx,
+        base = dict(now=list(servo_now), usb_ok=usb_ok, port=port, n_objects=len(self.objects),
                     relaxed=self.link.get_arm_relaxed(), banner=self.banner, locked=self.locked is not None)
         if target is None:
             return Plan(found=False, target_name="", target_cm=None, reachable=True, move_closer_mm=0.0, goal=list(servo_now[:3]),

@@ -32,7 +32,7 @@ HELP_TEXT = """💡 Làm theo lệnh to ở giữa màn hình (bấm phím trên
    W / S                 : nâng / hạ vai, mỗi lần 2°          I / K : khuỷu lên / xuống, mỗi lần 2°
    H                     : về Home (90/90/90)                  X / Z : cho servo kẹp / cả 4 servo nghỉ (ngắt xung)
    J / L                 : mở / khép kẹp, mỗi lần 5° (kẹp không tính vào thành công)
-   TAB                   : đổi vật mục tiêu                      R : chốt đích theo ảnh lúc bấm / bấm lần nữa để theo camera lại
+   R                     : chốt đích theo ảnh lúc bấm / bấm lần nữa để theo camera lại
    B                     : hiệu chỉnh đế robot (click vào trục xoay đế trên hình cam TREN)      U : dò lại 4 mã ArUco
    C                     : chụp ảnh gốc 2 camera vào captures/                                  Q : thoát"""
 
@@ -183,8 +183,6 @@ class App:
             return True
         elif self.control.press(chr(key & 0xFF)):
             pass  # Phím điều khiển servo
-        elif key == 9 or key in (ord("v"), ord("V")):  # TAB
-            self.control.next_target()
         elif key in (ord("r"), ord("R")):
             self.toggle_lock()
         elif key in (ord("b"), ord("B")):

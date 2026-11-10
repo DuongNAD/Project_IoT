@@ -66,7 +66,6 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `J` / `L` | mở / khép kẹp, mỗi lần 5° (không tính vào thành công) |
 | `H` | đưa cả 4 servo về Home (90/90/90/95) |
 | `X` / `Z` | cho servo kẹp / cả 4 servo nghỉ (ngắt xung PWM để nguội); `Z` cần firmware có phím Z, hạ đầu kẹp tựa xuống chỗ trống trước |
-| `TAB` | đổi vật mục tiêu |
 | `R` | **chốt đích** theo ảnh lúc bấm (camera vẫn chạy, góc cần tới không đổi dù vật bị che hay xê dịch); bấm lần nữa để góc cần tới lại theo camera liên tục |
 | `B` | hiệu chỉnh đế robot (mục 4), `ESC` để hủy |
 | `U` | quên vị trí 4 mã ArUco đã nhớ (sau khi dời camera hoặc tờ giấy) |
@@ -152,7 +151,7 @@ uv run python main.py --top captures/tren.jpg --side captures/ngang.jpg --no-ser
 | Hai khung hiện cùng một góc nhìn / sai camera | `--list-cameras` rồi chạy lại với `--top N --side M` |
 | Camera đen, log `not authorized to capture video` | cấp quyền Camera trong Cài đặt hệ thống → Quyền riêng tư; mở lại ứng dụng |
 | `USB Arduino: MO PHONG` | cắm cáp USB, tắt chương trình khác đang giữ cổng |
-| Chữ `CHUA THAY VAT` | đặt vật **có màu** (cốc đỏ) lên giấy, không sát mép (dưới ~1 cm); bấm `TAB` đổi vật |
+| Chữ `CHUA THAY VAT` | đặt vật **có màu** (cốc đỏ) lên giấy, không sát mép (dưới ~1 cm) |
 | Cánh tay tự giật về Home | xem mục 6 (Arduino reset) |
 | Gợi ý đưa kẹp lệch vài cm | đo lại hiệu chỉnh (mục 4); kiểm tra tờ giấy không bị xê dịch |
 

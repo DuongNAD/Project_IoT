@@ -117,14 +117,13 @@ def test_keys_calibrate_reset_and_quit(scene_files):
         app.close()
 
 
-def test_servo_keys_move_the_simulated_arm_and_tab_changes_the_target(scene_files):
+def test_servo_keys_move_the_simulated_arm(scene_files):
     app = make_app(scene_files)
     try:
         assert wait_until(app, lambda: app.control.objects)
         for key in "ddw":
             assert app.handle_key(ord(key))
         assert app.control.link.get_state()[0][:3] == [86, 92, 90]  # Mô phỏng: mỗi lần bấm 2°
-        assert app.handle_key(9)  # TAB
         assert app.handle_key(255)  # Không có phím nào (waitKey hết giờ) thì bỏ qua
     finally:
         app.close()

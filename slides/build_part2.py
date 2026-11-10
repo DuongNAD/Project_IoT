@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Dựng các slide MỚI của phần 2 (Computer vision & Hỗ trợ gắp) thành một tệp riêng để nhập vào Canva:
-  1 slide ngăn phần · 1 sơ đồ luồng dữ liệu · 6 slide code thật (main.py, cameras.py, vision.py x2, success.py, screen.py).
+  1 slide ngăn phần · 1 sơ đồ luồng dữ liệu · 1 slide hình "Nhận diện vật" (lấy từ build_slides.py) ·
+  6 slide code thật (main.py, cameras.py, vision.py x2, success.py, screen.py).
 Code trên slide đọc thẳng từ các tệp .py của dự án (tìm theo tên hàm, ghi đúng số dòng), nên luôn khớp mã hiện tại.
 Dòng code dài được ngắt xuống dòng ngay trên slide (nội dung giữ nguyên); số tròn cạnh dòng code ứng với các bước ở trên khung code.
 
@@ -356,6 +357,14 @@ Số 1: marker_corners_cm cho tọa độ thật bốn góc của mỗi mã ArUc
 Nếu được hỏi: vì sao hai mã là đủ? Homography cần ít nhất bốn cặp điểm; mỗi mã cho bốn góc, hai mã cho tám. Dời camera thì sao? Bấm phím U để quên vị trí mã đã nhớ và dò lại.""")
 
 
+def slide_objects_overview(prs):
+    """Slide hình 'Nhận diện vật' của bộ slide chính (3 bước tách màu, ảnh cam TRÊN, chọn mục tiêu), đặt trước slide code."""
+    B.slide_objects(prs, "")
+    tf = prs.slides[-1].notes_slide.notes_text_frame
+    tf.text = tf.text.replace(f"Tiếp theo, {name('succ')} trình bày nửa sau của phần này: hỗ trợ gắp.",
+                              "Slide sau là đoạn code thật của ba bước này trong vision.py.")
+
+
 def slide_objects(prs):
     ranges = [span("vision.py", "def find_objects")]
     code_slide(prs, "cv", "Nhận diện vật · vision.py", "vision.py", ranges,
@@ -408,7 +417,8 @@ def build():
     prs = Presentation()
     prs.slide_width, prs.slide_height = Emu(12192000), Emu(6858000)
     prs._element.sldSz.attrib.pop("type", None)
-    for make in (slide_divider, slide_dataflow, slide_main, slide_cameras, slide_sheet, slide_objects, slide_success, slide_screen):
+    for make in (slide_divider, slide_dataflow, slide_main, slide_cameras, slide_sheet, slide_objects_overview, slide_objects, slide_success,
+                 slide_screen):
         make(prs)
     B.add_notes_master_id(prs)
     prs.core_properties.title = "Phần 2: Computer vision & Hỗ trợ gắp (sơ đồ luồng dữ liệu, code)"
