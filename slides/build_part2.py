@@ -7,6 +7,7 @@ Code trên slide đọc thẳng từ các tệp .py của dự án (tìm theo t�
 Dòng code dài được ngắt xuống dòng ngay trên slide (nội dung giữ nguyên); số tròn cạnh dòng code ứng với các bước ở trên khung code.
 
     python slides/build_part2.py      ->  slides/Phan2_LuongDuLieu_Code.pptx (+ .pdf, ảnh preview_phan2/slide_XX.png)
+                                          slides/KetLuan.pptx (+ .pdf, ảnh preview_ketluan/): slide kết luận của bộ slide chính
 """
 
 import os
@@ -23,6 +24,8 @@ from build_slides import (BG2, CARD, CENTER, INDIGO, INK, LINE, M, MIDDLE, MONO,
 PROJECT = os.path.dirname(B.SLIDES_DIR)
 OUT = os.path.join(B.SLIDES_DIR, "Phan2_LuongDuLieu_Code.pptx")
 PREVIEW_DIR = os.path.join(B.SLIDES_DIR, "preview_phan2")
+CONCLUSION_OUT = os.path.join(B.SLIDES_DIR, "KetLuan.pptx")  # Slide kết luận riêng, để tải lên Canva
+CONCLUSION_PREVIEW_DIR = os.path.join(B.SLIDES_DIR, "preview_ketluan")
 EYEBROW = "02 · Computer vision & Hỗ trợ gắp"
 
 
@@ -413,25 +416,24 @@ Số 1: ghép hai ảnh camera thành hàng trên, mỗi ô 640 × 360. Số 2: 
 Nếu được hỏi: vì sao chữ không dấu? Phông chữ của OpenCV không vẽ được dấu tiếng Việt. Trái, phải theo hướng nào? Theo cam NGANG đặt trước robot: phím A sang phải, D sang trái.""")
 
 
-def build():
+def build(out, makers, title):
     prs = Presentation()
     prs.slide_width, prs.slide_height = Emu(12192000), Emu(6858000)
     prs._element.sldSz.attrib.pop("type", None)
-    for make in (slide_divider, slide_dataflow, slide_main, slide_cameras, slide_sheet, slide_objects_overview, slide_objects, slide_success,
-                 slide_screen):
+    for make in makers:
         make(prs)
     B.add_notes_master_id(prs)
-    prs.core_properties.title = "Phần 2: Computer vision & Hỗ trợ gắp (sơ đồ luồng dữ liệu, code)"
-    prs.save(OUT)
-    B.repack_like_powerpoint(OUT)
-    print(f"Đã lưu {OUT} ({len(prs.slides)} slide)")
+    prs.core_properties.title = title
+    prs.save(out)
+    B.repack_like_powerpoint(out)
+    print(f"Đã lưu {out} ({len(prs.slides)} slide)")
 
 
-def export_previews():
+def export_previews(out, preview_dir):
     """PDF bằng LibreOffice hoặc PowerPoint (như export_pdf.py), rồi ảnh PNG từng slide."""
     import export_pdf as E
 
-    E.PPTX, E.PDF = OUT, OUT[:-5] + ".pdf"
+    E.PPTX, E.PDF = out, out[:-5] + ".pdf"
     soffice = E.find_soffice()
     if soffice:
         E.export_libreoffice(soffice)
@@ -442,12 +444,15 @@ def export_previews():
         return
     import fitz
 
-    os.makedirs(PREVIEW_DIR, exist_ok=True)
+    os.makedirs(preview_dir, exist_ok=True)
     for i, page in enumerate(fitz.open(E.PDF), 1):
-        page.get_pixmap(dpi=150).save(os.path.join(PREVIEW_DIR, f"slide_{i:02d}.png"))
-    print(f"Đã xuất {E.PDF} và ảnh trong {PREVIEW_DIR}")
+        page.get_pixmap(dpi=150).save(os.path.join(preview_dir, f"slide_{i:02d}.png"))
+    print(f"Đã xuất {E.PDF} và ảnh trong {preview_dir}")
 
 
 if __name__ == "__main__":
-    build()
-    export_previews()
+    build(OUT, (slide_divider, slide_dataflow, slide_main, slide_cameras, slide_sheet, slide_objects_overview, slide_objects, slide_success,
+                slide_screen), "Phần 2: Computer vision & Hỗ trợ gắp (sơ đồ luồng dữ liệu, code)")
+    export_previews(OUT, PREVIEW_DIR)
+    build(CONCLUSION_OUT, (lambda prs: B.slide_summary(prs, ""),), "Kết luận")  # Cùng slide cuối của bộ slide chính
+    export_previews(CONCLUSION_OUT, CONCLUSION_PREVIEW_DIR)

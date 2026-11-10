@@ -56,6 +56,7 @@ TEAM = {
     "succ": ("Phạm Trương Vũ", "Hỗ trợ gắp"),
 }
 SPEAK_ORDER = ("hw", "cv", "succ", "ctrl")  # Thứ tự nói: cv và succ cùng trình bày phần 02
+MEMBERS = ("Nguyễn Anh Dương", "Nguyễn Minh Hiển", "Trần Trọng Nghĩa", "Phạm Trương Vũ")  # Cả nhóm, như slide thành viên trên Canva
 
 # ==============================================================================
 # Màu: bảng màu slide Gamota. Teal = code tất định / bằng chứng đã có; đất nung = phần cứng, rủi ro, chưa kiểm chứng;
@@ -1472,41 +1473,47 @@ Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 8, 9, 10, 13; cameras.py:1-6,26-46; 
 
 
 # ==============================================================================
-# Tóm lại + hỏi đáp
+# Kết luận + hỏi đáp
 # ==============================================================================
 def slide_summary(prs, n):
     s = new_slide(prs)
-    label(s, M, 0.6, 6.0, "Tổng kết", TEAL)
-    for i, st in enumerate(["Hai camera xác định vị trí vật theo cm.",
-                            "Khối điều khiển tính góc servo và phím cần bấm.",
-                            "Khối success kiểm tra ba servo đã tới góc gợi ý."]):
-        y = 1.1 + i * 0.95
-        rule(s, M, y, CW)
-        dot(s, M, y + 0.24, i + 1, d=0.46, size=16)
-        text(s, M + 0.7, y + 0.12, CW - 0.7, 0.7, st, 27, INK, True, anchor=MIDDLE)
-    rule(s, M, 1.1 + 3 * 0.95, CW)
-    for i, (k, v) in enumerate([("Mã nguồn", "github.com/DuongNAD/Project_IoT"), ("Video demo", "[...]")]):
-        x = M + i * ((CW + 0.25) / 2)
-        box(s, x, 4.25, (CW - 0.25) / 2, 0.72, fill=BG2)
-        text(s, x + 0.25, 4.25, 1.6, 0.72, k.upper(), 10.5, TEXT2, True, anchor=MIDDLE, spc=150)
-        text(s, x + 1.9, 4.25, (CW - 0.25) / 2 - 2.0, 0.72, v, 15, INK, True, anchor=MIDDLE)
-    box(s, M, 5.25, CW, 1.45, fill=TEAL_SOFT)
-    text(s, M, 5.42, CW, 0.6, "Cảm ơn thầy cô và các bạn đã lắng nghe", 26, TEAL, True, align=CENTER)
-    text(s, M, 6.1, CW, 0.4, "  ·  ".join(name(k) for k in SPEAK_ORDER) + "  ·  hỏi đáp", 13, TEXT2,
-         align=CENTER)
+    header(s, "Đồ án IoT · Nhóm 3", "Kết luận")
+    lw = 6.95
+    rows = [("Vị trí vật theo cm", "Tờ A4 in 4 mã ArUco là hệ tọa độ chung cho hai camera; tách màu tìm vật, bù thị sai"),
+            ("Bấm phím nào, mấy lần", "Động học ngược tính góc 3 servo; mô hình hiệu chỉnh từ 10 mẫu, sai số khớp 8,5 mm"),
+            ("Đã tới đúng góc chưa", "Ba servo lệch ≤ 2°, giữ 1 giây; XONG là góc đã ra lệnh, không phải đã gắp")]
+    for i, (title, desc) in enumerate(rows):
+        y = 1.95 + i * 1.08
+        rule(s, M, y, lw)
+        dot(s, M, y + 0.2, i + 1, d=0.42, size=15)
+        text(s, M + 0.62, y + 0.14, lw - 0.62, 0.38, title, 19, INK, True)
+        text(s, M + 0.62, y + 0.56, lw - 0.62, 0.48, desc, 13, TEXT2, spacing=1.05)
+    rule(s, M, 1.95 + 3 * 1.08, lw)
+    rx = M + lw + 0.4
+    box(s, rx, 1.95, W - M - rx, 3.24, fill=ORANGE_SOFT)
+    label(s, rx + 0.28, 2.17, 3.6, "Tiếp theo", ORANGE, 10.5)
+    bullets(s, rx + 0.28, 2.6, W - M - rx - 0.5, 2.5, [
+        "Chạy bản mới trên cánh tay thật, đếm số lần XONG",
+        "Tay kẹp giữ chắc vật thon",
+        "Đo vị trí đầu kẹp bằng camera (vòng kín)",
+    ], 15, after=12, mark="—", mark_color=ORANGE, indent=0.3)
+    box(s, M, 5.45, CW, 1.3, fill=TEAL_SOFT)
+    text(s, M, 5.56, CW, 0.5, "Cảm ơn thầy cô và các bạn đã lắng nghe", 24, TEAL, True, align=CENTER)
+    text(s, M, 6.1, CW, 0.3, "  ·  ".join(MEMBERS) + "  ·  hỏi đáp", 13, TEXT2, align=CENTER)
+    text(s, M, 6.42, CW, 0.28, "github.com/DuongNAD/Project_IoT", 11, TEAL, font=MONO, align=CENTER)
     footer(s, n)
     notes(s, """
-Tổng kết: hai camera xác định vị trí vật theo xăng-ti-mét trên tờ A4; khối điều khiển tính góc servo và phím cần bấm; khối success kiểm tra ba servo đã tới góc gợi ý.
+Để kết luận, hệ thống của nhóm trả lời ba câu hỏi khi điều khiển cánh tay bằng bàn phím.
 
-Các hạn chế và việc chưa thực hiện đã nêu ở phần kết quả. Mã nguồn có trên GitHub theo đường dẫn trên slide.
+Một: vật ở đâu. Tờ A4 in bốn mã ArUco là hệ tọa độ chung cho hai camera; chương trình tách màu để tìm vật và bù thị sai, cho vị trí theo xăng-ti-mét. Hai: bấm phím nào, mấy lần. Động học ngược tính góc ba servo; mô hình cánh tay được hiệu chỉnh từ 10 mẫu, sai số khớp 8,5 mm. Ba: đã tới đúng góc chưa. Ba servo lệch không quá 2 độ và giữ 1 giây thì báo XONG; XONG nghĩa là góc đã ra lệnh tới góc gợi ý, không có nghĩa là đã gắp được vật.
 
-Nếu thầy cô muốn, nhóm có thể demo trực tiếp: [...điền kịch bản demo 2–3 phút].
+Việc tiếp theo: chạy bản mới trên cánh tay thật để có số lần XONG đầu tiên, cải thiện tay kẹp để giữ chắc vật thon, và đo vị trí đầu kẹp bằng camera để có phản hồi vòng kín.
 
-Nhóm em cảm ơn thầy cô và các bạn đã lắng nghe, và xin nhận câu hỏi; câu hỏi phần nào thì thành viên phụ trách phần đó trả lời.
+Nhóm em cảm ơn thầy cô và các bạn đã lắng nghe, và xin nhận câu hỏi; câu hỏi phần nào thì thành viên phụ trách phần đó trả lời. Mã nguồn có trên GitHub theo đường dẫn trên slide.
 
-Nếu được hỏi: việc nào nên làm tiếp theo? Thử nghiệm bản mới trên cánh tay thật để có số lần XONG đầu tiên.
+Nếu được hỏi: hệ thống đã gắp thành công bao nhiêu lần? Nhóm chưa có số liệu về tỉ lệ thành công. Trong buổi thử ngày 2/11, người điều khiển bấm phím đã kẹp và chuyển được cốc. Vì sao không cho chương trình tự điều khiển? Mô hình chỉ khớp cánh tay thật ở mức khoảng 1 cm và tay kẹp chưa giữ chắc vật thon, nên nhóm chọn hướng hỗ trợ người điều khiển.
 
-Nguồn: README.md; 05_SO_LIEU_VA_NGUON.md mục 4 đến 8.
+Nguồn: README.md; 05_SO_LIEU_VA_NGUON.md mục 4 đến 8, 14.
 """)
 
 
