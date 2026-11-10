@@ -55,8 +55,12 @@ def span(path, needle):
     return first, last
 
 
+def lines_text(ranges, dash="-"):
+    return ", ".join(str(a) if a == b else f"{a}{dash}{b}" for a, b in ranges)
+
+
 def where(path, ranges):
-    return f"{path}:" + ",".join(f"{a}-{b}" for a, b in ranges)
+    return f"{path}:" + lines_text(ranges).replace(" ", "")
 
 
 # ==============================================================================
@@ -163,7 +167,7 @@ def code_panel(s, x, y, w, h, path, ranges, marks=()):
     """Khung code thật của `path` (các đoạn `ranges`); marks: [(nội dung tìm trong dòng, số tròn)]. Trả về cỡ chữ đã chọn."""
     box(s, x, y, w, h, fill=CARD, edge=LINE)
     box(s, x, y, 0.95, h, fill=BG2)
-    text(s, x + 0.2, y + 0.08, w - 0.4, 0.26, f"{path}  ·  dòng " + ", ".join(f"{a}–{b}" for a, b in ranges), 10, MUTED, font=MONO,
+    text(s, x + 0.2, y + 0.08, w - 0.4, 0.26, f"{path}  ·  dòng " + lines_text(ranges, "–"), 10, MUTED, font=MONO,
          align=RIGHT)
     top, avail_h, code_x = y + 0.38, h - 0.47, x + 1.1
     for size in (12, 11.5, 11, 10.5, 10, 9.5, 9):
@@ -274,19 +278,13 @@ def slide_dataflow(prs):
         box(s, card_x, mid - 0.4, W - M - card_x, 0.8, fill=CARD, edge=LINE)
         text(s, card_x + 0.18, mid - 0.33, 2.5, 0.27, card_title, 12, TEAL, True, font=MONO)
         text(s, card_x + 0.18, mid - 0.06, W - M - card_x - 0.35, 0.44, card_body, 11, TEXT2, spacing=1.02)
-    # Arduino (bên phải khối điều khiển) và điện thoại (bên phải khối màn hình)
-    for row, fill, edge, t1, t2 in ((2, ORANGE_SOFT, None, "Arduino · USB 9600", "phím ↓  ·  JSON góc ↑"),
-                                    (4, BG2, LINE, "phone.py (tùy chọn)", "Wi-Fi → Dell / điện thoại")):
-        nx = bx + bw + 0.3
-        box(s, nx, tops[row], 1.7, bh, fill=fill, edge=edge)
-        text(s, nx + 0.1, tops[row] + 0.07, 1.55, 0.25, t1, 10.5, INK, True)
-        text(s, nx + 0.1, tops[row] + 0.34, 1.55, 0.25, t2, 9.5, TEXT2)
-        mid = tops[row] + bh / 2
-        if row == 2:
-            line(s, bx + bw + 0.02, mid - 0.09, nx - 0.02, mid - 0.09, ORANGE, 1.5, head=True)
-            line(s, nx - 0.02, mid + 0.09, bx + bw + 0.02, mid + 0.09, ORANGE, 1.5, head=True)
-        else:
-            line(s, bx + bw + 0.02, mid, nx - 0.02, mid, MUTED, 1.5, head=True, dash=True)
+    # Arduino bên phải khối điều khiển: phím đi xuống, góc servo (JSON) đi lên
+    nx, mid = bx + bw + 0.3, tops[2] + bh / 2
+    box(s, nx, tops[2], 1.7, bh, fill=ORANGE_SOFT)
+    text(s, nx + 0.1, tops[2] + 0.07, 1.55, 0.25, "Arduino · USB 9600", 10.5, INK, True)
+    text(s, nx + 0.1, tops[2] + 0.34, 1.55, 0.25, "phím ↓  ·  JSON góc ↑", 9.5, TEXT2)
+    line(s, bx + bw + 0.02, mid - 0.09, nx - 0.02, mid - 0.09, ORANGE, 1.5, head=True)
+    line(s, nx - 0.02, mid + 0.09, bx + bw + 0.02, mid + 0.09, ORANGE, 1.5, head=True)
     # Vòng lặp: từ khối màn hình quay về khối camera
     lx, first_mid, last_mid = M + 0.1, tops[0] + bh / 2, tops[-1] + bh / 2
     line(s, bx - 0.02, last_mid, lx, last_mid, MUTED, 1.5)
@@ -299,13 +297,12 @@ def slide_dataflow(prs):
 
 Hai camera cho ảnh. vision.py dò bốn mã ArUco để có lưới tọa độ, rồi tìm vật có màu trên ảnh cam TRÊN; kết quả là vision.objects, danh sách vật với tọa độ X, Y theo xăng-ti-mét trên tờ A4. control.py, phần ba, tính góc servo cần tới và phím cần bấm, đóng gói thành một đối tượng Plan. success.py chỉ đọc Plan và trả về Result: đã tới chưa, còn bao nhiêu lần bấm, đã thành công mấy lần. screen.py vẽ hai camera và hai ô chữ từ Plan và Result.
 
-Bên phải: người dùng bấm phím, phím được gửi xuống Arduino qua USB 9600 baud; Arduino gửi lại góc servo dạng JSON năm lần mỗi giây, khối điều khiển dùng góc này làm góc hiện tại. phone.py gửi ảnh màn hình qua Wi-Fi cho máy Dell hoặc điện thoại, chỉ khi bật điều khiển từ xa.
+Bên phải: người dùng bấm phím, phím được gửi xuống Arduino qua USB 9600 baud; Arduino gửi lại góc servo dạng JSON năm lần mỗi giây, khối điều khiển dùng góc này làm góc hiện tại.
 
 Nếu được hỏi: vì sao chia thành các khối như vậy? Mỗi khối chỉ nhận một loại dữ liệu và trả một loại dữ liệu, nên kiểm thử riêng được từng khối; ví dụ success.py được kiểm bằng Plan tự tạo, không cần camera hay Arduino. Dữ liệu có được lưu lại không? Không; mỗi khung hình tính lại từ đầu, chỉ có vị trí mã ArUco và vị trí vật đang chọn được nhớ.
 
-Nguồn: main.py:{render}; phone.py:{status}; success.py:{result}.
+Nguồn: main.py:{render}; success.py:{result}; robot_arm_4dof.ino (gói JSON mỗi 200 ms).
 """.replace("{render}", "{}-{}".format(*span("main.py", "    def render")))
-       .replace("{status}", "{}-{}".format(*span("phone.py", "def status_of")))
        .replace("{result}", "{}-{}".format(*span("success.py", "class Result"))))
 
 
@@ -314,8 +311,7 @@ Nguồn: main.py:{render}; phone.py:{status}; success.py:{result}.
 # ==============================================================================
 def slide_main(prs):
     a, b = span("main.py", "    def render")  # Bỏ đoạn vẽ chữ "HIEU CHINH DE" (không thuộc luồng dữ liệu)
-    ranges = [span("main.py", "    def _frame"), (a, find("main.py", "if self.calib_base", a) - 1),
-              (find("main.py", "if self.phone is not None", a), b)]
+    ranges = [span("main.py", "    def _frame"), (a, find("main.py", "if self.calib_base", a) - 1), (b, b)]
     code_slide(prs, "cv", "Vòng lặp mỗi khung hình · main.py", "main.py", ranges,
                [(1, "Chỉ xử lý khi có khung mới"), (2, "vision"), (3, "control → Plan"), (4, "success → Result"), (5, "Vẽ màn hình")],
                [("cached = self.cache.get(mode)", 1), ("self.vision.process_frame", 2), ("plan = self.control.update", 3),
@@ -325,7 +321,7 @@ def slide_main(prs):
 
 Hàm _frame lấy ảnh của một camera. Số 1: chương trình chỉ xử lý lại khi camera có khung mới, nhận biết qua frame_id; nếu chưa có hình hoặc mất tín hiệu thì hiện khung "Dang cho tin hieu" và xóa danh sách vật cũ, để không gợi ý theo dữ liệu đã cũ. Số 2: ảnh được đưa vào vision.process_frame.
 
-Hàm render: số 3, khối điều khiển nhận vision.objects và trả về plan; số 4, khối success nhận plan và trả về result; số 5, build_screen vẽ màn hình từ hai ảnh camera, plan và result. Phần cuối gửi màn hình cho điện thoại nếu bật điều khiển từ xa.
+Hàm render: số 3, khối điều khiển nhận vision.objects và trả về plan; số 4, khối success nhận plan và trả về result; số 5, build_screen vẽ màn hình từ hai ảnh camera, plan và result. Đoạn lược ở giữa chỉ vẽ dòng nhắc khi đang hiệu chỉnh đế robot.
 
 Nếu được hỏi: một giây chạy bao nhiêu khung? Tùy camera và máy; chương trình không chờ, cứ có khung mới là xử lý. Vì sao cần cache? Vòng lặp chạy nhanh hơn camera; không có cache thì cùng một ảnh bị dò ArUco nhiều lần.""")
 

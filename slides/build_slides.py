@@ -91,7 +91,7 @@ FONT_FILES = {
            "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf"),
 }
 _pil_fonts = {}
-# Không ngắt dòng giữa số và đơn vị ("8,5 mm"), quanh dấu nhân ("S × 15"), sau dấu ≈ và trong "92 / 92"
+# Không ngắt dòng giữa số và đơn vị ("8,5 mm"), quanh dấu nhân ("S × 15"), sau dấu ≈ và trong "93 / 93"
 NO_BREAK = [(re.compile(r"(\d)\s+(mm|cm|ms|Hz|V|giây|phút|°)(?!\w)"), "\\1\u00a0\\2"),
             (re.compile(r"\s+×\s+"), "\u00a0×\u00a0"),
             (re.compile(r"\s+≈"), "\u00a0≈"),
@@ -1061,7 +1061,7 @@ Bên phải là chương trình Python trên laptop, chạy ở mỗi khung hìn
 
 Nếu được hỏi: vì sao firmware đọc HC-05 trước USB? Để phím từ Bluetooth không bị bỏ qua khi USB cũng có dữ liệu; mỗi vòng chỉ đọc một ký tự. Vì sao không gửi trực tiếp lệnh góc? Để Arduino chỉ cần xử lý từng phím, giống khi điều khiển bằng tay.
 
-Nguồn: robot_arm_4dof.ino:84-208; main.py:132-144,168-190; control.py:606-618 (press); success.py.
+Nguồn: robot_arm_4dof.ino:84-208; main.py:132-144,175-199; control.py:606-618 (press); success.py.
 """)
 
 
@@ -1399,7 +1399,7 @@ def slide_results(prs, n):
         "Hiệu chỉnh cho tờ giấy mới",
         "Dashboard IoT / MQTT",
     ], 16, after=8, mark="—", mark_color=ORANGE, indent=0.3)
-    stats = [("92 / 92", ["test tự động", "đều đạt"], TEAL),
+    stats = [("93 / 93", ["test tự động", "đều đạt"], TEAL),
              ("11", ["tệp test"], INK),
              ("8,5 mm", ["sai số hiệu chỉnh", "trên 10 mẫu"], TEAL)]
     sw = (CW - 0.5) / 3
@@ -1413,13 +1413,13 @@ def slide_results(prs, n):
     notes(s, """
 Slide này tổng hợp những việc đã thực hiện và chưa thực hiện.
 
-Đã thực hiện: hệ tọa độ chung cho hai camera; kẹp và di chuyển cốc trên cánh tay thật bằng bàn phím; hiệu chỉnh mô hình từ 10 mẫu với sai số 8,5 mm, chi tiết ở phần ba; firmware bảo vệ servo kẹp đã nạp và kiểm tra; giao diện gợi ý phím và kiểm tra góc. 92 test tự động đều đạt, chạy khoảng 9 giây, không cần camera hay Arduino.
+Đã thực hiện: hệ tọa độ chung cho hai camera; kẹp và di chuyển cốc trên cánh tay thật bằng bàn phím; hiệu chỉnh mô hình từ 10 mẫu với sai số 8,5 mm, chi tiết ở phần ba; firmware bảo vệ servo kẹp đã nạp và kiểm tra; giao diện gợi ý phím và kiểm tra góc. 93 test tự động đều đạt, chạy khoảng 9 giây, không cần camera hay Arduino.
 
 Chưa thực hiện: đếm số lần XONG trên cánh tay thật với bản mới; kiểm tra gợi ý mới trên phần cứng; kẹp chắc vật thon; đo nhiệt độ servo; hiệu chỉnh cho tờ giấy mới; dashboard IoT qua MQTT và cảm biến lực, vốn có trong kế hoạch ngày 28/10.
 
-Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Mã được đơn giản hóa ngày 2/11; thử nghiệm bản mới trên cánh tay thật là bước tiếp theo. Test gồm những gì? Điều khiển 29, hiệu chỉnh 11, Serial 9, computer vision 8, success 7, chương trình chính 7, độ bền 6, camera 5, khớp mô hình 5, màn hình 3, đầu–cuối 2. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm có thể thêm MQTT từ gói JSON hiện có.
+Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Mã được đơn giản hóa ngày 2/11; thử nghiệm bản mới trên cánh tay thật là bước tiếp theo. Test gồm những gì? Điều khiển 30, hiệu chỉnh 11, Serial 9, computer vision 8, success 7, chương trình chính 7, độ bền 6, camera 5, khớp mô hình 5, màn hình 3, đầu–cuối 2. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm có thể thêm MQTT từ gói JSON hiện có.
 
-Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; lệnh python -m pytest -q (92 test, 10/11/2026; xem 05_SO_LIEU_VA_NGUON.md mục 11).
+Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; lệnh python -m pytest -q (93 test, 10/11/2026; xem 05_SO_LIEU_VA_NGUON.md mục 11).
 """)
 
 

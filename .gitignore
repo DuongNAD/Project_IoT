@@ -19,6 +19,3 @@ calibration.json
 
 # Thư mục demo: bản chép gọn để chạy demo (tạo lại từ code gốc khi code đổi)
 demo/
-
-# Mã 6 số trong đường dẫn chia sẻ màn hình (main.py tự tạo): ai có mã là xem và bấm được, không đẩy lên repo public
-.phone_pin
