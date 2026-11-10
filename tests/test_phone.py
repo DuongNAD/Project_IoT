@@ -59,6 +59,8 @@ def test_phone_keys_are_queued_in_order_and_only_servo_keys_are_accepted(server)
         assert call(server, f"/123456/key/{bad}", "POST")[0] == 404, bad
     assert server.pop_keys() == ["d", "d", "s"]
     assert server.pop_keys() == []
+    assert call(server, "/123456/key/r", "POST")[0] == 204  # R (chốt đích) từ máy Dell, Mac tự xử lý
+    assert server.pop_keys() == ["r"]
 
 
 def test_status_for_done_and_waiting_states():

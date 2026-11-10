@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import cv2
 
-PHONE_KEYS = "adwsikjlhxz"  # Phím điện thoại được gửi: đúng các phím servo của firmware
+PHONE_KEYS = "adwsikjlhxzr"  # Phím được gửi qua Wi-Fi: các phím servo của firmware + R (chốt đích, Mac tự xử lý)
 JPEG_QUALITY = 70
 
 

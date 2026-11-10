@@ -529,6 +529,7 @@ class Plan:
     n_objects: int = 0
     selected_idx: int = 0
     banner: str = ""
+    locked: bool = False        # Đích đã chốt bằng phím R (không theo camera nữa cho tới khi bấm R lần nữa)
 
 
 class Control:
@@ -540,6 +541,7 @@ class Control:
         self.selected = None         # Vật đang chọn lần cuối thấy rõ: {"x_cm", "y_cm", "name", "ts"}
         self.selected_idx = 0
         self.history = deque(maxlen=10)  # Trung bình trượt 10 khung vị trí vật cho khỏi nhảy theo nhiễu
+        self.locked = None           # Vị trí vật chốt bằng phím R; None = theo dõi liên tục theo camera
         self.seen_resets = 0
         self.banner = ""
 
@@ -576,6 +578,20 @@ class Control:
             obj = self.objects[self.selected_idx]
             self.history.clear()
             self.selected = {"x_cm": obj["x_cm"], "y_cm": obj["y_cm"], "name": obj["name"], "ts": time.time()}
+            if self.locked is not None:
+                self.locked = dict(self.selected)  # Đang chốt: chốt sang vật mới chọn
+
+    def toggle_lock(self, now=None):
+        """Phím R: chốt vị trí vật đang thấy làm đích cố định / bỏ chốt để theo camera lại.
+        Trả về "locked", "unlocked" hoặc "no_target" (chưa thấy vật nên chưa chốt được)."""
+        now = time.time() if now is None else now
+        if self.locked is not None:
+            self.locked = None
+            return "unlocked"
+        if self.selected is None or now - self.selected["ts"] > TARGET_MEMORY_S:
+            return "no_target"
+        self.locked = dict(self.selected)
+        return "locked"
 
     def set_base_pose(self, x_cm, y_cm, heading_deg):
         """Đặt lại vị trí trục xoay đế robot trên tờ giấy (từ hiệu chỉnh bằng chuột hoặc file calibration.json)."""
@@ -591,9 +607,12 @@ class Control:
         if resets != self.seen_resets:  # Cánh tay vừa giật về 90/90/90/95 mà người dùng không bấm gì: báo để kiểm tra trước khi bấm tiếp
             self.seen_resets = resets
             self.banner = "ARDUINO VUA RESET: canh tay giat ve 90/90/90, kiem tra truoc khi bam tiep"
-        target = self.selected if self.selected is not None and now - self.selected["ts"] <= TARGET_MEMORY_S else None
+        if self.locked is not None:
+            target = self.locked  # Đích đã chốt bằng R: camera vẫn chạy nhưng không đổi đích
+        else:
+            target = self.selected if self.selected is not None and now - self.selected["ts"] <= TARGET_MEMORY_S else None
         base = dict(now=list(servo_now), usb_ok=usb_ok, port=port, n_objects=len(self.objects), selected_idx=self.selected_idx,
-                    relaxed=self.link.get_arm_relaxed(), banner=self.banner)
+                    relaxed=self.link.get_arm_relaxed(), banner=self.banner, locked=self.locked is not None)
         if target is None:
             return Plan(found=False, target_name="", target_cm=None, reachable=True, move_closer_mm=0.0, goal=list(servo_now[:3]),
                         moves=plan_moves(servo_now, servo_now), **base)

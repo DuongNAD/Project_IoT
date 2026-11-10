@@ -35,8 +35,8 @@ HELP_TEXT = """💡 Làm theo lệnh to ở giữa màn hình (bấm phím trên
    W / S                 : nâng / hạ vai, mỗi lần 2°          I / K : khuỷu lên / xuống, mỗi lần 2°
    H                     : về Home (90/90/90)                  X / Z : cho servo kẹp / cả 4 servo nghỉ (ngắt xung)
    J / L                 : mở / khép kẹp, mỗi lần 5° (kẹp không tính vào thành công)
-   TAB                   : đổi vật mục tiêu
-   B                     : hiệu chỉnh đế robot (click vào trục xoay đế trên hình cam TREN)      U : dò lại 4 mã ArUco
+   TAB                   : đổi vật mục tiêu                      R : chốt đích theo ảnh lúc bấm / bấm lần nữa để theo camera lại
+   B                  : hiệu chỉnh đế robot (click vào trục xoay đế trên hình cam TREN)      U : dò lại 4 mã ArUco
    C                     : chụp ảnh gốc 2 camera vào captures/                                  Q : thoát
    Máy Dell / điện thoại : xem đường dẫn in ở trên (cùng Wi-Fi): Dell chạy remote.py, điện thoại mở bằng trình duyệt"""
 
@@ -190,6 +190,13 @@ class App:
         print(f"📐 Đã hiệu chỉnh đế robot: ({bx:.1f}, {by:.1f}) cm trên tờ giấy, hướng {heading:.0f}° (đã lưu calibration.json)")
 
     # ------------------------------------------------------------------ phím
+    def toggle_lock(self):
+        """Phím R (bàn phím Mac hoặc máy Dell qua Wi-Fi): chốt đích / theo camera lại."""
+        state = self.control.toggle_lock()
+        print({"locked": "📌 Đã chốt đích theo ảnh lúc này: camera vẫn chạy nhưng góc cần tới không đổi (R lần nữa để bỏ chốt)",
+               "unlocked": "🎥 Bỏ chốt: góc cần tới lại theo camera liên tục",
+               "no_target": "⚠️ Chưa thấy vật nên chưa chốt được: đặt vật có màu lên tờ giấy rồi bấm R"}[state])
+
     def handle_key(self, key):
         """Xử lý phím; trả về False khi cần thoát."""
         if key in (ord("q"), ord("Q")):
@@ -203,6 +210,8 @@ class App:
             pass  # Phím điều khiển servo
         elif key == 9 or key in (ord("v"), ord("V")):  # TAB
             self.control.next_target()
+        elif key in (ord("r"), ord("R")):
+            self.toggle_lock()
         elif key in (ord("b"), ord("B")):
             self.calib_base = not self.calib_base
             print("📐 Click vào trục xoay đế robot trên hình cam TREN..." if self.calib_base else "↩️ Đã hủy hiệu chỉnh đế robot")
@@ -224,7 +233,10 @@ class App:
             screen, _, _ = self.render()
             cv2.imshow(SCREEN_WINDOW, screen)
             for key in self.phone.pop_keys() if self.phone is not None else []:
-                self.control.press(key)  # Nút bấm trên trang web dự phòng, gửi như phím bàn phím
+                if key == "r":
+                    self.toggle_lock()   # R từ máy Dell (Arduino không hiểu R nên Dell gửi qua Wi-Fi)
+                else:
+                    self.control.press(key)  # Nút bấm trên trang web dự phòng, gửi như phím bàn phím
             if not self.handle_key(cv2.waitKey(5) & 0xFF):
                 break
 

@@ -67,6 +67,7 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `H` | đưa cả 4 servo về Home (90/90/90/95) |
 | `X` / `Z` | cho servo kẹp / cả 4 servo nghỉ (ngắt xung PWM để nguội); `Z` cần firmware có phím Z, hạ đầu kẹp tựa xuống chỗ trống trước |
 | `TAB` | đổi vật mục tiêu |
+| `R` | **chốt đích** theo ảnh lúc bấm (camera vẫn chạy, góc cần tới không đổi dù vật bị che hay xê dịch); bấm lần nữa để góc cần tới lại theo camera liên tục |
 | `B` | hiệu chỉnh đế robot (mục 4), `ESC` để hủy |
 | `U` | quên vị trí 4 mã ArUco đã nhớ (sau khi dời camera hoặc tờ giấy) |
 | `C` | chụp ảnh gốc cả 2 camera vào `captures/` |
@@ -85,6 +86,7 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 - **Mac** đặt cạnh cánh tay (camera MacBook là cam NGANG), **cắm USB vào Arduino**: Arduino báo góc servo về Mac sau mỗi phím, Mac tính lại lệnh và success.
   `main.py` chia sẻ ảnh màn hình qua Wi-Fi (`phone.py`) và in ra lệnh cho máy Dell kèm đường dẫn có mã 6 số. Mã lưu trong `.phone_pin`, giữ nguyên giữa các lần chạy (đổi mạng thì chỉ IP đổi); xóa tệp này để đổi mã.
 - **Dell** chạy `remote.py`: một cửa sổ hiện màn hình của Mac, gõ `A D W S I K J L H X Z` trên bàn phím Dell thì phím đi qua Bluetooth tới HC-05.
+  `R` (chốt / bỏ chốt đích) Arduino không hiểu nên đi qua Wi-Fi tới Mac.
   `H` (Home) và `Z` (nghỉ hết) phải bấm 2 lần trong 2 giây. Thanh trên cùng báo Mac (Wi-Fi) và Bluetooth đã nối chưa; `Q` thoát.
 - **Firmware không đổi**: firmware đang nạp đã nhận phím từ HC-05 và báo góc qua USB.
 

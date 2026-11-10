@@ -7,6 +7,7 @@ APP ĐIỀU KHIỂN TRÊN MÁY DELL (đặt cách cánh tay khoảng 2 m)
 - XEM: lấy ảnh màn hình của Mac (2 camera + lệnh bấm phím + XONG) qua Wi-Fi, từ đường dẫn main.py in ra trên Mac.
 - BẤM: gõ A D W S I K J L H X Z trên bàn phím Dell -> gửi qua cổng COM Bluetooth của HC-05 thẳng tới Arduino.
   H (về Home) và Z (nghỉ hết) phải bấm 2 lần trong 2 giây mới gửi, để khỏi bấm nhầm. Q / ESC: thoát.
+- R: chốt / bỏ chốt đích. Arduino không hiểu R nên phím này đi qua Wi-Fi tới Mac (POST /<mã>/key/r).
 
 Mac vẫn cắm USB vào Arduino: sau mỗi phím Arduino báo góc mới về Mac, Mac tính lại lệnh + success rồi màn mới về đây.
 
@@ -35,6 +36,7 @@ except ImportError:  # pragma: no cover - pyserial nằm trong dependencies củ
 
 SERVO_KEYS = "adwsikjlhxz"  # Phím firmware hiểu, giống bàn phím trên Mac
 CONFIRM_KEYS = {"h": "ve Home (90/90/90)", "z": "ngat xung ca 4 servo"}  # Phải bấm 2 lần
+WIFI_KEYS = {"r": "R (CHOT / BO CHOT DICH)"}  # Arduino không hiểu: gửi tới Mac qua Wi-Fi
 CONFIRM_S = 2.0      # Lần bấm thứ 2 phải trong ngần này giây
 FRAME_GAP_S = 0.1    # Lấy ảnh từ Mac tối đa 10 lần / giây
 STALE_S = 3.0        # Ảnh cũ hơn ngần này giây: coi như mất kết nối Mac
@@ -221,6 +223,15 @@ class MacView:
         self.frame, self.frame_at, self.error = img, time.time(), ""
         return True
 
+    def send_key(self, key, timeout=2.0):
+        """Gửi phím Mac tự xử lý (R) qua Wi-Fi: POST /<mã>/key/<phím>. True nếu Mac nhận."""
+        req = urllib.request.Request(self.base + "key/" + key, data=b"", method="POST", headers={"ngrok-skip-browser-warning": "1"})
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.status == 204
+        except Exception:
+            return False
+
     def _loop(self):
         count, t0 = 0, time.time()
         while self.running:
@@ -303,6 +314,11 @@ def main(argv=None):
             ch = chr(key & 0xFF).lower()
             if ch == "q" or key & 0xFF == 27:
                 break
+            if ch in WIFI_KEYS:  # R: gửi tới Mac qua Wi-Fi, không qua Bluetooth
+                sent = view.send_key(ch)
+                note, note_col = (f"DA GUI {WIFI_KEYS[ch]} TOI MAC", GREEN) if sent else (f"CHUA GUI {ch.upper()}: KHONG NOI DUOC MAC", RED)
+                note_at = time.time()
+                continue
             send, msg = gate.press(ch)
             if send:
                 sent = bt.send(send)

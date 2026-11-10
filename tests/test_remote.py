@@ -143,6 +143,14 @@ def test_the_mac_screen_comes_over_wifi(mac):
     assert not gone.fetch_once(timeout=0.5) and "khong thay Mac" in gone.error
 
 
+def test_r_goes_to_the_mac_over_wifi_not_bluetooth(mac):
+    assert "r" not in R.SERVO_KEYS and "r" in R.WIFI_KEYS
+    view = R.MacView(f"http://127.0.0.1:{mac.port}/123456/", start=False)
+    assert view.send_key("r") and mac.pop_keys() == ["r"]
+    wrong = R.MacView(f"http://127.0.0.1:{mac.port}/000000/", start=False)
+    assert not wrong.send_key("r") and mac.pop_keys() == []
+
+
 def test_window_shows_a_status_bar_above_the_mac_screen():
     screen = np.full((728, 1280, 3), 90, np.uint8)
     img = R.compose(screen, "MAC (Wi-Fi): da noi", True, "BLUETOOTH: COM5 da noi", True, "DA GUI D", R.GREEN)
