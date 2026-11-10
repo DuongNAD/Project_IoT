@@ -6,6 +6,7 @@ Hỗ trợ điều khiển cánh tay robot 4 servo bằng 2 camera: chỉ cho bi
   uv run python main.py --help     đổi nguồn camera, chạy không cần robot / camera...
 
 Các phần nối nhau:  camera -> vision.py (vật nằm ở đâu) -> control.py (NHÓM 1: bấm phím gì) -> success.py (NHÓM 2: đã tới chưa) -> screen.py (hiện lên màn hình)
+Điều khiển từ xa:   phone.py chia sẻ màn hình qua Wi-Fi; máy Dell chạy remote.py để xem và bấm phím qua Bluetooth HC-05
 """
 
 import argparse
@@ -21,20 +22,23 @@ import cv2
 from calibration import apply_calibration, heading_toward, store_base_pose
 from cameras import Camera, list_camera_names
 from control import ARM_CONFIG, Control, predict_tip
+from phone import PhoneServer, qr_text, status_of, stored_pin
 from screen import CAM_H, CAM_W, SCREEN_WINDOW, build_screen
 from success import Success
 from vision import Vision, draw_target, px_to_cm
 
 CAPTURE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")  # Ảnh chụp (phím C), nằm cạnh main.py
+PIN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".phone_pin")  # Mã 6 số của đường dẫn cho Dell / điện thoại, giữ nguyên giữa các lần chạy
 
 HELP_TEXT = """💡 Làm theo lệnh to ở giữa màn hình (bấm phím trên cửa sổ video):
    A / D                 : xoay đế sang PHẢI / TRÁI (nhìn theo cam NGANG), mỗi lần 2°
    W / S                 : nâng / hạ vai, mỗi lần 2°          I / K : khuỷu lên / xuống, mỗi lần 2°
    H                     : về Home (90/90/90)                  X / Z : cho servo kẹp / cả 4 servo nghỉ (ngắt xung)
    J / L                 : mở / khép kẹp, mỗi lần 5° (kẹp không tính vào thành công)
-   TAB                   : đổi vật mục tiêu
-   B                     : hiệu chỉnh đế robot (click vào trục xoay đế trên hình cam TREN)      U : dò lại 4 mã ArUco
-   C                     : chụp ảnh gốc 2 camera vào captures/                                  Q : thoát"""
+   TAB                   : đổi vật mục tiêu                      R : chốt đích theo ảnh lúc bấm / bấm lần nữa để theo camera lại
+   B                  : hiệu chỉnh đế robot (click vào trục xoay đế trên hình cam TREN)      U : dò lại 4 mã ArUco
+   C                     : chụp ảnh gốc 2 camera vào captures/                                  Q : thoát
+   Máy Dell / điện thoại : xem đường dẫn in ở trên (cùng Wi-Fi): Dell chạy remote.py, điện thoại mở bằng trình duyệt"""
 
 
 def slug(text):
@@ -47,11 +51,29 @@ def parse_args(argv=None):
     p.add_argument("--top", default="obsbot", metavar="NGUON", help=f"Cam TREN (nhìn từ trên xuống): {source_help}")
     p.add_argument("--side", default="mac", metavar="NGUON", help=f"Cam NGANG: {source_help}")
     p.add_argument("--no-serial", action="store_true", help="Không mở cổng USB Arduino (chạy mô phỏng, không gửi phím xuống robot)")
+    p.add_argument("--no-phone", action="store_true", help="Không chia sẻ màn hình qua Wi-Fi (cho máy Dell / điện thoại)")
+    p.add_argument("--phone-port", type=int, default=8000, help="Cổng chia sẻ màn hình qua Wi-Fi (mặc định 8000; khác mạng thì: ngrok http 8000)")
     p.add_argument("--list-cameras", action="store_true", help="In danh sách camera theo chỉ số OpenCV rồi thoát")
     p.add_argument("--headless", action="store_true", help="Không mở cửa sổ: chạy --seconds giây rồi lưu ảnh + summary.json vào --dump-dir")
     p.add_argument("--seconds", type=float, default=12.0, help="Thời gian chạy của --headless (giây)")
     p.add_argument("--dump-dir", default=None, help="Thư mục lưu kết quả --headless (mặc định captures/headless)")
     return p.parse_args(argv)
+
+
+def start_phone(port):
+    """Chia sẻ màn hình qua Wi-Fi (cho remote.py trên máy Dell và trang web dự phòng), in đường dẫn + mã QR. None nếu cổng bận."""
+    try:
+        phone = PhoneServer(port, pin=stored_pin(PIN_FILE))
+    except OSError as e:
+        print(f"⚠️ Không chia sẻ được màn hình ở cổng {port} ({e}): chạy lại với --phone-port khác")
+        return None
+    url = phone.url()
+    print(f"🖥️  Chạy trên máy Dell (không chạy trên Mac): python remote.py --mac {url}")
+    print(f"📱 Điện thoại / trình duyệt (dự phòng): mở {url}  hoặc quét mã QR dưới đây")
+    print(qr_text(url))
+    print(f"   Khác mạng: chạy  ngrok http {phone.port}  rồi dùng đường dẫn ngrok + /{phone.pin}/")
+    print(f"   Mã {phone.pin} giữ nguyên mỗi lần chạy (đổi mạng thì chỉ IP đổi); muốn đổi mã: xóa tệp .phone_pin")
+    return phone
 
 
 def report_cameras():
@@ -100,6 +122,7 @@ class App:
         self.vision = Vision()                                     # Vision: tờ giấy + vật nằm ở đâu
         self.control = Control(serial_enabled=not args.no_serial)  # NHÓM 1: bấm phím gì
         self.success = Success()                                   # NHÓM 2: đã tới chưa
+        self.phone = None if (args.no_phone or args.headless) else start_phone(args.phone_port)  # Chia sẻ màn hình qua Wi-Fi
         self.calib_base = False   # Đang chờ click vào trục xoay đế robot (phím B)
         self.cache = {}           # Khung đã xử lý gần nhất của mỗi góc nhìn, dùng lại khi camera chưa có khung mới
         self.top_shape = None     # Kích thước khung gốc cam TREN, để đổi vị trí click chuột thành pixel ảnh gốc
@@ -141,6 +164,8 @@ class App:
             cv2.rectangle(screen, (0, y - 26), (screen.shape[1], y + 6), (0, 0, 0), -1)
             cv2.putText(screen, "HIEU CHINH DE: CLICK VAO TRUC XOAY DE ROBOT TREN HINH CAM TREN (ESC = huy)",
                         (12, y - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.62, (0, 255, 255), 2, cv2.LINE_AA)
+        if self.phone is not None:
+            self.phone.update(status_of(plan, result), screen)  # Gửi màn hình + trạng thái cho máy Dell / điện thoại
         return screen, plan, result
 
     # ------------------------------------------------------------------ chuột: hiệu chỉnh đế robot
@@ -165,6 +190,13 @@ class App:
         print(f"📐 Đã hiệu chỉnh đế robot: ({bx:.1f}, {by:.1f}) cm trên tờ giấy, hướng {heading:.0f}° (đã lưu calibration.json)")
 
     # ------------------------------------------------------------------ phím
+    def toggle_lock(self):
+        """Phím R (bàn phím Mac hoặc máy Dell qua Wi-Fi): chốt đích / theo camera lại."""
+        state = self.control.toggle_lock()
+        print({"locked": "📌 Đã chốt đích theo ảnh lúc này: camera vẫn chạy nhưng góc cần tới không đổi (R lần nữa để bỏ chốt)",
+               "unlocked": "🎥 Bỏ chốt: góc cần tới lại theo camera liên tục",
+               "no_target": "⚠️ Chưa thấy vật nên chưa chốt được: đặt vật có màu lên tờ giấy rồi bấm R"}[state])
+
     def handle_key(self, key):
         """Xử lý phím; trả về False khi cần thoát."""
         if key in (ord("q"), ord("Q")):
@@ -178,6 +210,8 @@ class App:
             pass  # Phím điều khiển servo
         elif key == 9 or key in (ord("v"), ord("V")):  # TAB
             self.control.next_target()
+        elif key in (ord("r"), ord("R")):
+            self.toggle_lock()
         elif key in (ord("b"), ord("B")):
             self.calib_base = not self.calib_base
             print("📐 Click vào trục xoay đế robot trên hình cam TREN..." if self.calib_base else "↩️ Đã hủy hiệu chỉnh đế robot")
@@ -198,6 +232,11 @@ class App:
         while True:
             screen, _, _ = self.render()
             cv2.imshow(SCREEN_WINDOW, screen)
+            for key in self.phone.pop_keys() if self.phone is not None else []:
+                if key == "r":
+                    self.toggle_lock()   # R từ máy Dell (Arduino không hiểu R nên Dell gửi qua Wi-Fi)
+                else:
+                    self.control.press(key)  # Nút bấm trên trang web dự phòng, gửi như phím bàn phím
             if not self.handle_key(cv2.waitKey(5) & 0xFF):
                 break
 
@@ -253,7 +292,9 @@ class App:
         print(f"💾 Đã lưu kết quả vào {out}")
 
     def close(self):
-        """Giải phóng cả 2 camera, cổng Serial và đóng cửa sổ."""
+        """Giải phóng cả 2 camera, cổng Serial, máy chủ Wi-Fi và đóng cửa sổ."""
+        if self.phone is not None:
+            self.phone.close()
         self.control.release()
         self.cam_side.release()
         self.cam_top.release()

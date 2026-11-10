@@ -187,6 +187,19 @@ def test_an_object_that_was_moved_replaces_the_old_target_at_once(ctl):
     assert moved.target_cm == pytest.approx((10.0, 6.0))
 
 
+def test_r_locks_the_target_until_pressed_again(ctl):
+    assert ctl.toggle_lock(now=0.0) == "no_target"  # Chưa thấy vật: không chốt được
+    ctl.update([obj(20.0, 12.0)], now=0.0)
+    assert ctl.toggle_lock(now=0.0) == "locked"
+    held = ctl.update([obj(10.0, 6.0)], now=1.0)  # Vật dời đi nhưng đích vẫn là chỗ lúc bấm R
+    assert held.locked and held.target_cm == pytest.approx((20.0, 12.0))
+    still = ctl.update([], now=C.TARGET_MEMORY_S + 10)  # Chốt thì không quên theo thời gian
+    assert still.found and still.target_cm == pytest.approx((20.0, 12.0))
+    assert ctl.toggle_lock() == "unlocked"
+    live = ctl.update([obj(10.0, 6.0)])
+    assert not live.locked and live.target_cm == pytest.approx((10.0, 6.0))
+
+
 def test_base_pose_changes_what_the_robot_must_do(ctl):
     before = ctl.update([obj(20.0, 12.0)])
     ctl.set_base_pose(20.0, -7.5, 90.0)  # Đế dịch sang phải 5 cm: vật nằm lệch về một bên khác

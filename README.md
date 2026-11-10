@@ -31,7 +31,7 @@ Kẹp không tính (nó chỉ cần đầu kẹp tới đúng chỗ của vật)
 
 | Thành phần | Ghi chú |
 |---|---|
-| Arduino Uno + PCA9685 (I2C 0x40) | kênh 0 = đế, 1 = vai, 2 = khuỷu, 3 = kẹp; HC-05 Bluetooth ở D2 / D3 (tùy chọn) |
+| Arduino Uno + PCA9685 (I2C 0x40) | kênh 0 = đế, 1 = vai, 2 = khuỷu, 3 = kẹp; HC-05 Bluetooth ở D2 / D3: nhận phím từ máy Dell (mục 2, điều khiển từ xa) |
 | 4 servo MG996R | nguồn riêng 5-6 V (nguồn tổ ong) cấp vào cổng xanh của PCA9685, **không** lấy từ cổng USB |
 | Cam TREN | OBSBOT Meet SE treo phía trên tờ giấy, nhìn xuống |
 | Cam NGANG | camera tích hợp của MacBook đặt thấp trước tờ giấy |
@@ -67,10 +67,39 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `H` | đưa cả 4 servo về Home (90/90/90/95) |
 | `X` / `Z` | cho servo kẹp / cả 4 servo nghỉ (ngắt xung PWM để nguội); `Z` cần firmware có phím Z, hạ đầu kẹp tựa xuống chỗ trống trước |
 | `TAB` | đổi vật mục tiêu |
+| `R` | **chốt đích** theo ảnh lúc bấm (camera vẫn chạy, góc cần tới không đổi dù vật bị che hay xê dịch); bấm lần nữa để góc cần tới lại theo camera liên tục |
 | `B` | hiệu chỉnh đế robot (mục 4), `ESC` để hủy |
 | `U` | quên vị trí 4 mã ArUco đã nhớ (sau khi dời camera hoặc tờ giấy) |
 | `C` | chụp ảnh gốc cả 2 camera vào `captures/` |
 | `Q` | thoát |
+
+### Điều khiển từ xa: máy Dell cách ~2 m (xem qua Wi-Fi, bấm phím qua Bluetooth)
+
+```
+                 USB: góc servo + nguồn
+   MAC (main.py) ─────────────────────── UNO ── HC-05
+   2 camera, vision, control, success              ▲
+     │                                             │ Bluetooth: phím a d w s i k j l h x z
+     └── Wi-Fi: ảnh màn hình (2 cam + lệnh + XONG) ──►  DELL (remote.py)
+```
+
+- **Mac** đặt cạnh cánh tay (camera MacBook là cam NGANG), **cắm USB vào Arduino**: Arduino báo góc servo về Mac sau mỗi phím, Mac tính lại lệnh và success.
+  `main.py` chia sẻ ảnh màn hình qua Wi-Fi (`phone.py`) và in ra lệnh cho máy Dell kèm đường dẫn có mã 6 số. Mã lưu trong `.phone_pin`, giữ nguyên giữa các lần chạy (đổi mạng thì chỉ IP đổi); xóa tệp này để đổi mã.
+- **Dell** chạy `remote.py`: một cửa sổ hiện màn hình của Mac, gõ `A D W S I K J L H X Z` trên bàn phím Dell thì phím đi qua Bluetooth tới HC-05.
+  `R` (chốt / bỏ chốt đích) Arduino không hiểu nên đi qua Wi-Fi tới Mac.
+  `H` (Home) và `Z` (nghỉ hết) phải bấm 2 lần trong 2 giây. Thanh trên cùng báo Mac (Wi-Fi) và Bluetooth đã nối chưa; `Q` thoát.
+- **Firmware không đổi**: firmware đang nạp đã nhận phím từ HC-05 và báo góc qua USB.
+
+Chuẩn bị:
+1. Dell: ghép đôi HC-05 trong cài đặt Bluetooth (PIN thường là `1234` hoặc `0000`). Windows tạo 2 cổng COM: dùng cổng **Outgoing**
+   (`uv run python remote.py --list-ports` cho biết cổng sẽ dùng). **Chỉ ghép đôi HC-05 với Dell**: HC-05 nhận một kết nối mỗi lúc.
+2. Mac và Dell vào **cùng một Wi-Fi**. Mạng trường chặn hai máy thấy nhau thì cả hai bắt điểm phát Wi-Fi của điện thoại.
+3. Mac: cắm USB Arduino, `uv run python main.py`, chép dòng `Chạy trên máy Dell (không chạy trên Mac): python remote.py --mac http://<ip Mac>:8000/<mã>/` nó in ra.
+4. Dell: chạy đúng dòng đó (thêm `--port COM5` nếu tự tìm sai cổng).
+
+Dự phòng: Dell mở đường dẫn đó bằng trình duyệt để xem, và gửi phím bằng PuTTY (Serial, cổng COM của HC-05, 9600). Điện thoại mở đường dẫn
+(hoặc quét mã QR in trong Terminal) cũng xem được và có nút bấm phím; nút trên trang đi qua Wi-Fi tới Mac rồi USB, không qua Bluetooth.
+Khác mạng: `ngrok http 8000` rồi dùng đường dẫn ngrok + `/<mã>/`. `--no-phone` tắt chia sẻ màn hình, `--phone-port` đổi cổng.
 
 ## 3. Code chia thế nào
 
@@ -82,6 +111,8 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `screen.py` | vẽ màn hình: 2 camera + phần 1 + phần 2 nối nhau |
 | `vision.py` | dò tờ A4 qua ArUco (Homography pixel ↔ cm), tìm vật có màu, bù thị sai theo độ cao vật |
 | `cameras.py` | tìm camera theo tên, mỗi camera đọc trên một luồng riêng, mất tín hiệu thì tự mở lại |
+| `phone.py` | chia sẻ màn hình qua Wi-Fi (máy chủ web nhỏ, thư viện chuẩn) cho máy Dell; trang web dự phòng cho điện thoại |
+| `remote.py` | app máy Dell: xem màn hình Mac qua Wi-Fi, gửi phím qua Bluetooth HC-05 (chép riêng tệp này sang Dell cũng chạy) |
 | `calibration.py` | lưu / nạp hiệu chỉnh vào `calibration.json` |
 | `arm_fit.py` | công cụ khớp hình học cánh tay từ các lần "ôm" thật (Levenberg-Marquardt, chỉ dùng numpy) |
 | `generate_aruco_a4.py` | tạo tờ A4 4 mã ArUco để in (`aruco_A4_clean.pdf`) |
@@ -154,6 +185,9 @@ uv run python main.py --top captures/tren.jpg --side captures/ngang.jpg --no-ser
 | Chữ `CHUA THAY VAT` | đặt vật **có màu** (cốc đỏ) lên giấy, không sát mép (dưới ~1 cm); bấm `TAB` đổi vật |
 | Cánh tay tự giật về Home | xem mục 6 (Arduino reset) |
 | Gợi ý đưa kẹp lệch vài cm | đo lại hiệu chỉnh (mục 4); kiểm tra tờ giấy không bị xê dịch |
+| Dell: `khong thay Mac` | hai máy cùng Wi-Fi chưa, `main.py` đang chạy chưa, macOS có hỏi cho Python nhận kết nối mạng (bấm Cho phép); mạng trường chặn thì dùng điểm phát điện thoại |
+| Dell: `sai ma trong duong dan` | mã trong đường dẫn không khớp `.phone_pin` (gõ nhầm, hoặc tệp bị xóa nên `main.py` tạo mã mới): chép lại dòng `python remote.py --mac ...` mới nhất `main.py` in ra |
+| Dell: `chua thay cong Bluetooth` / `khong noi duoc COMx` | ghép đôi HC-05; HC-05 có điện (đèn nháy); Mac / điện thoại khác đang nối HC-05 thì ngắt ra; thử `--port` cổng Outgoing |
 
 ## 9. Đã bỏ khi đơn giản hóa (2026-11-02)
 
