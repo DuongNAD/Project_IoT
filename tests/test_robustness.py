@@ -32,44 +32,36 @@ def noisy(frame, sigma=6.0, blur=3, seed=1):
 def test_homography_survives_sensor_noise_and_blur():
     cam = side_camera()
     frame = noisy(render(cam, sheet_texture()))
-    tracker = V.SheetTracker(max_rms_px=15.0)
-    for _ in range(3):
-        view = tracker.update(frame)
-    assert view.source == "aruco" and corner_error_px(view, cam) < 4.0
+    sheet = V.Sheet()
+    sheet.update(frame)
+    assert sheet.n_seen == 4 and corner_error_px(sheet, cam) < 4.0
 
 
 def test_a_scene_without_the_sheet_is_handled_without_errors(ctl):
     empty = np.full((FRAME_H, FRAME_W, 3), 90, np.uint8)
-    tracker = V.ArucoYoloTracker(use_yolo=False)
-    try:
-        for mode in ("topdown", "side"):
-            out = tracker.process_frame(empty, mode)
-            assert out.shape == empty.shape
-            assert tracker.latest_view[mode].H_px2cm is None or tracker.latest_view[mode].source == "fallback"
-        plan = ctl.update(tracker.objects)  # Không có vật, không có lưới: vẫn ra kế hoạch trống, không lỗi
-        assert not plan.found and len(plan.moves) == 3 and all(m.steps == 0 for m in plan.moves)
-        assert tracker.process_frame(None, "side") is None
-    finally:
-        tracker.stop()
+    vision = V.Vision()
+    for mode in ("topdown", "side"):
+        assert vision.process_frame(empty, mode).shape == empty.shape
+        assert vision.sheets[mode].H_px2cm is None
+    plan = ctl.update(vision.objects)  # Không có vật, không có lưới: vẫn ra kế hoạch trống, không lỗi
+    assert not plan.found and len(plan.moves) == 3 and all(m.steps == 0 for m in plan.moves)
 
 
 def test_tracker_relearns_when_the_frame_resolution_changes():
     cam = top_camera()
     frame = render(cam, sheet_texture())
-    tracker = V.SheetTracker()
-    for _ in range(3):
-        tracker.update(frame)
+    sheet = V.Sheet()
+    sheet.update(frame)
     half = cv2.resize(frame, (FRAME_W // 2, FRAME_H // 2), interpolation=cv2.INTER_AREA)
-    for _ in range(4):  # Camera đổi sang độ phân giải khác: sau vài khung phải bám theo, không dùng bộ nhớ cũ
-        view = tracker.update(half)
-    u, v = V.cm_to_px(view.H_cm2px, 0, 0)
+    sheet.update(half)  # Camera đổi sang độ phân giải khác: thấy đủ 4 mã thì bám theo ngay, không dùng vị trí cũ
+    u, v = V.cm_to_px(sheet.H_cm2px, 0, 0)
     tu, tv = cam.project(0, 0)
     assert abs(u - tu / 2) < 3 and abs(v - tv / 2) < 3
 
 
 def test_app_runs_with_a_missing_camera(tmp_path, monkeypatch):
     """Thiếu cam TREN (không thấy thiết bị tên đó): chương trình vẫn chạy, hiện khung chờ tín hiệu, summary không lỗi."""
-    monkeypatch.setattr(C, "list_camera_names", lambda: (["Camera MacBook Air"], "avfoundation"))
+    monkeypatch.setattr(C, "list_camera_names", lambda: ["Camera MacBook Air"])
     side_path = tmp_path / "side.png"
     cv2.imwrite(str(side_path), render(side_camera(), sheet_texture()))
     out = tmp_path / "out"
@@ -81,9 +73,8 @@ def test_app_runs_with_a_missing_camera(tmp_path, monkeypatch):
         app.close()
     summary = json.loads((out / "summary.json").read_text(encoding="utf-8"))
     assert summary["camera"]["TREN"]["kich_thuoc"] is None and summary["camera"]["TREN"]["nguon"] == "None"
-    assert summary["to_giay"]["cam_tren"]["nguon_luoi"] == "none"
-    assert summary["to_giay"]["cam_ngang"]["nguon_luoi"] == "aruco"  # Cam NGANG vẫn hoạt động bình thường
-    assert summary["hai_camera_co_ve_bi_gan_nguoc"] is False
+    assert summary["to_giay"]["cam_tren"]["co_luoi"] is False
+    assert summary["to_giay"]["cam_ngang"]["co_luoi"] is True  # Cam NGANG vẫn hoạt động bình thường
     assert cv2.imread(str(out / "dual_view.png")) is not None
 
 
@@ -93,7 +84,7 @@ def test_stream_reconnects_when_the_device_appears_later(monkeypatch):
     monkeypatch.setattr(C, "RETRY_SECONDS", 0.3)
 
     def fake_names():
-        return (["OBSBOT Meet SE", "Camera MacBook Air"] if present["value"] else ["Camera MacBook Air"]), "avfoundation"
+        return ["OBSBOT Meet SE", "Camera MacBook Air"] if present["value"] else ["Camera MacBook Air"]
 
     class FakeCapture:
         def __init__(self, source, api=None):  # api: cv2.CAP_DSHOW khi chạy test trên Windows
@@ -117,7 +108,7 @@ def test_stream_reconnects_when_the_device_appears_later(monkeypatch):
 
     monkeypatch.setattr(C, "list_camera_names", fake_names)
     monkeypatch.setattr(C.cv2, "VideoCapture", FakeCapture)
-    cam = C.CameraStream(C.top_spec(), "TREN")
+    cam = C.Camera("obsbot", "TREN")
     try:
         time.sleep(0.5)
         assert cam.get_raw_frame() is None  # Chưa cắm
@@ -164,10 +155,10 @@ def test_dropped_camera_shows_the_waiting_screen_and_forgets_stale_objects(tmp_p
     try:
         assert wait_until(app, lambda: app.control.objects and app.top_shape is not None)
         state["alive"] = False
-        assert wait_until(app, lambda: app.cam_top.get_raw_frame() is None and not app.tracker.objects, timeout=5)
+        assert wait_until(app, lambda: app.cam_top.get_raw_frame() is None and not app.vision.objects, timeout=5)
         assert app.top_shape is None and "topdown" not in app.cache
         waiting = app._frame(app.cam_top, "topdown")
-        assert waiting.shape == (480, 640, 3)  # Khung "Dang cho tin hieu", không phải ảnh cũ
+        assert waiting.shape == (360, 640, 3)  # Khung "Dang cho tin hieu", không phải ảnh cũ
         state["alive"] = True
         assert wait_until(app, lambda: app.control.objects and app.top_shape is not None, timeout=8)
     finally:

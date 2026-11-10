@@ -2,8 +2,8 @@
 """
 Hỗ trợ điều khiển cánh tay robot 4 servo bằng 2 camera: chỉ cho biết BẤM PHÍM GÌ, MẤY LẦN, TRÁI / PHẢI BAO NHIÊU ĐỘ để đầu kẹp tới vật.
 
-  uv run python main.py            cam TREN = OBSBOT, cam NGANG = camera MacBook (hoặc điện thoại nếu adb thấy máy)
-  uv run python main.py --help     đổi nguồn camera, xoay hình, chạy không cần robot / camera...
+  uv run python main.py            cam TREN = OBSBOT, cam NGANG = camera MacBook
+  uv run python main.py --help     đổi nguồn camera, chạy không cần robot / camera...
 
 Các phần nối nhau:  camera -> vision.py (vật nằm ở đâu) -> control.py (NHÓM 1: bấm phím gì) -> success.py (NHÓM 2: đã tới chưa) -> screen.py (hiện lên màn hình)
 """
@@ -19,11 +19,11 @@ from datetime import datetime
 import cv2
 
 from calibration import apply_calibration, heading_toward, store_base_pose
-from cameras import CameraSpec, CameraStream, letterbox_inverse, list_camera_names, parse_camera_arg
+from cameras import Camera, list_camera_names
 from control import ARM_CONFIG, Control, predict_tip
 from screen import CAM_H, CAM_W, SCREEN_WINDOW, build_screen
 from success import Success
-from vision import ArucoYoloTracker, draw_target, perspective_strength, px_to_cm, ui_scale
+from vision import Vision, draw_target, px_to_cm
 
 CAPTURE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")  # Ảnh chụp (phím C), nằm cạnh main.py
 
@@ -34,7 +34,6 @@ HELP_TEXT = """💡 Làm theo lệnh to ở giữa màn hình (bấm phím trên
    J / L                 : mở / khép kẹp, mỗi lần 5° (kẹp không tính vào thành công)
    TAB                   : đổi vật mục tiêu
    B                     : hiệu chỉnh đế robot (click vào trục xoay đế trên hình cam TREN)      U : dò lại 4 mã ArUco
-   T                     : tráo vai trò 2 camera (nếu bị gán nhầm)                              0-3 : đổi chỉ số camera TREN
    C                     : chụp ảnh gốc 2 camera vào captures/                                  Q : thoát"""
 
 
@@ -44,13 +43,10 @@ def slug(text):
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Điều khiển cánh tay robot 4 servo bằng 2 camera: lệnh bấm phím + kết luận đã tới chưa")
-    source_help = "auto | obsbot | mac | phone | 0,1,2... (chỉ số OpenCV) | URL | tệp video / ảnh dùng để chạy thử"
-    p.add_argument("--top", default="auto", metavar="NGUON", help=f"Cam TREN (nhìn từ trên xuống), mặc định auto = OBSBOT: {source_help}")
-    p.add_argument("--side", default="auto", metavar="NGUON", help=f"Cam NGANG, mặc định auto = điện thoại nếu adb thấy máy, không thì MacBook: {source_help}")
-    p.add_argument("--rotate-top", type=int, choices=(0, 90, 180, 270), default=None, help="Xoay hình cam TREN (độ, theo chiều kim đồng hồ)")
-    p.add_argument("--rotate-side", type=int, choices=(0, 90, 180, 270), default=None, help="Xoay hình cam NGANG (điện thoại mặc định xoay 180)")
+    source_help = "obsbot | mac | 0,1,2... (chỉ số OpenCV) | một phần tên camera | ảnh .png / .jpg để chạy thử"
+    p.add_argument("--top", default="obsbot", metavar="NGUON", help=f"Cam TREN (nhìn từ trên xuống): {source_help}")
+    p.add_argument("--side", default="mac", metavar="NGUON", help=f"Cam NGANG: {source_help}")
     p.add_argument("--no-serial", action="store_true", help="Không mở cổng USB Arduino (chạy mô phỏng, không gửi phím xuống robot)")
-    p.add_argument("--yolo", action="store_true", help="Thêm YOLO11 để tìm vật (mặc định chỉ tách vật theo màu: YOLO hay gọi nhầm bộ phận robot)")
     p.add_argument("--list-cameras", action="store_true", help="In danh sách camera theo chỉ số OpenCV rồi thoát")
     p.add_argument("--headless", action="store_true", help="Không mở cửa sổ: chạy --seconds giây rồi lưu ảnh + summary.json vào --dump-dir")
     p.add_argument("--seconds", type=float, default=12.0, help="Thời gian chạy của --headless (giây)")
@@ -58,20 +54,18 @@ def parse_args(argv=None):
     return p.parse_args(argv)
 
 
-def report_cameras(top_spec, side_spec):
-    """In danh sách camera theo thứ tự chỉ số của OpenCV và camera nào được gán cho vai trò nào."""
-    names, how = list_camera_names()
-    listing = ", ".join(f"[{i}] {n}" for i, n in enumerate(names)) or "(không thấy camera nào)"
-    print(f"📷 Camera theo thứ tự chỉ số OpenCV ({how}): {listing}")
-    if how == "system_profiler":
-        print("ℹ️ Chưa có PyObjC nên liệt kê camera bằng system_profiler (vẫn sắp theo uniqueID như OpenCV), nên chạy: uv sync")
-    for role, spec in (("TREN", top_spec), ("NGANG", side_spec)):
-        if spec.kind == "name":
-            index = spec.current_source()
-            where = f"index {index}" if index is not None else "KHÔNG THẤY THIẾT BỊ, kiểm tra cáp / quyền Camera"
-        else:
-            where = f"{spec.kind}" + (f": {spec.value}" if spec.value is not None else "")
-        print(f"   Cam {role:5s} -> {spec.label} ({where})")
+def report_cameras():
+    """In danh sách camera theo thứ tự chỉ số của OpenCV (số dùng được cho --top / --side)."""
+    listing = ", ".join(f"[{i}] {n}" for i, n in enumerate(list_camera_names())) or "(không thấy camera nào)"
+    print(f"📷 Camera theo thứ tự chỉ số OpenCV: {listing}")
+
+
+def screen_to_frame(x, y, frame_shape):
+    """Điểm click (x, y) trong ô camera 640 x 360 của màn hình -> pixel trên khung gốc, None nếu rơi vào viền đen."""
+    h, w = frame_shape[:2]
+    k = min(CAM_W / w, CAM_H / h)
+    fx, fy = (x - (CAM_W - round(w * k)) // 2) / k, (y - (CAM_H - round(h * k)) // 2) / k
+    return (fx, fy) if 0 <= fx < w and 0 <= fy < h else None
 
 
 def save_snapshots(cameras):
@@ -81,9 +75,9 @@ def save_snapshots(cameras):
     for cam in cameras:
         frame = cam.get_raw_frame()
         if frame is None:
-            print(f"⚠️ {cam.name}: chưa có tín hiệu, không chụp được")
+            print(f"⚠️ Cam {cam.role}: chưa có tín hiệu, không chụp được")
             continue
-        path = os.path.join(CAPTURE_DIR, f"{stamp}_cam_{slug(cam.role)}_{slug(cam.spec.label)}.jpg")
+        path = os.path.join(CAPTURE_DIR, f"{stamp}_cam_{slug(cam.role)}_{slug(cam.label)}.jpg")
         if cv2.imwrite(path, frame):
             print(f"📸 Đã lưu {path}")
         else:
@@ -100,77 +94,47 @@ class App:
                 f"📐 Đã nạp hiệu chỉnh từ calibration.json: đế ({ARM_CONFIG['base_x_cm']:.1f}, {ARM_CONFIG['base_y_cm']:.1f}) cm, "
                 f"hướng {ARM_CONFIG['base_heading_deg']:.0f}°, góc chuẩn vai {ARM_CONFIG['theta2_at_90_deg']:.1f}°, khuỷu {ARM_CONFIG['theta3_at_90_deg']:.1f}°"
             )
-        top_spec = parse_camera_arg(args.top, "top", args.rotate_top)
-        side_spec = parse_camera_arg(args.side, "side", args.rotate_side)
-        report_cameras(top_spec, side_spec)
-
-        self.cam_side = CameraStream(side_spec, "NGANG")
-        self.cam_top = CameraStream(top_spec, "TREN")
-        self.tracker = ArucoYoloTracker(use_yolo=args.yolo)  # Vision: tờ giấy + vật nằm ở đâu
+        report_cameras()
+        self.cam_side = Camera(args.side, "NGANG")
+        self.cam_top = Camera(args.top, "TREN")
+        self.vision = Vision()                                     # Vision: tờ giấy + vật nằm ở đâu
         self.control = Control(serial_enabled=not args.no_serial)  # NHÓM 1: bấm phím gì
         self.success = Success()                                   # NHÓM 2: đã tới chưa
         self.calib_base = False   # Đang chờ click vào trục xoay đế robot (phím B)
         self.cache = {}           # Khung đã xử lý gần nhất của mỗi góc nhìn, dùng lại khi camera chưa có khung mới
         self.top_shape = None     # Kích thước khung gốc cam TREN, để đổi vị trí click chuột thành pixel ảnh gốc
-        self._swap_warned = False
-        self._last_role_check = 0.0
-
-    # ------------------------------------------------------------------ kiểm tra vai trò camera
-    def roles_look_swapped(self):
-        """True nếu 2 camera có vẻ bị gán ngược: cam TREN phải nhìn tờ giấy gần như thẳng, cam NGANG phải xiên hơn rõ rệt."""
-        top, side = self.tracker.latest_view["topdown"], self.tracker.latest_view["side"]
-        if top.source != "aruco" or side.source != "aruco":
-            return False
-        return perspective_strength(top.H_cm2px) > perspective_strength(side.H_cm2px) + 0.10
-
-    def _warn_if_swapped(self):
-        swapped = self.roles_look_swapped()
-        if swapped and not self._swap_warned:
-            print("⚠️ Hình như 2 camera bị gán ngược: cam TREN đang nhìn tờ giấy xiên hơn cam NGANG. Bấm 'T' để tráo vai trò")
-        self._swap_warned = swapped
 
     # ------------------------------------------------------------------ hiển thị
     def _frame(self, cam, mode):
         """Khung đã vẽ lớp phủ của một camera. Chỉ xử lý nặng (ArUco + tìm vật) khi camera có khung mới."""
-        if cam.is_stalled():
-            # Mất tín hiệu quá RETRY_SECONDS: bỏ khung cũ, hiện "Dang cho tin hieu" thay vì ảnh đứng hình
-            self.cache.pop(mode, None)
-            if mode == "topdown":
-                self.top_shape = None
-                self.tracker.forget_objects()
-            return cam.get_frame()
         cached = self.cache.get(mode)
-        if cached is None or cached["cam"] is not cam or cached["id"] != cam.frame_id:
-            frame_id = cam.frame_id
-            raw = cam.get_raw_frame()
-            if raw is None:
+        if cam.stalled() or cached is None or cached["id"] != cam.frame_id:
+            frame_id, raw = cam.frame_id, cam.get_raw_frame()
+            if raw is None:  # Chưa có hình hoặc mất tín hiệu: hiện "Dang cho tin hieu" thay vì ảnh đứng hình, quên vật cũ
+                self.cache.pop(mode, None)
                 if mode == "topdown":
-                    self.top_shape = None
-                return cam.get_frame()
-            cached = self.cache[mode] = {"cam": cam, "id": frame_id, "annotated": self.tracker.process_frame(raw, mode=mode)}
+                    self.top_shape, self.vision.objects = None, []
+                return cam.waiting_image()
+            cached = self.cache[mode] = {"id": frame_id, "annotated": self.vision.process_frame(raw, mode=mode)}
         if mode == "topdown":
             self.top_shape = cached["annotated"].shape
         return cached["annotated"]
 
     def _with_target(self, annotated, mode, plan):
         """Bản sao khung với vòng 'DICH' (chỗ vật) và dấu 'KEP' (chỗ đầu kẹp theo mô hình) vẽ trên mặt giấy."""
-        view = self.tracker.latest_view[mode]
-        if view.H_cm2px is None or plan.target_cm is None or annotated is None or annotated.ndim != 3:
+        H_cm2px = self.vision.sheets[mode].H_cm2px
+        if H_cm2px is None or plan.target_cm is None or annotated is None or annotated.ndim != 3:
             return annotated
         out = annotated.copy()
-        draw_target(out, view.H_cm2px, plan.target_cm, predict_tip(plan.now[:3])[:2], ui_scale(out))
+        draw_target(out, H_cm2px, plan.target_cm, predict_tip(plan.now[:3])[:2])
         return out
 
     def render(self):
         """Dựng một khung màn hình: (ảnh màn hình, Plan của control, Result của success)."""
         left, right = self._frame(self.cam_side, "side"), self._frame(self.cam_top, "topdown")
-        if time.time() - self._last_role_check > 2.0:
-            self._last_role_check = time.time()
-            self._warn_if_swapped()
-
-        plan = self.control.update(self.tracker.objects)  # NHÓM 1: vật ở đâu -> góc cần tới -> bấm phím gì
+        plan = self.control.update(self.vision.objects)  # NHÓM 1: vật ở đâu -> góc cần tới -> bấm phím gì
         result = self.success.update(plan)                # NHÓM 2: đã tới chưa
-        titles = (f"CAM NGANG: {self.cam_side.spec.label}", f"CAM TREN: {self.cam_top.spec.label} (nhin tu tren)")
+        titles = (f"CAM NGANG: {self.cam_side.label}", f"CAM TREN: {self.cam_top.label} (nhin tu tren)")
         screen = build_screen(self._with_target(left, "side", plan), self._with_target(right, "topdown", plan), plan, result, titles=titles)
         if self.calib_base:
             y = CAM_H - 8
@@ -185,15 +149,15 @@ class App:
             return
         px = None
         if self.top_shape is not None and x >= CAM_W and y < CAM_H:
-            px = letterbox_inverse(x - CAM_W, y, self.top_shape, CAM_W, CAM_H)  # Nửa phải của ô camera là cam TREN
+            px = screen_to_frame(x - CAM_W, y, self.top_shape)  # Nửa phải của ô camera là cam TREN
         if px is None:
             print("⚠️ Hãy click vào hình cam TREN (nửa bên phải)")
             return
-        view = self.tracker.latest_view["topdown"]
-        if view.H_px2cm is None or view.source not in ("aruco", "memory"):
+        H_px2cm = self.vision.sheets["topdown"].H_px2cm
+        if H_px2cm is None:
             print("⚠️ Cam TREN chưa thấy ≥ 2 mã ArUco 0-3 nên chưa tính được vị trí trên tờ giấy, chưa hiệu chỉnh được")
             return
-        bx, by = px_to_cm(view.H_px2cm, *px)
+        bx, by = px_to_cm(H_px2cm, *px)
         heading = heading_toward(bx, by)
         self.control.set_base_pose(bx, by, heading)
         store_base_pose(bx, by, heading)
@@ -218,24 +182,11 @@ class App:
             self.calib_base = not self.calib_base
             print("📐 Click vào trục xoay đế robot trên hình cam TREN..." if self.calib_base else "↩️ Đã hủy hiệu chỉnh đế robot")
         elif key in (ord("u"), ord("U")):
-            self.tracker.reset_sheet()
+            self.vision.reset_sheet()
             self.cache.clear()
             print("🔄 Đã quên vị trí các mã ArUco, đang dò lại tờ giấy")
         elif key in (ord("c"), ord("C")):
             save_snapshots([self.cam_side, self.cam_top])
-        elif key in (ord("t"), ord("T")):
-            self.cam_side, self.cam_top = self.cam_top, self.cam_side
-            self.cam_side.role, self.cam_top.role = "NGANG", "TREN"
-            self.tracker.reset_sheet()
-            self.cache.clear()
-            print(f"🔁 Đã tráo vai trò camera: cam NGANG = {self.cam_side.spec.label}, cam TREN = {self.cam_top.spec.label}")
-        elif key in (ord("0"), ord("1"), ord("2"), ord("3")):
-            index = int(chr(key))
-            if self.cam_top.source != index:
-                print(f"🔄 Đang chuyển Cam TREN sang Index {index}...")
-                self.cam_top.set_spec(CameraSpec(f"Index {index}", "index", index, rotate=self.cam_top.spec.rotate))
-                self.tracker.reset_sheet()
-                self.cache.clear()
         return True
 
     # ------------------------------------------------------------------ chạy
@@ -252,20 +203,18 @@ class App:
 
     def summary(self, plan, result):
         """Tóm tắt trạng thái hệ thống (dùng cho --headless và khi cần gỡ lỗi)."""
-        def view_info(mode):
-            v = self.tracker.latest_view[mode]
-            return {"nguon_luoi": v.source, "so_ma_dang_dung": v.n_known, "so_ma_thay": v.n_seen, "sai_so_px": round(v.rms_px, 2)}
+        def sheet_info(mode):
+            sheet = self.vision.sheets[mode]
+            return {"co_luoi": sheet.H_px2cm is not None, "so_ma_thay": sheet.n_seen, "so_ma_da_nho": len(sheet.markers)}
 
         return {
             "camera": {
-                "TREN": {"nhan": self.cam_top.spec.label, "nguon": str(self.cam_top.source), "kich_thuoc": self.top_shape[:2][::-1] if self.top_shape else None},
-                "NGANG": {"nhan": self.cam_side.spec.label, "nguon": str(self.cam_side.source)},
+                "TREN": {"nhan": self.cam_top.label, "nguon": str(self.cam_top.source), "kich_thuoc": self.top_shape[:2][::-1] if self.top_shape else None},
+                "NGANG": {"nhan": self.cam_side.label, "nguon": str(self.cam_side.source)},
             },
-            "to_giay": {"cam_tren": view_info("topdown"), "cam_ngang": view_info("side")},
-            "hai_camera_co_ve_bi_gan_nguoc": bool(self.roles_look_swapped()),
+            "to_giay": {"cam_tren": sheet_info("topdown"), "cam_ngang": sheet_info("side")},
             "de_robot": {k: ARM_CONFIG[k] for k in ("base_x_cm", "base_y_cm", "base_heading_deg")},
-            "vat_the": [{"ten": o["name"], "x_cm": round(o["x_cm"], 1), "y_cm": round(o["y_cm"], 1), "rong_mm": round(o["w_mm"]), "cao_mm": round(o["h_mm"])}
-                        for o in self.control.objects],
+            "vat_the": [{"ten": o["name"], "x_cm": round(o["x_cm"], 1), "y_cm": round(o["y_cm"], 1)} for o in self.control.objects],
             "nhom_1_dieu_khien": {
                 "vat_muc_tieu": plan.target_name,
                 "vi_tri_cm": [round(v, 1) for v in plan.target_cm] if plan.target_cm else None,
@@ -305,7 +254,6 @@ class App:
 
     def close(self):
         """Giải phóng cả 2 camera, cổng Serial và đóng cửa sổ."""
-        self.tracker.stop()
         self.control.release()
         self.cam_side.release()
         self.cam_top.release()
@@ -321,7 +269,7 @@ def main(argv=None):
     except (AttributeError, ValueError):
         pass
     if args.list_cameras:
-        report_cameras(parse_camera_arg("auto", "top"), parse_camera_arg("auto", "side"))
+        report_cameras()
         return
     app = App(args)
     try:

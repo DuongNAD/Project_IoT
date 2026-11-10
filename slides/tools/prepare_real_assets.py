@@ -330,7 +330,7 @@ def main() -> None:
                 slides=slides, note_vi=DEMO_NOTE))
 
     print("== Ảnh gốc trong repo ==")
-    for name, nid in (("aruco_A4_clean.png", "repo_aruco_a4_clean.png"), ("aruco_A4_grid.png", "repo_aruco_a4_grid.png")):
+    for name, nid in (("aruco_A4_clean.png", "repo_aruco_a4_clean.png"), ("_luu_tru/aruco_A4_grid.png", "repo_aruco_a4_grid.png")):
         p = PROJECT / name
         if need(p):
             save(load(p), nid, dict(

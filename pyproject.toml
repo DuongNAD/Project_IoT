@@ -4,10 +4,9 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "opencv-python>=5.0.0.93",
-    "pyobjc-framework-avfoundation>=11 ; sys_platform == 'darwin'",
+    "pillow>=10",  # generate_aruco_a4.py: xuất PDF đúng khổ A4 300 DPI
     "pygrabber>=0.2 ; sys_platform == 'win32'",
     "pyserial>=3.5",
-    "ultralytics>=8.4.183",
 ]
 
 [dependency-groups]
@@ -16,6 +15,6 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-# test_base_servo.py là script điều khiển robot thật nên không nằm trong danh sách chạy tự động
+# Chỉ chạy tests/ (_luu_tru/test_base_servo.py là script điều khiển robot thật, không chạy tự động)
 pythonpath = ["."]
 testpaths = ["tests"]

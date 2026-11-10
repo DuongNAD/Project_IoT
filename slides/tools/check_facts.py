@@ -134,8 +134,8 @@ def live_facts() -> dict[str, str | None]:
     else:
         f["ARM_DEFAULT"] = None
 
-    m = re.search(r"^PARALLAX_CAM_HEIGHT_CM\s*=\s*([\d.]+)", read(ROOT / "vision.py") or "", re.M)
-    f["PARALLAX_CAM_HEIGHT_CM"] = m.group(1) if m else None
+    m = re.search(r"^CAM_HEIGHT_CM\s*=\s*([\d.]+)", read(ROOT / "vision.py") or "", re.M)
+    f["CAM_HEIGHT_CM"] = m.group(1) if m else None
 
     cal = read(ROOT / "calibration.json")
     try:

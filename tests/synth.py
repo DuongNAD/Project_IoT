@@ -64,7 +64,7 @@ def sheet_texture(extra=None):
     """Ảnh phẳng tờ A4 màu trắng với 4 mã ArUco đúng vị trí / kích thước như generate_aruco_a4.py; extra(img) vẽ thêm vật lên giấy."""
     img = np.full((SHEET_H_PX, SHEET_W_PX, 3), 245, np.uint8)
     size = int(round(V.MARKER_SIZE_CM * PPC))
-    for marker_id in V.SHEET_MARKER_IDS:
+    for marker_id in range(4):
         x0, y0 = (V.marker_corners_cm(marker_id)[0] * PPC).round().astype(int)
         tile = cv2.aruco.generateImageMarker(V.ARUCO_DICT, marker_id, size)
         img[y0:y0 + size, x0:x0 + size] = cv2.cvtColor(tile, cv2.COLOR_GRAY2BGR)

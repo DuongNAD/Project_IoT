@@ -8,7 +8,6 @@ import pytest
 from synth import draw_disc, render, sheet_texture, side_camera, top_camera
 
 import calibration
-import cameras as C
 import control
 import main as M
 import screen
@@ -16,26 +15,19 @@ import screen
 
 def test_parse_args_defaults_and_options():
     args = M.parse_args([])
-    assert (args.top, args.side) == ("auto", "auto")
-    assert not (args.no_serial or args.headless or args.yolo) and args.rotate_top is None  # Mặc định chỉ tách vật theo màu, không YOLO
-    assert M.parse_args(["--yolo"]).yolo is True
-    args = M.parse_args(["--top", "1", "--side", "phone", "--rotate-side", "180", "--no-serial", "--headless", "--seconds", "3"])
-    assert (args.top, args.side, args.rotate_side, args.seconds) == ("1", "phone", 180, 3.0)
-    with pytest.raises(SystemExit):
-        M.parse_args(["--rotate-top", "45"])  # Chỉ nhận 0 / 90 / 180 / 270
+    assert (args.top, args.side) == ("obsbot", "mac") and not (args.no_serial or args.headless)
+    args = M.parse_args(["--top", "1", "--side", "anh.png", "--no-serial", "--headless", "--seconds", "3"])
+    assert (args.top, args.side, args.no_serial, args.seconds) == ("1", "anh.png", True, 3.0)
 
 
 def test_slug_and_camera_report(capsys, monkeypatch):
     assert M.slug("Cam TREN: OBSBOT (1)") == "cam_tren_obsbot_1"
-    monkeypatch.setattr(C, "list_camera_names", lambda: (["OBSBOT Meet SE", "Camera MacBook Air"], "avfoundation"))
-    monkeypatch.setattr(M, "list_camera_names", C.list_camera_names)
-    M.report_cameras(C.top_spec(), C.builtin_spec())
-    out = capsys.readouterr().out
-    assert "[0] OBSBOT Meet SE" in out and "Cam TREN" in out and "OBSBOT (index 0)" in out and "MacBook (index 1)" in out
-    monkeypatch.setattr(C, "list_camera_names", lambda: ([], "none"))
-    monkeypatch.setattr(M, "list_camera_names", C.list_camera_names)
-    M.report_cameras(C.top_spec(), C.builtin_spec())
-    assert "KHÔNG THẤY THIẾT BỊ" in capsys.readouterr().out
+    monkeypatch.setattr(M, "list_camera_names", lambda: ["OBSBOT Meet SE", "Camera MacBook Air"])
+    M.report_cameras()
+    assert "[0] OBSBOT Meet SE, [1] Camera MacBook Air" in capsys.readouterr().out
+    monkeypatch.setattr(M, "list_camera_names", lambda: [])
+    M.report_cameras()
+    assert "không thấy camera nào" in capsys.readouterr().out
 
 
 @pytest.fixture
@@ -65,7 +57,7 @@ def wait_until(app, predicate, timeout=5.0):
 
 
 def test_headless_run_writes_the_screen_and_a_summary_with_both_parts(scene_files, tmp_path, monkeypatch):
-    monkeypatch.setattr("vision.PARALLAX_CAM_HEIGHT_CM", 0.0)  # Cảnh giả lập vẽ vật phẳng trên giấy, không có phối cảnh theo độ cao
+    monkeypatch.setattr("vision.CAM_HEIGHT_CM", 0.0)  # Cảnh giả lập vẽ vật phẳng trên giấy, không có phối cảnh theo độ cao
     out = tmp_path / "out"
     app = make_app(scene_files, "--seconds", "2", "--dump-dir", str(out))
     try:
@@ -77,8 +69,8 @@ def test_headless_run_writes_the_screen_and_a_summary_with_both_parts(scene_file
     assert not (out / "guide.png").exists()  # Chỉ còn một cửa sổ
     assert cv2.imread(str(out / "dual_view.png")).shape[:2] == (screen.SCREEN_H, screen.SCREEN_W)
     summary = json.loads((out / "summary.json").read_text(encoding="utf-8"))
-    assert summary["to_giay"]["cam_tren"]["nguon_luoi"] == "aruco" and summary["to_giay"]["cam_tren"]["so_ma_dang_dung"] == 4
-    assert summary["to_giay"]["cam_ngang"]["nguon_luoi"] == "aruco"
+    assert summary["to_giay"]["cam_tren"] == {"co_luoi": True, "so_ma_thay": 4, "so_ma_da_nho": 4}
+    assert summary["to_giay"]["cam_ngang"]["co_luoi"] is True
     cup = summary["vat_the"][0]
     assert abs(cup["x_cm"] - 20.0) < 0.5 and abs(cup["y_cm"] - 12.0) < 0.5
     one, two = summary["nhom_1_dieu_khien"], summary["nhom_2_success"]
@@ -91,7 +83,7 @@ def test_click_on_top_view_calibrates_the_robot_base(scene_files):
     top_cam = scene_files[2]
     window = screen.SCREEN_WINDOW
     try:
-        assert wait_until(app, lambda: app.top_shape is not None and app.tracker.latest_view["topdown"].source == "aruco")
+        assert wait_until(app, lambda: app.top_shape is not None and app.vision.sheets["topdown"].H_px2cm is not None)
         u, v = top_cam.project(13.0, -6.0)  # Điểm trục xoay đế ngoài mép giấy
         x, y = screen.CAM_W + u * (screen.CAM_W / 1920), v * (screen.CAM_W / 1920)  # Khung 1920x1080 thu vào ô 640x360 bên phải
         # Chưa bật chế độ hiệu chỉnh thì click không có tác dụng
@@ -112,44 +104,14 @@ def test_click_on_top_view_calibrates_the_robot_base(scene_files):
         app.close()
 
 
-def test_keys_swap_calibrate_and_quit(scene_files, monkeypatch):
-    requested = []
-
-    class RecordingCapture:
-        """Camera giả ghi lại chỉ số được yêu cầu, để phím '1' không mở camera thật."""
-
-        def __init__(self, source, *args):
-            requested.append(source)
-
-        def set(self, *args):
-            return True
-
-        def isOpened(self):
-            return False
-
-        def read(self):
-            return False, None
-
-        def release(self):
-            pass
-
-    monkeypatch.setattr(cv2, "VideoCapture", RecordingCapture)
+def test_keys_calibrate_reset_and_quit(scene_files):
     app = make_app(scene_files)
     try:
         assert app.handle_key(ord("b")) and app.calib_base
         assert app.handle_key(27) and not app.calib_base  # ESC hủy hiệu chỉnh
-        side, top = app.cam_side, app.cam_top
-        assert app.handle_key(ord("t"))  # Tráo vai trò 2 camera
-        assert app.cam_side is top and app.cam_top is side
-        assert (app.cam_side.role, app.cam_top.role) == ("NGANG", "TREN")
         assert app.handle_key(ord("u"))  # Quên các mã đã nhớ
         assert app.handle_key(ord("x"))  # Phím X thuộc về cánh tay (servo kẹp nghỉ), không bị main nuốt
         assert app.control.link.relaxed
-        assert app.handle_key(ord("1")) and app.cam_top.spec.kind == "index"
-        end = time.time() + 2
-        while time.time() < end and requested != [1]:
-            time.sleep(0.02)
-        assert requested == [1]  # Luồng camera đã mở lại đúng chỉ số 1 bằng camera giả
         assert app.handle_key(ord("q")) is False
     finally:
         app.close()
@@ -179,16 +141,3 @@ def test_snapshots_save_both_raw_frames(scene_files, tmp_path, monkeypatch):
     saved = sorted(p.name for p in (tmp_path / "captures").iterdir())
     assert len(saved) == 2 and any("ngang" in n for n in saved) and any("tren" in n for n in saved)
 
-
-def test_swapped_camera_roles_are_detected(scene_files):
-    top_path, side_path, _ = scene_files
-    ok = make_app(scene_files)
-    swapped = M.App(M.parse_args(["--top", str(side_path), "--side", str(top_path), "--no-serial", "--headless"]))
-    try:
-        assert wait_until(ok, lambda: ok.tracker.latest_view["topdown"].source == "aruco" and ok.tracker.latest_view["side"].source == "aruco")
-        assert wait_until(swapped, lambda: swapped.tracker.latest_view["topdown"].source == "aruco" and swapped.tracker.latest_view["side"].source == "aruco")
-        assert not ok.roles_look_swapped()
-        assert swapped.roles_look_swapped()  # Cam "TREN" đang nhìn xiên, cam "NGANG" đang nhìn thẳng
-    finally:
-        ok.close()
-        swapped.close()

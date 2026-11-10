@@ -109,8 +109,8 @@ def make_app(top: Path, side: Path, clock: str, cfg: dict) -> "M.App":
     args = M.parse_args(["--top", str(top), "--side", str(side), "--no-serial", "--headless"])
     app = M.App(args)
     C.ARM_CONFIG.update(cfg)  # App nạp calibration.json thô vào ARM_CONFIG; ghi đè bằng bản đã đổi về hệ lúc chụp
-    app.cam_top.spec.label = f"anh da luu {clock}"
-    app.cam_side.spec.label = f"anh da luu {clock}"
+    app.cam_top.label = f"anh da luu {clock}"
+    app.cam_side.label = f"anh da luu {clock}"
     return app
 
 
@@ -124,7 +124,7 @@ def settle(app, seconds: float):
 
 
 def wait_for_target(app, timeout: float = 30.0):
-    """Chạy tới khi app thấy cốc (luồng tìm vật chạy nền nên vài khung đầu chưa có), rồi thêm SETTLE_S giây cho trung bình trượt ổn định."""
+    """Chạy tới khi app thấy cốc, rồi thêm SETTLE_S giây cho trung bình trượt vị trí vật (control.py) ổn định."""
     end = time.time() + timeout
     while time.time() < end:
         screen, plan, result = app.render()
@@ -138,7 +138,7 @@ def press_until_done(app) -> int:
     """MÔ PHỎNG người bấm phím đúng như màn hình chỉ: lặp 'bấm phím của lệnh đầu tiên' cho tới khi success.check báo xong. Trả về số lần bấm."""
     presses = 0
     for _ in range(400):
-        result = check(app.control.update(app.tracker.objects))
+        result = check(app.control.update(app.vision.objects))
         if result.done:
             return presses
         app.control.press(result.next_move.key)
@@ -147,8 +147,8 @@ def press_until_done(app) -> int:
 
 
 def view_info(app, mode: str) -> dict:
-    v = app.tracker.latest_view[mode]
-    return {"ma_dang_dung": v.n_known, "ma_thay": v.n_seen, "sai_so_px": round(v.rms_px, 1)}
+    sheet = app.vision.sheets[mode]
+    return {"ma_dang_dung": len(sheet.markers), "ma_thay": sheet.n_seen}
 
 
 def run_screen(top_name: str, side_name: str, clock: str, cfg: dict, press: bool) -> dict:
@@ -205,13 +205,18 @@ def cup_ground_from_side(frame, view) -> tuple[tuple[float, float], tuple]:
 
 
 def sheet_view(frame, side: bool):
-    """Lưới tờ giấy của một khung (cùng bộ dò mã như app: cam TREN có ước lượng dự phòng, cam NGANG thì không)."""
-    tracker = V.SheetTracker(allow_fallback=not side, max_rms_px=15.0 if side else 4.0)
-    for _ in range(3):
-        view = tracker.update(frame)
-    if view.H_px2cm is None or view.H_cm2px is None or view.n_known < 3:
+    """Lưới tờ giấy của một khung (cùng bộ dò mã như app)."""
+    view = V.Sheet()
+    view.update(frame)
+    if view.H_px2cm is None or len(view.markers) < 3:
         raise SystemExit(f"Khung {'cam NGANG' if side else 'cam TREN'} của ảnh hiệu chỉnh chưa thấy đủ 3 mã ArUco.")
     return view
+
+
+def outlined(img, text, org, scale, color, thick, k):
+    """Chữ có viền đen cho dễ đọc trên mọi nền (cỡ chữ và nét phóng theo k)."""
+    for col, th in (((0, 0, 0), thick + 2), (color, thick)):
+        cv2.putText(img, text, (int(org[0]), int(org[1])), cv2.FONT_HERSHEY_SIMPLEX, scale * k, col, max(1, int(th * k)), cv2.LINE_AA)
 
 
 def draw_marker(img, p_px, color, label, k):
@@ -220,26 +225,26 @@ def draw_marker(img, p_px, color, label, k):
     size, thick = int(38 * k), max(2, int(3 * k))
     cv2.drawMarker(img, p, (0, 0, 0), cv2.MARKER_CROSS, size, thick + 3, cv2.LINE_AA)
     cv2.drawMarker(img, p, color, cv2.MARKER_CROSS, size, thick, cv2.LINE_AA)
-    V.put_outlined(img, label, (p[0] + 26 * k, p[1] - 16 * k), 0.62, color, 2, k)
+    outlined(img, label, (p[0] + 26 * k, p[1] - 16 * k), 0.62, color, 2, k)
 
 
 def calib_image(frame, blur_poly, view, tips, cup_cm, crop, cup_ring: bool, caption: list[str]):
     """Khung camera đã làm mờ màn hình, vẽ lưới 5 cm và hai dấu 'KEP' của hai mô hình (hình chiếu xuống mặt giấy, giống app), rồi cắt."""
     img = P.blur_regions(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)), [blur_poly])
     out = cv2.cvtColor(np.asarray(img), cv2.COLOR_RGB2BGR)
-    k = V.ui_scale(out)
-    V.draw_sheet_overlay(out, view.H_cm2px, k)
+    k = max(1.0, out.shape[1] / 1280)
+    V.draw_grid(out, view.H_cm2px, k)
     if cup_ring:
         c = V.cm_to_px(view.H_cm2px, *cup_cm)
         cv2.circle(out, (int(c[0]), int(c[1])), int(30 * k), (0, 0, 0), max(2, int(3 * k)) + 3, cv2.LINE_AA)
         cv2.circle(out, (int(c[0]), int(c[1])), int(30 * k), BLUE, max(2, int(3 * k)), cv2.LINE_AA)
-        V.put_outlined(out, "COC (do tu cam ngang)", (c[0] - 120 * k, c[1] + 66 * k), 0.62, BLUE, 2, k)  # dưới vòng: tránh đè nhãn hai dấu '+'
+        outlined(out, "COC (do tu cam ngang)", (c[0] - 120 * k, c[1] + 66 * k), 0.62, BLUE, 2, k)  # dưới vòng: tránh đè nhãn hai dấu '+'
     for name, color, label in (("default", ORANGE, "MAC DINH"), ("calibrated", GREEN, "SAU HIEU CHINH")):
         draw_marker(out, V.cm_to_px(view.H_cm2px, *tips[name][:2]), color, label, k)
     x0, y0, x1, y1 = crop
     out = out[y0:y1, x0:x1].copy()
     for i, line in enumerate(caption):
-        V.put_outlined(out, line, (14 * k, out.shape[0] - (14 + 24 * (len(caption) - 1 - i)) * k), 0.55, WHITE, 1, k)
+        outlined(out, line, (14 * k, out.shape[0] - (14 + 24 * (len(caption) - 1 - i)) * k), 0.55, WHITE, 1, k)
     return out
 
 
@@ -269,7 +274,7 @@ def run_calibration(cfg_photo: dict) -> dict:
         "servo": list(CALIB_SERVO), "coc_cm_do_tu_cam_ngang": [round(v, 2) for v in cup_cm], "khoi_cam_cam_ngang_px": list(cup_box),
         "dau_kep_cm": {n: [round(float(v), 2) for v in t] for n, t in tips.items()},
         "cach_coc_cm": {n: round(d, 2) for n, d in dist.items()},
-        "luoi": {"cam_ngang": [view_side.n_known, round(view_side.rms_px, 1)], "cam_tren": [view_top.n_known, round(view_top.rms_px, 1)]},
+        "luoi": {"cam_ngang": len(view_side.markers), "cam_tren": len(view_top.markers)},
         "de_sau_xoay": [round(cfg_photo[k], 2) for k in ("base_x_cm", "base_y_cm", "base_heading_deg")],
     }}
 
@@ -313,21 +318,20 @@ def manifest_entries(before: dict, done: dict, calib: dict | None) -> list[dict]
             group="screen", source=src_before, clock=BEFORE[2], mode="mô phỏng trên ảnh đã lưu", blurred=INHERITED_BLUR,
             desc_vi=(f"Màn hình hai phần của phần mềm hiện tại, chạy mô phỏng trên ảnh camera thật lúc {BEFORE[2]} (cánh tay chưa tới cốc; servo mô phỏng ở Home 90/90/90/95, "
                      f"không nối Arduino). Trên cùng là hai camera (NGANG | TRÊN) có lưới 5 cm, vòng DICH quanh cốc ở ({vn(bf['vat_cm'][0])}; {vn(bf['vat_cm'][1])}) cm và dấu KEP. "
-                     f"Phần 1 ĐIỀU KHIỂN ghi to '{move_text(nxt)}' (còn {bf['con_lai']} lần bấm, ba hàng servo đế / vai / khuỷu với góc hiện tại → góc đích); "
-                     f"phần 2 SUCCESS ghi 'CHUA XONG, con {bf['con_lai']} lan bam'; chân trang ghi 'USB Arduino: MO PHONG'."),
-            alt_vi=(f"Ảnh chụp màn hình phần mềm: hai khung camera phía trên; bên trái ô lệnh lớn '{move_text(nxt)}'; bên phải ô 'CHUA XONG, con {bf['con_lai']} lan bam' "
-                    f"nối với ô lệnh bằng một mũi tên"),
+                     f"Ô 1 ĐIỀU KHIỂN ghi to '{move_text(nxt)}' và ba dòng servo đế / vai / khuỷu (góc hiện tại → góc đích); "
+                     f"ô 2 SUCCESS ghi 'CHUA XONG' và 'con {bf['con_lai']} lan bam'; chân trang ghi 'USB Arduino: MO PHONG'."),
+            alt_vi=(f"Ảnh chụp màn hình phần mềm: hai khung camera phía trên; bên trái lệnh lớn '{move_text(nxt)}'; bên phải 'CHUA XONG', 'con {bf['con_lai']} lan bam'"),
             slides=[8],
             note_vi=(sim + " Nhãn camera ghi 'anh da luu'. Chữ không dấu vì OpenCV putText không vẽ được dấu: giữ nguyên, nói rõ khi thuyết trình. "
                      f"Góc đích {bf['goc_dich']} tính bằng calibration.json (đã đổi về hệ tờ giấy lúc chụp); cốc đo ở ({vn(bf['vat_cm'][0])}; {vn(bf['vat_cm'][1])}) cm.")),
         ),
         entry("ui_screen_done.png", dict(
             group="screen", source=src_done, clock=DONE[2], mode="mô phỏng trên ảnh đã lưu", blurred=INHERITED_BLUR,
-            desc_vi=(f"Cùng màn hình sau khi MÔ PHỎNG bấm đủ {df['so_lan_bam_mo_phong']} lần theo lệnh và giữ đúng góc hơn 1 giây: phần 1 ghi 'KHONG CAN BAM THEM, Ca 3 servo da dung goc'; "
-                     f"phần 2 ghi 'XONG!' với ba dấu tích (đế, vai, khuỷu) và 'Thanh cong: 1 lan'. Ảnh camera là ảnh thật lúc {DONE[2]} khi hai ngón kẹp đang ôm cốc; "
+            desc_vi=(f"Cùng màn hình sau khi MÔ PHỎNG bấm đủ {df['so_lan_bam_mo_phong']} lần theo lệnh và giữ đúng góc hơn 1 giây: phần 1 ghi 'Khong can bam them', ba dòng servo 'DA DUNG'; "
+                     f"phần 2 ghi 'XONG!' màu xanh và 'Thanh cong: 1 lan'. Ảnh camera là ảnh thật lúc {DONE[2]} khi hai ngón kẹp đang ôm cốc; "
                      f"phần mềm đo cốc ở ({vn(df['vat_cm'][0])}; {vn(df['vat_cm'][1])}) cm trên ảnh này."),
-            alt_vi=("Ảnh chụp màn hình phần mềm: hai khung camera phía trên thấy hai ngón kẹp ôm cốc; bên trái ô 'KHONG CAN BAM THEM'; bên phải ô 'XONG!' màu xanh "
-                    "với ba dấu tích và dòng 'Thanh cong: 1 lan'"),
+            alt_vi=("Ảnh chụp màn hình phần mềm: hai khung camera phía trên thấy hai ngón kẹp ôm cốc; bên trái 'Khong can bam them'; bên phải 'XONG!' màu xanh "
+                    "và dòng 'Thanh cong: 1 lan'"),
             slides=[9],
             note_vi=(sim + " Phím do script bấm giả lập, nên 'Thanh cong: 1 lan' KHÔNG phải số lần gắp thật và góc servo trên màn hình KHÔNG phải góc thật lúc chụp ảnh. "
                      f"Góc đích app tính từ ảnh này: {df['goc_dich']}. Lệnh ban đầu còn {df['con_lai']} lần bấm; mô phỏng dừng sau {df['so_lan_bam_mo_phong']} lần vì lệch không quá 1 bước (2°) đã tính là tới. Cốc đo ở ({vn(df['vat_cm'][0])}; {vn(df['vat_cm'][1])}) cm, khác ảnh {BEFORE[2]} "
@@ -336,15 +340,15 @@ def manifest_entries(before: dict, done: dict, calib: dict | None) -> list[dict]
         entry("sw_annot_top.jpg", dict(
             group="annot", source=src_before, clock=BEFORE[2], mode="mô phỏng trên ảnh đã lưu", blurred=INHERITED_BLUR,
             desc_vi=(f"Khung camera TRÊN (ảnh thật {BEFORE[2]}) do chính phần mềm vẽ: viền tờ A4, lưới 5 cm dựng từ mã ArUco ({top_n} mã thấy được, mã thứ tư bị cánh tay che nhưng lưới vẫn đủ), "
-                     f"vòng xanh quanh cốc kèm nhãn 'Vat mau X={bf['vat_cm'][0]:.1f} Y={bf['vat_cm'][1]:.1f}cm' và dòng 'Luoi A4: {top_n}/4 ma ArUco (sai so {bf['cam_tren']['sai_so_px']}px)'."),
+                     f"vòng xanh quanh cốc kèm nhãn 'X=... Y=... cm' và dòng 'Luoi A4: thay .../4 ma ArUco'."),
             alt_vi=(f"Ảnh camera trên có lưới 5 cm phủ lên tờ A4, bốn góc có mã ArUco (một mã bị cánh tay che), vòng xanh quanh cốc đỏ kèm tọa độ X, Y tính bằng cm"),
             slides=[5],
             note_vi="Khung sạch do app vẽ (chưa có vòng DICH và dấu KEP). Cánh tay trong ảnh giơ cao chưa tới cốc. Chữ trên ảnh không dấu."),
         ),
         entry("sw_annot_side.jpg", dict(
             group="annot", source=src_before, clock=BEFORE[2], mode="mô phỏng trên ảnh đã lưu", blurred=INHERITED_BLUR,
-            desc_vi=(f"Khung camera NGANG (ảnh thật {BEFORE[2]}) với cùng lưới 5 cm nhìn nghiêng, bốn mã ArUco thấy rõ và dòng 'Luoi A4: {bf['cam_ngang']['ma_dang_dung']}/4 ma ArUco "
-                     f"(sai so {bf['cam_ngang']['sai_so_px']}px)'; cốc đứng giữa tờ giấy, cánh tay ở ngoài khung phía trên."),
+            desc_vi=(f"Khung camera NGANG (ảnh thật {BEFORE[2]}) với cùng lưới 5 cm nhìn nghiêng, bốn mã ArUco thấy rõ và dòng 'Luoi A4: thay .../4 ma ArUco'; "
+                     f"cốc đứng giữa tờ giấy, cánh tay ở ngoài khung phía trên."),
             alt_vi="Ảnh camera ngang nhìn nghiêng: lưới 5 cm phủ lên tờ A4 có bốn mã ArUco ở bốn góc, cốc đỏ đứng giữa giấy",
             slides=[5],
             note_vi="Khung sạch do app vẽ (cam NGANG không vẽ nhãn vật, chỉ lưới và mã). Chữ trên ảnh không dấu."),

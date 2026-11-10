@@ -34,29 +34,26 @@ Kẹp không tính (nó chỉ cần đầu kẹp tới đúng chỗ của vật)
 | Arduino Uno + PCA9685 (I2C 0x40) | kênh 0 = đế, 1 = vai, 2 = khuỷu, 3 = kẹp; HC-05 Bluetooth ở D2 / D3 (tùy chọn) |
 | 4 servo MG996R | nguồn riêng 5-6 V (nguồn tổ ong) cấp vào cổng xanh của PCA9685, **không** lấy từ cổng USB |
 | Cam TREN | OBSBOT Meet SE treo phía trên tờ giấy, nhìn xuống |
-| Cam NGANG | camera tích hợp của MacBook đặt thấp trước tờ giấy, hoặc điện thoại chạy IP Webcam qua `adb` |
+| Cam NGANG | camera tích hợp của MacBook đặt thấp trước tờ giấy |
 | Tờ giấy | in `aruco_A4_clean.pdf` **đúng 100% kích thước** (đo cạnh 1 mã ArUco phải đúng **2,8 cm**), 4 mã (ID 0-3) sát 4 góc; tạo lại bằng `generate_aruco_a4.py` |
 
 ## 2. Cài đặt và chạy
 
 ```bash
-uv sync                      # cài OpenCV, PyObjC (macOS), pyserial, pytest...
+uv sync                      # cài OpenCV, pyserial, pytest (Windows thêm pygrabber)
 ./robot_arm_4dof/flash.sh    # biên dịch + nạp firmware (cần Arduino IDE 2, xem mục 6)
 uv run python main.py
 ```
 
 macOS hỏi quyền **Camera** lần đầu cho ứng dụng đang chạy lệnh (Terminal, PyCharm...): bấm OK.
 
-**Windows** (máy Dell): `uv sync` cài thêm `pygrabber` để đọc tên camera theo đúng thứ tự DirectShow: điện thoại (Iriun / DroidCam) làm cam TREN,
-`Integrated Webcam` làm cam NGANG. Thiếu `pygrabber` thì chỉ rõ chỉ số: `--top 0 --side 1`. Cổng Arduino là `COMx`, tự tìm theo tên CH340 / Arduino.
-Điện thoại chạy IP Webcam qua Wi-Fi thì truyền địa chỉ app hiện: `--side 192.168.1.5` (thành `http://192.168.1.5:8080/video`).
+**Windows** (máy Dell): `pygrabber` đọc tên camera theo đúng thứ tự DirectShow; `Integrated Webcam` được nhận là cam NGANG. Cam TREN khác OBSBOT thì
+truyền một phần tên (`--top iriun`) hoặc chỉ số (`--top 0`). Cổng Arduino là `COMx`, tự tìm theo tên CH340 / Arduino.
 
 ```bash
-uv run python main.py --list-cameras    # xem camera nào đang được gán cho vai trò nào
+uv run python main.py --list-cameras    # in danh sách camera theo chỉ số OpenCV
 uv run python main.py --no-serial       # chạy mô phỏng, không mở cổng USB Arduino (không gửi phím xuống robot)
-uv run python main.py --top 0 --side 1  # chỉ rõ chỉ số camera (chỉ số OpenCV)
-uv run python main.py --side phone      # dùng điện thoại làm cam NGANG
-uv run python main.py --yolo            # thêm YOLO11 để tìm vật (mặc định chỉ tách vật theo màu: YOLO hay gọi nhầm bộ phận robot)
+uv run python main.py --top 0 --side 1  # chỉ rõ chỉ số camera (mặc định: --top obsbot --side mac, tìm theo tên)
 ```
 
 Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)** → **phần 2 (success)**. Bấm phím trên cửa sổ video:
@@ -72,7 +69,6 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `TAB` | đổi vật mục tiêu |
 | `B` | hiệu chỉnh đế robot (mục 4), `ESC` để hủy |
 | `U` | quên vị trí 4 mã ArUco đã nhớ (sau khi dời camera hoặc tờ giấy) |
-| `T` / `0`-`3` | tráo vai trò 2 camera / đổi chỉ số camera TREN |
 | `C` | chụp ảnh gốc cả 2 camera vào `captures/` |
 | `Q` | thoát |
 
@@ -84,15 +80,16 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `control.py` | **NHÓM 1**: hình học cánh tay (FK / IK), cổng USB Arduino, chọn vật, `Plan` + `Move` |
 | `success.py` | **NHÓM 2**: `check(plan)` → `Result`; `Success` đếm số lần thành công |
 | `screen.py` | vẽ màn hình: 2 camera + phần 1 + phần 2 nối nhau |
-| `vision.py` | dò tờ A4 qua ArUco (Homography pixel ↔ cm), tìm vật (tách màu, YOLO tùy chọn), hiệu chỉnh phối cảnh |
-| `cameras.py` | tìm camera theo tên, vai trò TREN / NGANG, luồng đọc nền tự mở lại |
+| `vision.py` | dò tờ A4 qua ArUco (Homography pixel ↔ cm), tìm vật có màu, bù thị sai theo độ cao vật |
+| `cameras.py` | tìm camera theo tên, mỗi camera đọc trên một luồng riêng, mất tín hiệu thì tự mở lại |
 | `calibration.py` | lưu / nạp hiệu chỉnh vào `calibration.json` |
 | `arm_fit.py` | công cụ khớp hình học cánh tay từ các lần "ôm" thật (Levenberg-Marquardt, chỉ dùng numpy) |
-| `generate_aruco_a4.py` | tạo tờ A4 4 mã ArUco để in |
+| `generate_aruco_a4.py` | tạo tờ A4 4 mã ArUco để in (`aruco_A4_clean.pdf`) |
 | `robot_arm_4dof/` | firmware Arduino và `flash.sh` |
 | `tests/` | bộ test, mỗi nhóm một tệp (`test_control.py`, `test_success.py`, `test_screen.py`, ...) |
+| `_luu_tru/` | file không còn dùng (kịch bản slide cũ, tờ A4 có lưới, script thử servo bằng tay), giữ lại để tra cứu |
 
-Mỗi khung hình trong `main.py` chỉ là ba dòng: `plan = control.update(tracker.objects)` → `result = success.update(plan)` → `build_screen(..., plan, result)`.
+Mỗi khung hình trong `main.py` chỉ là ba dòng: `plan = control.update(vision.objects)` → `result = success.update(plan)` → `build_screen(..., plan, result)`.
 
 ## 4. Tờ giấy, đế robot và hiệu chỉnh
 
@@ -100,12 +97,12 @@ Hệ tọa độ gắn với **tờ giấy** (không phụ thuộc camera nào n
 chạy ID 0 → ID 3 (21.0 cm). Lưới tự dò từ các mã ArUco thật; cánh tay che mất 1-2 mã thì dùng vị trí đã nhớ.
 
 - **Đế robot**: mặc định (14.85, -7.5) cm, nhìn vào +Y. Đặt khác thì bấm `B` rồi click vào **trục xoay của đế** trên hình cam TREN (đúng điểm ở
-  mặt bàn). **Chỉ bấm `B` khi cam TREN đã thấy đủ 4 mã** (góc dưới trái ghi `Luoi A4: 4/4 ma`), nếu không vị trí đế lưu sai.
+  mặt bàn). **Chỉ bấm `B` khi cam TREN đã thấy đủ 4 mã** (góc dưới trái ghi `Luoi A4: thay 4/4 ma ArUco`), nếu không vị trí đế lưu sai.
 - **Hình học cánh tay thật khác mô hình mặc định**: đo từ 10 lần "ôm" cốc bằng tay (2026-11-02), sai số RMS còn ~0,85 cm (kiểm tra bỏ-một-mẫu ~1,2 cm). Kết quả nằm trong
   `calibration.json` (không đưa lên git): `base` (vị trí, hướng đế), `arm` (hai góc chuẩn vai / khuỷu khi servo ở 90°), `claw` (càng kẹp gắn cứng vào khâu
   khuỷu nên độ lệch của điểm kẹp quay theo khâu đó; app gộp nó vào chiều dài khâu 3, xem docstring `calibration.py`). **Hiệu chỉnh này gắn với đúng tờ
   giấy và cách đặt robot hiện tại**: đổi tờ giấy (kích thước in khác) hoặc dời robot thì phải đo lại. Tờ A4 cũ in nhỏ hơn ~4,5% so với đúng cỡ.
-- **Vị trí vật** đo từ cam TREN được **hiệu chỉnh phối cảnh** (`vision.correct_parallax`): cam treo cao ~46 cm nên nắp cốc cao 5 cm hiện lệch ~1 cm so với đáy.
+- **Vị trí vật** đo từ cam TREN được **bù thị sai** (`vision.find_objects`): cam treo cao ~46 cm nên nắp cốc cao 5 cm hiện lệch ~1 cm so với đáy.
 - Công cụ khớp lại: `arm_fit.fit_geometry(samples, ARM_CONFIG, control.predict_tip)` với mỗi mẫu `{"servo": (đế, vai, khuỷu), "x_cm", "y_cm", "z_mm"}` (servo
   khi hai ngón bao quanh vật + vị trí vật đo bằng camera). Cần ≥ 2 mẫu cách nhau ≥ 5 cm, 3 mẫu là đủ.
 
@@ -113,7 +110,7 @@ chạy ID 0 → ID 3 (21.0 cm). Lưới tự dò từ các mã ArUco thật; cá
 
 Chỉ số `cv2.VideoCapture(i)` trên macOS **không** theo thứ tự của `system_profiler` hay danh sách AVFoundation (hai danh sách đó xếp camera "dùng gần
 nhất" lên đầu nên đổi giữa các lần chạy); OpenCV sắp theo `uniqueID` nên ổn định. `cameras.py` tìm camera theo **tên**, rồi đổi sang chỉ số bằng đúng
-quy tắc sắp theo `uniqueID` của OpenCV, ngay trước mỗi lần mở. Phòng hờ, chương trình so độ xiên của tờ giấy trong 2 ảnh: nếu cam TREN nhìn xiên hơn cam NGANG sẽ cảnh báo, bấm `T` để tráo.
+quy tắc sắp theo `uniqueID` của OpenCV, ngay trước mỗi lần mở. Bỏ qua camera ảo (`OBSBOT Virtual Camera`, Desk View).
 
 ## 6. Firmware và bảo vệ servo
 
@@ -136,7 +133,7 @@ quy tắc sắp theo `uniqueID` của OpenCV, ngay trước mỗi lần mở. Ph
 uv run pytest        # FK / IK, lệnh bấm phím, chọn vật, success, màn hình, nhận diện camera, hiệu chỉnh, chạy thử cả chương trình
 ```
 
-Không test nào chạm vào camera, cổng Serial hay `calibration.json` thật (cảnh dựng bằng camera giả lập có đáp án chính xác). `test_base_servo.py` là script
+Không test nào chạm vào camera, cổng Serial hay `calibration.json` thật (cảnh dựng bằng camera giả lập có đáp án chính xác). `_luu_tru/test_base_servo.py` là script
 điều khiển robot thật nên không nằm trong bộ test tự động. Chạy cả chương trình không cửa sổ, không camera, không robot (dùng ảnh chụp bằng phím `C`):
 
 ```bash
@@ -151,10 +148,10 @@ uv run python main.py --top captures/tren.jpg --side captures/ngang.jpg --no-ser
 | `KHONG THAY TO A4` | in đúng kích thước, đủ sáng, 4 mã không bị che / chói; trong khung có ít nhất 2 mã |
 | Mã ArUco không nhận | thêm **viền trắng** quanh mã (ít nhất ~0,5 cm); kiểm tra cạnh mã đúng 2,8 cm |
 | Lưới lệch sau khi dời camera / giấy | bấm `U` |
-| Hai khung hiện cùng một góc nhìn / sai camera | `--list-cameras`; bấm `T`; hoặc `--top N --side M` |
+| Hai khung hiện cùng một góc nhìn / sai camera | `--list-cameras` rồi chạy lại với `--top N --side M` |
 | Camera đen, log `not authorized to capture video` | cấp quyền Camera trong Cài đặt hệ thống → Quyền riêng tư; mở lại ứng dụng |
 | `USB Arduino: MO PHONG` | cắm cáp USB, tắt chương trình khác đang giữ cổng |
-| Chữ `CHUA THAY VAT` | đặt vật **có màu** (cốc đỏ) lên giấy, không sát mép (dưới ~1,3 cm); bấm `TAB` đổi vật |
+| Chữ `CHUA THAY VAT` | đặt vật **có màu** (cốc đỏ) lên giấy, không sát mép (dưới ~1 cm); bấm `TAB` đổi vật |
 | Cánh tay tự giật về Home | xem mục 6 (Arduino reset) |
 | Gợi ý đưa kẹp lệch vài cm | đo lại hiệu chỉnh (mục 4); kiểm tra tờ giấy không bị xê dịch |
 
@@ -163,3 +160,6 @@ uv run python main.py --top captures/tren.jpg --side captures/ngang.jpg --no-ser
 Quy trình gắp 5 bước, kiểm tra thành công bằng S1 / S2 (cam NGANG thấy vật nhấc lên, cam TREN thấy chỗ cũ trống), ghi `logs/attempts.csv`, tự động gửi phím
 (Auto-Step), cửa sổ HƯỚNG DẪN GẮP và thanh gợi ý 4 servo, tư thế cam NGANG, YOLO làm mặc định, hiệu chỉnh trong chương trình bằng phím `Y` / `E`. Bản đầy đủ
 trước khi đơn giản hóa được sao lưu ở `~/Documents/project/Project_IoT_backup_truoc_don_gian_hoa_2026-11-02.tgz` (không nằm trong repo).
+
+Lần rút gọn phần 2 (2026-11-10): bỏ YOLO (`--yolo`), điện thoại qua `adb` / IP Webcam, xoay hình (`--rotate-*`), ước lượng tờ giấy khi không thấy mã,
+vật dán mã ArUco, cảnh báo và phím tráo camera (`T`, `0`-`3`). Vẫn giữ: nhớ mã bị che, bù thị sai, lọc tay người / thân robot, tìm camera theo tên.
