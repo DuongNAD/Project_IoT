@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Dựng bộ slide thuyết trình (tiếng Việt, 16:9) cho mã hiện tại, theo phong cách slide Gamota (06_PHONG_CACH.md):
+Dựng bộ slide thuyết trình (tiếng Việt, 16:9) cho mã hiện tại, theo phong cách slide Gamota (_luu_tru/slides_cu/06_PHONG_CACH.md):
 nền trắng sữa ấm, chữ nâu than, nhấn xanh teal (code, bằng chứng) và đất nung (phần cứng, điều chưa kiểm chứng), thẻ phẳng.
 camera -> vision.py -> control.py (khối điều khiển: bấm phím gì) -> success.py (khối success: đã tới chưa) -> screen.py.
-Nhóm 4 người, 4 phần theo đường đi của dữ liệu, mỗi phần mở bằng một slide ngăn:
-01 linh kiện (danh sách, giới thiệu, sơ đồ mạch) -> 02 computer vision -> 03 code điều khiển (lưu đồ, code firmware, IK) -> 04 success.
+Nhóm 4 người, 3 phần theo đường đi của dữ liệu, mỗi phần mở bằng một slide ngăn:
+01 linh kiện (danh sách, giới thiệu, sơ đồ mạch) -> 02 computer vision & hỗ trợ gắp (hai người: tọa độ, nhận diện vật,
+success, thử nghiệm, kết quả, hạn chế) -> 03 code điều khiển (lưu đồ, code firmware, IK, giao diện, hiệu chỉnh).
 Thứ tự slide nằm ở ORDER (cuối tệp); tên người ở TEAM (đầu tệp).
 
     python3 slides/build_slides.py        ->  slides/Project_IoT_ThuyetTrinh.pptx
@@ -50,14 +51,15 @@ CW = W - 2 * M       # Bề rộng nội dung
 # Nhóm 4 người: ĐIỀN TÊN THẬT VÀO ĐÂY. Bìa, slide nhóm, nhãn người nói ở góc trên phải và ghi chú đều lấy từ bảng này.
 TEAM = {
     "hw": ("[Tên A]", "Linh kiện"),
-    "cv": ("[Tên B]", "Computer vision"),
+    "cv": ("Nguyễn Anh Dương", "Computer vision"),
     "ctrl": ("[Tên C]", "Code điều khiển"),
-    "succ": ("[Tên D]", "Success"),
+    "succ": ("Phạm Trương Vũ", "Hỗ trợ gắp"),
 }
+SPEAK_ORDER = ("hw", "cv", "succ", "ctrl")  # Thứ tự nói: cv và succ cùng trình bày phần 02
 
 # ==============================================================================
 # Màu: bảng màu slide Gamota. Teal = code tất định / bằng chứng đã có; đất nung = phần cứng, rủi ro, chưa kiểm chứng;
-# chàm = YOLO11 (tùy chọn); xám ấm = trung tính
+# chàm = HC-05 (tùy chọn); xám ấm = trung tính
 # ==============================================================================
 BG = RGBColor(0xFB, 0xF8, 0xF1)        # nền
 BG2 = RGBColor(0xF3, 0xED, 0xE1)       # nền xen kẽ, panel trung tính
@@ -89,7 +91,7 @@ FONT_FILES = {
            "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf"),
 }
 _pil_fonts = {}
-# Không ngắt dòng giữa số và đơn vị ("8,5 mm"), quanh dấu nhân ("S × 15"), sau dấu ≈ và trong "109 / 109"
+# Không ngắt dòng giữa số và đơn vị ("8,5 mm"), quanh dấu nhân ("S × 15"), sau dấu ≈ và trong "92 / 92"
 NO_BREAK = [(re.compile(r"(\d)\s+(mm|cm|ms|Hz|V|giây|phút|°)(?!\w)"), "\\1\u00a0\\2"),
             (re.compile(r"\s+×\s+"), "\u00a0×\u00a0"),
             (re.compile(r"\s+≈"), "\u00a0≈"),
@@ -375,14 +377,15 @@ def caption(slide, x, y, w, s, size=11, h=0.45, color=MUTED, align=LEFT):
 
 
 # ==============================================================================
-# Thứ tự slide và 4 phần (mỗi người một phần). num("ik") = số trang của slide "ik", dùng cho chữ "xem slide ..."
+# Thứ tự slide và 3 phần (phần 02 do hai người nói). num("ik") = số trang của slide "ik", dùng cho chữ "xem slide ..."
 # ==============================================================================
 SECTIONS = {  # phần -> (số phần, tên phần, các slide phần đó trình bày sau slide ngăn)
     "hw": ("01", "Linh kiện", ["parts", "comp1", "comp2", "circuit", "heat"]),
-    "cv": ("02", "Computer vision", ["a4", "objects"]),
+    "cv": ("02", "Computer vision & Hỗ trợ gắp", ["a4", "objects", "success", "trial", "results", "limits"]),
     "ctrl": ("03", "Code điều khiển", ["flow", "fwcode", "ik", "screen", "calib"]),
-    "succ": ("04", "Success", ["success", "trial", "results", "limits"]),
 }
+SECTION_PEOPLE = {"hw": ("hw",), "cv": ("cv", "succ"), "ctrl": ("ctrl",)}  # phần -> người nói (khóa TEAM)
+PART_OF = {who: sec for sec, people in SECTION_PEOPLE.items() for who in people}  # người -> phần
 TITLES = {
     "parts": "Danh sách linh kiện", "comp1": "Arduino Uno R3 và PCA9685", "comp2": "Servo, nguồn, HC-05, camera",
     "circuit": "Sơ đồ mạch", "heat": "Bảo vệ servo kẹp", "a4": "Hệ tọa độ từ tờ A4", "objects": "Nhận diện vật",
@@ -390,6 +393,8 @@ TITLES = {
     "calib": "Hiệu chỉnh mô hình", "success": "Điều kiện hoàn thành", "trial": "Thử nghiệm trên cánh tay thật",
     "results": "Kết quả", "limits": "Hạn chế, hướng phát triển",
 }
+UI_OLD = True  # Ảnh ui_screen_* / sw_annot_* chụp bằng giao diện trước 10/11; chạy lại make_screen_images.py trên Mac rồi đặt False
+UI_NOTE = " (giao diện bản trước)" if UI_OLD else ""
 SLOT_BOXES = {}  # Ô "Slide a–b · ≈ N phút" trên slide nhóm, điền sau khi dựng xong (cần số trang và độ dài lời nói)
 
 
@@ -412,7 +417,7 @@ def slide_cover(prs, n):
     text(s, M, 3.5, 5.6, 1.0, "Hai camera · gợi ý phím bấm · kiểm tra góc servo",
          16, TEXT2, spacing=1.15)
     label(s, M, 4.82, 5.8, "Nhóm thực hiện", MUTED, 10)
-    for i, key in enumerate(("hw", "cv", "ctrl", "succ")):
+    for i, key in enumerate(SPEAK_ORDER):
         x, y = M + (i % 2) * 2.95, 5.18 + (i // 2) * 0.66
         text(s, x, y, 2.85, 0.6, [[(name(key), {"bold": True, "size": 14})],
                                   [(TEAM[key][1], {"color": TEXT2, "size": 11})]], 14, INK, spacing=1.05)
@@ -438,32 +443,35 @@ def slide_team(prs, n):
         ("hw", ORANGE, "Linh kiện, sơ đồ mạch, lắp ráp cánh tay và camera",
          "Arduino Uno · PCA9685 · MG996R"),
         ("cv", TEAL, "Hệ tọa độ từ tờ A4, nhận diện vật", "vision.py · cameras.py"),
-        ("ctrl", TEAL, "Firmware Arduino, động học ngược, lệnh bấm phím, hiệu chỉnh",
-         "robot_arm_4dof.ino · control.py"),
         ("succ", TEAL, "Điều kiện hoàn thành, giao diện, kiểm thử",
          "success.py · screen.py · tests/"),
+        ("ctrl", TEAL, "Firmware Arduino, động học ngược, lệnh bấm phím, hiệu chỉnh",
+         "robot_arm_4dof.ino · control.py"),
     ]
     cw, gap = (CW - 3 * 0.25) / 4, 0.25
     for i, (key, col, desc, files) in enumerate(members):
         x = M + i * (cw + gap)
         box(s, x, 1.95, cw, 3.85, fill=CARD)
         box(s, x, 1.95, cw, 0.07, fill=col)
-        label(s, x + 0.22, 2.22, cw - 0.4, f"{SECTIONS[key][0]} · {TEAM[key][1]}", col, 10.5)
-        text(s, x + 0.22, 2.55, cw - 0.4, 0.4, name(key), 18, INK, True)
+        label(s, x + 0.22, 2.22, cw - 0.4, f"{SECTIONS[PART_OF[key]][0]} · {TEAM[key][1]}", col, 10.5)
+        size = 18  # Tên dài thu nhỏ tới 14 pt cho vừa một dòng
+        while size > 14 and text_w(name(key), size, True) > cw - 0.45:
+            size -= 1
+        text(s, x + 0.22, 2.55, cw - 0.4, 0.4, name(key), size, INK, True)
         text(s, x + 0.22, 3.1, cw - 0.4, 1.6, desc, 14, TEXT2, spacing=1.12)
         text(s, x + 0.22, 4.78, cw - 0.4, 0.5, files, 10.5, TEAL if col == TEAL else ORANGE, font=MONO if col == TEAL else FONT,
              spacing=1.05)
         rule(s, x + 0.22, 5.3, cw - 0.44)
         SLOT_BOXES[key] = text(s, x + 0.22, 5.4, cw - 0.4, 0.3, "…", 11, MUTED)
     text(s, M, 6.15, CW, 0.4, [[("Thứ tự trình bày:  ", {"color": TEXT2}),
-                                ("phần cứng  →  computer vision  →  điều khiển  →  success", {"color": INK, "bold": True})]], 14)
+                                ("phần cứng  →  computer vision & hỗ trợ gắp  →  điều khiển", {"color": INK, "bold": True})]], 14)
     footer(s, n)
     notes(s, """
-Nhóm có bốn thành viên. {hw} phụ trách linh kiện, sơ đồ mạch và lắp ráp. {cv} phụ trách computer vision: hệ tọa độ từ tờ A4 và nhận diện vật. {ctrl} phụ trách firmware Arduino và code điều khiển trên laptop. {succ} phụ trách khối success, giao diện và kiểm thử; {cv} và {succ} cùng thực hiện hai phần này.
+Nhóm có bốn thành viên. {hw} phụ trách linh kiện, sơ đồ mạch và lắp ráp. {cv} phụ trách computer vision: hệ tọa độ từ tờ A4 và nhận diện vật. {succ} phụ trách hỗ trợ gắp: khối success, giao diện và kiểm thử; {cv} và {succ} cùng thực hiện và cùng trình bày phần hai. {ctrl} phụ trách firmware Arduino và code điều khiển trên laptop.
 
-Bài trình bày đi theo luồng dữ liệu: phần cứng, computer vision, điều khiển, success. Mở đầu, {hw} trình bày bài toán, sơ đồ khối và phần linh kiện.
+Bài trình bày gồm ba phần: phần cứng; computer vision và hỗ trợ gắp; code điều khiển. Mở đầu, {hw} trình bày bài toán, sơ đồ khối và phần linh kiện.
 
-Nếu được hỏi: ai làm firmware? {ctrl}. Phần success và computer vision chia thế nào? Hai bạn làm chung; khi trình bày, {cv} nói phần computer vision, {succ} nói phần success.
+Nếu được hỏi: ai làm firmware? {ctrl}. Phần hai chia thế nào? Hai bạn làm chung; khi trình bày, {cv} nói phần computer vision, {succ} nói phần hỗ trợ gắp.
 
 Nguồn: README.md (các khối của mã); phân công do nhóm tự khai.
 """)
@@ -478,7 +486,7 @@ def slide_problem(prs, n):
     label(s, M, 1.95, 7.2, "Ba câu hỏi khi điều khiển bằng bàn phím")
     rows = [("Vật ở đâu trên bàn?", "02 · COMPUTER VISION"),
             ("Bấm phím nào, bao nhiêu lần?", "03 · ĐIỀU KHIỂN"),
-            ("Đã tới đúng góc chưa?", "04 · SUCCESS")]
+            ("Đã tới đúng góc chưa?", "02 · HỖ TRỢ GẮP")]
     for i, (q, who) in enumerate(rows):
         y = 2.45 + i * 1.12
         rule(s, M, y, 7.2)
@@ -526,7 +534,7 @@ def slide_system(prs, n):
         ("CẢM BIẾN", "Hai camera", "OBSBOT (trên), MacBook (ngang)", None, False),
         ("NHÌN · vision.py", "Tìm vật", ["ArUco, tách màu", "→ (X, Y) cm"], "02", False),
         ("ĐIỀU KHIỂN · control.py", "Điều khiển", ["góc 3 servo", "→ phím cần bấm"], "03", True),
-        ("SUCCESS · success.py", "Success", "kiểm tra góc 3 servo", "04", True),
+        ("SUCCESS · success.py", "Success", "kiểm tra góc 3 servo", "02", True),
         ("MÀN HÌNH · screen.py", "Hiển thị", "lệnh bấm, kết quả", None, False),
     ]
     xs = [M + i * (w + gap) for i in range(5)]
@@ -569,9 +577,9 @@ def slide_system(prs, n):
     text(s, M + 0.2, hy + 0.42, 4.1, 0.55, "Góc hiện tại, góc cần tới, lệnh bấm. Khối điều khiển tạo, khối success đọc.",
          12, INK, spacing=1.05)
     box(s, M, 5.62, CW, 1.0, fill=BG2)
-    code = [("plan   = self.control.update(self.tracker.objects)", "# khối điều khiển"),
+    code = [("plan   = self.control.update(self.vision.objects)", "# khối điều khiển"),
             ("result = self.success.update(plan)", "# khối success"),
-            ("screen = build_screen(..., plan, result)", "# màn hình (main.py:171-174)")]
+            ("screen = build_screen(..., plan, result)", "# màn hình (main.py:135-138)")]
     text(s, M + 0.25, 5.74, CW - 0.4, 0.85, [[(c.ljust(53), {}), (k, {"color": MUTED})] for c, k in code], 12.5, INK, font=MONO,
          spacing=1.12)
     footer(s, n)
@@ -586,7 +594,7 @@ Người dùng bấm phím theo gợi ý. Phím được gửi xuống Arduino q
 
 Nếu được hỏi: chương trình có tự gửi phím không? Không, chỉ gửi khi người dùng bấm. Vì sao trong code gọi là nhóm 1, nhóm 2? Đó là tên hai khối trong mã nguồn (control.py, success.py). Có dùng Bluetooth không? Firmware hỗ trợ nhận phím từ module HC-05 ở chân D2, D3, nhưng chương trình trên laptop dùng cáp USB.
 
-Nguồn: README.md (sơ đồ đầu trang, mục 1 và 3); main.py:171-174; robot_arm_4dof.ino:6,8,86,203-207; control.py (ArduinoSerialLink).
+Nguồn: README.md (sơ đồ đầu trang, mục 1 và 3); main.py:135-138; robot_arm_4dof.ino:6,8,86,203-207; control.py (ArduinoSerialLink).
 """)
 
 
@@ -597,18 +605,21 @@ def slide_divider(prs, n, key):
     s = new_slide(prs, bg=STATEMENT)
     sec_no, sec_name, keys = SECTIONS[key]
     col = ORANGE if key == "hw" else TEAL
-    label(s, M, 1.3, 6.0, f"Phần {sec_no} / 04", col)
+    label(s, M, 1.3, 6.0, f"Phần {sec_no} / {len(SECTIONS):02d}", col)
     text(s, M, 1.62, 3.4, 1.7, sec_no, 110, col, True)
-    text(s, M, 3.45, 6.6, 0.85, sec_name, 44, INK, True)
-    text(s, M, 4.38, 6.6, 0.45, name(key), 22, TEXT2)
+    lines = sec_name.replace(" & ", " &\n").split("\n")  # Tên dài xuống dòng sau "&"
+    th = 0.85 + 0.75 * (len(lines) - 1)
+    text(s, M, 3.45, 6.6, th, lines, 44, INK, True, spacing=1.0)
+    text(s, M, 3.53 + th, 6.6, 0.45, "  –  ".join(name(p) for p in SECTION_PEOPLE[key]), 22, TEXT2)
     box(s, 7.75, 1.3, W - M - 7.75, 4.55, fill=CARD)
     label(s, 8.05, 1.55, 4.3, "Phần này gồm", TEXT2, 10.5)
+    step = min(0.68, 3.7 / len(keys))  # 6 mục vẫn nằm trong khung
     for i, k in enumerate(keys):
-        y = 2.0 + i * 0.68
+        y = 2.0 + i * step
         rule(s, 8.05, y, W - M - 8.35)
-        text(s, 8.05, y + 0.16, 0.7, 0.4, str(num(k)), 16, col, True)
-        text(s, 8.75, y + 0.16, W - M - 9.1, 0.4, TITLES[k], 16, INK)
-    rule(s, 8.05, 2.0 + len(keys) * 0.68, W - M - 8.35)
+        text(s, 8.05, y + (step - 0.36) / 2, 0.7, 0.4, str(num(k)), 16, col, True)
+        text(s, 8.75, y + (step - 0.36) / 2, W - M - 9.1, 0.4, TITLES[k], 16, INK)
+    rule(s, 8.05, 2.0 + len(keys) * step, W - M - 8.35)
     x = M
     for k, (no, nm, _ks) in SECTIONS.items():
         lab = f"{no}  {nm}"
@@ -621,9 +632,8 @@ def slide_divider(prs, n, key):
     footer(s, n)
     intro = {
         "hw": "Tiếp theo là phần linh kiện, gồm: danh sách linh kiện, giới thiệu các linh kiện chính, sơ đồ mạch và giải pháp bảo vệ servo kẹp. Mỗi linh kiện được trình bày theo thông số và vai trò trong hệ thống.",
-        "cv": "Em là {cv}, phụ trách computer vision cùng {succ}. Phần này xác định vị trí vật trên bàn theo xăng-ti-mét, gồm hai nội dung: hệ tọa độ từ tờ A4 với bốn mã ArUco, và nhận diện vật.",
+        "cv": "Em là {cv}. Phần hai do em và {succ} trình bày, gồm hai nửa. Nửa đầu em trình bày computer vision: xác định vị trí vật trên bàn theo xăng-ti-mét, gồm hệ tọa độ từ tờ A4 với bốn mã ArUco và nhận diện vật. Nửa sau {succ} trình bày hỗ trợ gắp: điều kiện hoàn thành, thử nghiệm trên cánh tay thật, kết quả, hạn chế và hướng phát triển.",
         "ctrl": "Em là {ctrl}, phụ trách code điều khiển: firmware trên Arduino và khối điều khiển trên laptop. Phần này gồm lưu đồ thuật toán, code firmware, động học ngược, giao diện chương trình và hiệu chỉnh mô hình cánh tay.",
-        "succ": "Em là {succ}, phụ trách khối success cùng {cv}. Phần cuối gồm điều kiện hoàn thành, thử nghiệm trên cánh tay thật, kết quả, hạn chế và hướng phát triển.",
     }[key]
     notes(s, intro + """
 
@@ -757,7 +767,7 @@ def slide_comp2(prs, n):
                 kx += 0.18
     footer(s, n)
     notes(s, """
-Tiếp theo là các linh kiện còn lại. Bốn servo MG996R dùng bánh răng kim loại, góc quay 0–180 độ, độ rộng xung 0,5–2,5 ms. Mỗi lần bấm, đế, vai và khuỷu quay 2 độ, kẹp quay 5 độ; tám phím bên dưới là cặp phím của từng servo. Servo này không phản hồi vị trí, nên trạng thái XONG ở phần success dựa trên góc đã ra lệnh.
+Tiếp theo là các linh kiện còn lại. Bốn servo MG996R dùng bánh răng kim loại, góc quay 0–180 độ, độ rộng xung 0,5–2,5 ms. Mỗi lần bấm, đế, vai và khuỷu quay 2 độ, kẹp quay 5 độ; tám phím bên dưới là cặp phím của từng servo. Servo này không phản hồi vị trí, nên trạng thái XONG ở phần hỗ trợ gắp dựa trên góc đã ra lệnh.
 
 Nguồn tổ ong 5–6 V cấp riêng cho servo qua cổng V+ của PCA9685, vì servo tiêu thụ dòng lớn; GND được nối chung.
 
@@ -896,7 +906,7 @@ Firmware mới có các biện pháp: giới hạn góc kẹp 160 độ; mở h�
 
 Firmware này đã được nạp và kiểm tra trên mạch ngày 2/11. Nhóm chưa đo nhiệt độ servo sau thay đổi.
 
-Tiếp theo, {cv} trình bày phần computer vision.
+Tiếp theo, {cv} và {succ} trình bày phần computer vision và hỗ trợ gắp.
 
 Nếu được hỏi: dùng phím Z cần chú ý gì? Cả bốn servo mất xung nên cánh tay hạ xuống theo trọng lực; cần đưa tay kẹp xuống vị trí trống trước. Giới hạn 160 độ có vượt dải xung không? Có, xung khoảng 2,56 ms, hơi vượt dải danh định 2,5 ms; nhóm chấp nhận để kẹp chặt hơn, kèm cơ chế tự ngắt xung sau 60 giây. Vì sao khi ngắt xung lúc mở hết thì hàm kẹp khép lại? Khi mất xung, hai hàm kẹp khép thành hình chữ V hẹp, khe còn khoảng 1–2 cm (ước lượng từ ảnh), nên khi tiếp cận cần bấm J để mở lại.
 
@@ -914,7 +924,7 @@ def slide_a4(prs, n):
     ph = pw * 9 / 16 * 0.98
     image(s, "sw_annot_top.jpg", M, 1.95, pw, ph)
     image(s, "sw_annot_side.jpg", M + pw + 0.4, 1.95, pw, ph)
-    caption(s, M, 1.95 + ph + 0.12, pw, "Cam TRÊN: lưới 5 cm; cốc ở X = 16,5 cm, Y = 13,8 cm", 10.5, 0.3)
+    caption(s, M, 1.95 + ph + 0.12, pw, "Cam TRÊN: lưới 5 cm; cốc ở X = 16,5 cm, Y = 13,8 cm" + UI_NOTE, 10.5, 0.3)
     caption(s, M + pw + 0.4, 1.95 + ph + 0.12, pw, "Cam NGANG: cùng lưới tọa độ", 10.5, 0.3)
     cols = [("4 mã ở 4 góc", ["DICT_4X4_50 · ID 0–3", "cạnh 2,8 cm"]),
             ("Homography", "pixel ↔ cm, hai camera"),
@@ -936,7 +946,7 @@ Camera phía trên đặt cao khoảng 46 cm, nên phần trên của vật cao 
 
 Nếu được hỏi: vì sao dùng ArUco? Mã có số định danh, xác định rõ bốn góc, nhận được khi nhìn nghiêng và có sẵn trong OpenCV. Tờ giấy là hệ quy chiếu chung cho cả hai camera, nên khi đổi vị trí camera không cần đo lại bằng thước. Độ cao 46 cm đo thế nào? Ước lượng từ ảnh, chưa đo bằng thước; con số 0,2 cm là kết quả của một phép đo.
 
-Nguồn: generate_aruco_a4.py:3,31-36; vision.py:24-30,152-170,486-505,557-562; tests/test_vision.py:223-243; README.md mục 4.
+Nguồn: generate_aruco_a4.py:2-5,16-22; vision.py:16-23,45-62,77-93; tests/test_vision.py:48,64-71; README.md mục 4.
 """)
 
 
@@ -947,22 +957,19 @@ def slide_objects(prs, n):
     s = new_slide(prs)
     header(s, "02 · Computer vision", "Nhận diện vật", "cv")
     cards = [
-        ("MẶC ĐỊNH", TEAL, TEAL_SOFT, "Tách màu trên ảnh phẳng",
-         "Lọc theo màu và kích thước; loại tay người, mép giấy, thân robot"),
-        ("BỔ SUNG", TEAL, BG2, "Mã ArUco ID 10–29",
-         "Dán lên vật để định vị ổn định"),
-        ("TÙY CHỌN · --yolo", INDIGO, BG2, "YOLO11s (bộ COCO)",
-         "Nhận tên vật; chưa huấn luyện lại"),
+        ("BƯỚC 1", "Ảnh phẳng tờ A4", "Homography, 8 pixel / cm"),
+        ("BƯỚC 2", "Tách vùng có màu", "Độ bão hòa ≥ 90, đủ sáng"),
+        ("BƯỚC 3", "Lọc vật", "Bỏ khối < 1,5 cm² hoặc > 50 cm², sát mép giấy, dính thân robot"),
     ]
     cw = (CW - 0.5) / 3
-    for i, (tag, col, fill, title, desc) in enumerate(cards):
+    for i, (tag, title, desc) in enumerate(cards):
         x = M + i * (cw + 0.25)
-        box(s, x, 1.95, cw, 2.0, fill=fill)
-        chip(s, x + 0.22, 2.15, tag, col, CARD if fill != BG2 else (INDIGO_SOFT if col == INDIGO else TEAL_SOFT), size=10)
+        box(s, x, 1.95, cw, 2.0, fill=TEAL_SOFT if i == 0 else BG2)
+        chip(s, x + 0.22, 2.15, tag, TEAL, CARD if i == 0 else TEAL_SOFT, size=10)
         text(s, x + 0.22, 2.62, cw - 0.4, 0.36, title, 16, INK, True)
         text(s, x + 0.22, 3.08, cw - 0.4, 0.85, desc, 14, TEXT2, spacing=1.08)
-    image(s, "ui_guide_cameras.png", M, 4.25, 7.6, 2.3, mode="cover", focus=(0.5, 0.45))
-    caption(s, M, 6.68, 7.6, "Ví dụ YOLO nhận nhầm bộ phận robot (giao diện bản trước)", 10, 0.3)
+    image(s, "sw_annot_top.jpg", M, 4.25, 7.6, 2.3, mode="cover", focus=(0.5, 0.42))
+    caption(s, M, 6.68, 7.6, "Cam TRÊN, ảnh đã lưu: vòng xanh quanh cốc kèm X, Y (cm)" + UI_NOTE, 10, 0.3)
     bx = M + 7.6 + 0.35
     box(s, bx, 4.19, W - M - bx, 2.42, fill=BG2)
     label(s, bx + 0.25, 4.38, 3.6, "Chọn mục tiêu", TEAL, 10.5)
@@ -974,17 +981,17 @@ def slide_objects(prs, n):
     ], 15, after=9)
     footer(s, n)
     notes(s, """
-Sau khi có hệ tọa độ, chương trình cần tìm vật. Cách mặc định là tách màu trên ảnh phẳng của tờ A4: vật có màu đậm như cốc đỏ được tách ra mà không cần dán mã. Bộ lọc loại các vùng quá lớn, chạm mép giấy hoặc dính vào thân robot, nên tay người không bị nhận là vật.
+Sau khi có hệ tọa độ, chương trình tìm vật bằng cách tách màu, gồm ba bước. Bước một: dùng homography dựng ảnh phẳng của tờ A4, mỗi xăng-ti-mét là 8 pixel. Bước hai: giữ các vùng có màu đậm như cốc đỏ; giấy trắng, bóng xám và thân robot đen bị bỏ. Bước ba: lọc vật. Khối nhỏ hơn 1,5 cm² là nhiễu hoặc dây điện; khối lớn hơn 50 cm² là bàn tay, không lọt miệng kẹp; khối sát mép giấy là vật thò từ ngoài vào; khối dính vào thân robot đen là bộ phận của robot.
 
-Cách thứ hai là dán mã ArUco số 10 đến 29 lên vật. Cách thứ ba là YOLO11 với trọng số COCO, chưa huấn luyện lại, chỉ bật khi cần. Ảnh bên dưới từ giao diện bản trước cho thấy YOLO nhận nhầm bộ phận robot thành chai và máy bay, nắp cốc thành đĩa ném; vì vậy bản hiện tại tắt YOLO mặc định.
+Tâm của khối màu đổi ra xăng-ti-mét, rồi được bù thị sai như slide trước. Ảnh bên dưới là khung camera trên: vòng xanh quanh cốc kèm tọa độ X, Y.
 
 Khi có nhiều vật, vật gần đế nhất được chọn trước, phím TAB để đổi vật. Vị trí được lấy trung bình 10 khung hình để giảm nhiễu, và được lưu trong 120 giây khi tay kẹp che vật.
 
-Tiếp theo, {ctrl} trình bày phần code điều khiển.
+Tiếp theo, {succ} trình bày nửa sau của phần này: hỗ trợ gắp.
 
-Nếu được hỏi: có huấn luyện YOLO không? Chưa; huấn luyện cho vật thật là hướng phát triển. Vì sao vẫn giữ YOLO? Để nhận tên vật khi cần; vị trí theo xăng-ti-mét luôn tính từ homography của tờ giấy.
+Nếu được hỏi: vì sao không dùng YOLO? Bản trước có YOLO11 nhưng hay nhận nhầm bộ phận robot, nên nhóm bỏ để mã đơn giản; tách màu đủ cho cốc màu đậm. Vật màu trắng hoặc xám thì sao? Chưa nhận được; đây là một hạn chế.
 
-Nguồn: main.py:53 (--yolo); vision.py:43-47,271-300,365-368,476-486,491-492,507-515; control.py:68-69,542-566.
+Nguồn: vision.py:68-96; tests/test_vision.py:74-105; control.py:68-69,542-566.
 """)
 
 
@@ -1054,7 +1061,7 @@ Bên phải là chương trình Python trên laptop, chạy ở mỗi khung hìn
 
 Nếu được hỏi: vì sao firmware đọc HC-05 trước USB? Để phím từ Bluetooth không bị bỏ qua khi USB cũng có dữ liệu; mỗi vòng chỉ đọc một ký tự. Vì sao không gửi trực tiếp lệnh góc? Để Arduino chỉ cần xử lý từng phím, giống khi điều khiển bằng tay.
 
-Nguồn: robot_arm_4dof.ino:84-208; main.py:164-180,204-214; control.py:606-618 (press); success.py.
+Nguồn: robot_arm_4dof.ino:84-208; main.py:132-144,168-190; control.py:606-618 (press); success.py.
 """)
 
 
@@ -1204,7 +1211,7 @@ def slide_screen(prs, n):
     s = new_slide(prs)
     header(s, "03 · Code điều khiển", "Giao diện chương trình", "ctrl")
     ih = image(s, "ui_screen_before.png", M, 1.95, 7.85, None, mode="fit")
-    caption(s, M, 1.95 + ih + 0.13, 7.85, "Chạy trên ảnh camera đã lưu, cánh tay mô phỏng; chữ không dấu do OpenCV.", 10.5, 0.3)
+    caption(s, M, 1.95 + ih + 0.13, 7.85, "Chạy trên ảnh camera đã lưu, cánh tay mô phỏng; chữ không dấu do OpenCV" + UI_NOTE, 10.5, 0.3)
     rx, rw = 9.05, W - M - 9.05
     dot(s, rx, 1.98, 1, d=0.38, size=13)
     text(s, rx + 0.5, 1.98, rw - 0.5, 0.34, "Ô điều khiển", 15.5, INK, True)
@@ -1232,7 +1239,7 @@ Chữ không dấu vì OpenCV không hiển thị được dấu tiếng Việt.
 
 Nếu được hỏi: chương trình có tự gửi phím không? Không; chỉ gửi khi người dùng bấm. Vì sao chỉ hiển thị một lệnh chính? Để người điều khiển thực hiện ngay, không cần đọc bảng số. Thứ tự lệnh thế nào? Đế, rồi vai, rồi khuỷu; servo đã đạt được bỏ qua. Ảnh đã lưu thì gợi ý lấy từ đâu? Chương trình đọc khung hình đã lưu như camera đang chạy; cánh tay mô phỏng đặt ở Home.
 
-Nguồn: screen.py:157-239,249-259; main.py:155-180; control.py:211-217; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
+Nguồn: screen.py:46-77; main.py:123-144; control.py:211-217; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
 """)
 
 
@@ -1280,7 +1287,7 @@ Nhóm hiệu chỉnh bằng 10 mẫu ở các vị trí khác nhau: khớp lại
 
 Lưu ý: 8,5 mm là sai số trên chính các mẫu dùng để khớp; gợi ý mới chưa được thử trên cánh tay thật; và kết quả hiệu chỉnh chỉ áp dụng cho vị trí tờ giấy và robot lúc đo.
 
-Tiếp theo, {succ} trình bày khối success và kết quả.
+Em xin hết phần code điều khiển. Tiếp theo là phần tổng kết.
 
 Nếu được hỏi: nguyên nhân sai lệch là gì? Có ba: vị trí và hướng đế khác mặc định; góc chuẩn của vai và khuỷu phụ thuộc cách lắp cần servo, thước không đo được; và càng kẹp gắn cứng vào khâu khuỷu nên điểm kẹp quay theo khâu, trong khi mô hình cũ giữ độ lệch cố định. Vì sao không đo lại bằng thước? Thước đo được chiều dài khâu nhưng không đo được góc lắp cần servo; hiệu chỉnh từ các mẫu xử lý được cả hai.
 
@@ -1289,11 +1296,11 @@ Nguồn: calibration.json (mục arm, claw, arm_fit); calibration.py:16-20,77-10
 
 
 # ==============================================================================
-# 04 · Success · luật success
+# 02 · Hỗ trợ gắp · luật success
 # ==============================================================================
 def slide_success(prs, n):
     s = new_slide(prs)
-    header(s, "04 · Success", "Điều kiện hoàn thành", "succ")
+    header(s, "02 · Hỗ trợ gắp", "Điều kiện hoàn thành", "succ")
     rows = [("± 2°", "sai lệch tối đa mỗi servo"),
             ("3 servo", "đế, vai, khuỷu (không xét kẹp)"),
             ("1 giây", "giữ liên tục để tính 1 lần")]
@@ -1305,7 +1312,7 @@ def slide_success(prs, n):
     rule(s, M, 1.95 + 3 * 0.85, 5.8)
     chip(s, M, 4.75, "KIỂM THỬ: 7 TEST + ĐẦU–CUỐI", size=10)
     ih = image(s, "ui_screen_done.png", 6.9, 1.95, W - M - 6.9, None, mode="fit")
-    caption(s, 6.9, 1.95 + ih + 0.12, W - M - 6.9, "Mô phỏng trên ảnh đã lưu: đủ phím → XONG",
+    caption(s, 6.9, 1.95 + ih + 0.12, W - M - 6.9, "Mô phỏng trên ảnh đã lưu: đủ phím → XONG" + UI_NOTE,
             10, 0.3)
     for i, (title, body) in enumerate([
         ("Phạm vi", "Không xét tay kẹp: vật thon dễ trượt khi kẹp"),
@@ -1317,7 +1324,7 @@ def slide_success(prs, n):
         text(s, x + 0.22, 6.12, (CW - 0.25) / 2 - 0.4, 0.7, body, 14, INK, spacing=1.05)
     footer(s, n)
     notes(s, """
-Khối success kiểm tra ba servo đế, vai, khuỷu đã tới góc mà khối điều khiển gợi ý hay chưa. Khối này chỉ đọc Plan, không phụ thuộc vào camera, động học hay cổng USB.
+Em là {succ}, trình bày phần hỗ trợ gắp. Khối success kiểm tra ba servo đế, vai, khuỷu đã tới góc mà khối điều khiển gợi ý hay chưa; cách tính góc gợi ý được {ctrl} trình bày ở phần ba. Khối này chỉ đọc Plan, không phụ thuộc vào camera, động học hay cổng USB.
 
 Điều kiện gồm ba ý. Mỗi servo lệch không quá một bước bấm, tức 2 độ; nhóm chọn 2 độ vì mô hình hình học cũng chỉ chính xác ở mức đó. Chỉ xét ba servo của cánh tay, không xét tay kẹp. Cả ba phải giữ đúng liên tục 1 giây mới tính thêm một lần hoàn thành.
 
@@ -1327,16 +1334,16 @@ Lưu ý: trạng thái XONG nghĩa là ba góc đã ra lệnh đạt mục tiêu
 
 Nếu được hỏi: vì sao cần giữ 1 giây? Để trường hợp đi qua mục tiêu không bị tính. Có kiểm tra bằng camera không? Bản trước có, dựa trên hai camera; nhóm đã bỏ để mã đơn giản hơn. Số lần hoàn thành hiển thị ở đâu? Ở dòng Thanh cong: N lan trong ô success; chưa ghi ra file. Khi không thấy vật? Không báo XONG; trạng thái là chưa thấy vật.
 
-Nguồn: success.py:16-17,19,22-75; tests/test_success.py (7 test); tests/test_end_to_end.py:11-47; robot_arm_4dof.ino:70-83; README.md mục 6; ảnh ui_screen_done (tạo bằng slides/tools/make_screen_images.py).
+Nguồn: success.py:11-12,15-58; tests/test_success.py (7 test); tests/test_end_to_end.py:11-47; robot_arm_4dof.ino:70-83; README.md mục 6; ảnh ui_screen_done (tạo bằng slides/tools/make_screen_images.py).
 """)
 
 
 # ==============================================================================
-# 04 · Success · thử trên cánh tay thật
+# 02 · Hỗ trợ gắp · thử trên cánh tay thật
 # ==============================================================================
 def slide_trial(prs, n):
     s = new_slide(prs, alt=True)
-    header(s, "04 · Success", "Thử nghiệm trên cánh tay thật", "succ")
+    header(s, "02 · Hỗ trợ gắp", "Thử nghiệm trên cánh tay thật", "succ")
     x0, w, gap = 2.0, 3.3, 0.22
     h = w * 9 / 16
     cols = [("demo_06_grip", "20:32:52 · KẸP"), ("demo_07_carry", "20:33:02 · CHUYỂN SANG TRÁI"), ("demo_08_place", "20:33:12 · ĐẶT XUỐNG")]
@@ -1357,7 +1364,7 @@ def slide_trial(prs, n):
 
 Người điều khiển bấm phím dựa trên hình ảnh từ hai camera, với giao diện bản trước khi đơn giản hóa. Trong buổi thử, cốc bị đổ khoảng 3 lần và được dựng lại bằng tay. Nhóm chưa có số liệu tỉ lệ thành công.
 
-Góc servo lúc kẹp, đọc từ giao diện bản cũ: đế khoảng 85, vai 60–65, khuỷu 85–90 độ. Các mẫu đặt kẹp quanh cốc trong buổi này cũng là dữ liệu {ctrl} dùng để hiệu chỉnh mô hình.
+Góc servo lúc kẹp, đọc từ giao diện bản cũ: đế khoảng 85, vai 60–65, khuỷu 85–90 độ. Các mẫu đặt kẹp quanh cốc trong buổi này cũng là dữ liệu {ctrl} dùng để hiệu chỉnh mô hình ở phần ba.
 
 Nếu được hỏi: có video không? [...điền: có / không; nếu có thì chiếu đoạn 20–30 giây]. Kẹp có giữ chắc không? Chưa: cốc thon bị đẩy ra khi khép đến 150–160 độ.
 
@@ -1366,11 +1373,11 @@ Nguồn: ảnh demo_06, demo_07, demo_08 (khung cắt từ video 02/11/2026, 20:
 
 
 # ==============================================================================
-# 04 · Success · kết quả
+# 02 · Hỗ trợ gắp · kết quả
 # ==============================================================================
 def slide_results(prs, n):
     s = new_slide(prs, alt=True)
-    header(s, "04 · Success", "Kết quả", "succ")
+    header(s, "02 · Hỗ trợ gắp", "Kết quả", "succ")
     pw = (CW - 0.3) / 2
     box(s, M, 1.95, pw, 3.4, fill=TEAL_SOFT)
     label(s, M + 0.28, 2.12, pw - 0.5, "Đã thực hiện", TEAL, 10.5)
@@ -1392,7 +1399,7 @@ def slide_results(prs, n):
         "Hiệu chỉnh cho tờ giấy mới",
         "Dashboard IoT / MQTT",
     ], 16, after=8, mark="—", mark_color=ORANGE, indent=0.3)
-    stats = [("109 / 109", ["test tự động", "đều đạt"], TEAL),
+    stats = [("92 / 92", ["test tự động", "đều đạt"], TEAL),
              ("11", ["tệp test"], INK),
              ("8,5 mm", ["sai số hiệu chỉnh", "trên 10 mẫu"], TEAL)]
     sw = (CW - 0.5) / 3
@@ -1406,22 +1413,22 @@ def slide_results(prs, n):
     notes(s, """
 Slide này tổng hợp những việc đã thực hiện và chưa thực hiện.
 
-Đã thực hiện: hệ tọa độ chung cho hai camera; kẹp và di chuyển cốc trên cánh tay thật bằng bàn phím; hiệu chỉnh mô hình từ 10 mẫu với sai số 8,5 mm; firmware bảo vệ servo kẹp đã nạp và kiểm tra; giao diện gợi ý phím và kiểm tra góc. 109 test tự động đều đạt, chạy khoảng 9 giây, không cần camera hay Arduino.
+Đã thực hiện: hệ tọa độ chung cho hai camera; kẹp và di chuyển cốc trên cánh tay thật bằng bàn phím; hiệu chỉnh mô hình từ 10 mẫu với sai số 8,5 mm, chi tiết ở phần ba; firmware bảo vệ servo kẹp đã nạp và kiểm tra; giao diện gợi ý phím và kiểm tra góc. 92 test tự động đều đạt, chạy khoảng 9 giây, không cần camera hay Arduino.
 
 Chưa thực hiện: đếm số lần XONG trên cánh tay thật với bản mới; kiểm tra gợi ý mới trên phần cứng; kẹp chắc vật thon; đo nhiệt độ servo; hiệu chỉnh cho tờ giấy mới; dashboard IoT qua MQTT và cảm biến lực, vốn có trong kế hoạch ngày 28/10.
 
-Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Mã được đơn giản hóa ngày 2/11; thử nghiệm bản mới trên cánh tay thật là bước tiếp theo. Test gồm những gì? Điều khiển 29, computer vision 15, camera 13, hiệu chỉnh 11, Serial 9, chương trình chính 8, success 7, độ bền 6, khớp mô hình 5, màn hình 4, đầu–cuối 2. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm có thể thêm MQTT từ gói JSON hiện có.
+Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Mã được đơn giản hóa ngày 2/11; thử nghiệm bản mới trên cánh tay thật là bước tiếp theo. Test gồm những gì? Điều khiển 29, hiệu chỉnh 11, Serial 9, computer vision 8, success 7, chương trình chính 7, độ bền 6, camera 5, khớp mô hình 5, màn hình 3, đầu–cuối 2. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm có thể thêm MQTT từ gói JSON hiện có.
 
-Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; lệnh .venv/bin/python -m pytest -q (109 passed, 03/11/2026).
+Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; lệnh python -m pytest -q (92 test, 10/11/2026; xem 05_SO_LIEU_VA_NGUON.md mục 11).
 """)
 
 
 # ==============================================================================
-# 04 · Success · hạn chế và việc tiếp theo
+# 02 · Hỗ trợ gắp · hạn chế và việc tiếp theo
 # ==============================================================================
 def slide_limits(prs, n):
     s = new_slide(prs)
-    header(s, "04 · Success", "Hạn chế và hướng phát triển", "succ")
+    header(s, "02 · Hỗ trợ gắp", "Hạn chế và hướng phát triển", "succ")
     pw = (CW - 0.3) / 2
     box(s, M, 1.95, pw, 3.95, fill=BG2)
     label(s, M + 0.28, 2.15, pw - 0.5, "Hạn chế", ORANGE, 10.5)
@@ -1429,7 +1436,7 @@ def slide_limits(prs, n):
         "Điều khiển vòng hở (không phản hồi vị trí)",
         "Hiệu chỉnh phụ thuộc vị trí giấy và robot",
         "Tay kẹp chưa giữ chắc vật thon",
-        "YOLO chưa huấn luyện cho vật thật",
+        "Chỉ nhận vật có màu trên giấy trắng",
         "Chưa có số liệu tỉ lệ hoàn thành",
     ], 16, after=12, mark="—", mark_color=ORANGE, indent=0.3)
     x2 = M + pw + 0.3
@@ -1450,15 +1457,17 @@ def slide_limits(prs, n):
     ], 12, after=1, indent=0.2)
     footer(s, n)
     notes(s, """
-Hệ thống hiện có năm hạn chế. Thứ nhất, điều khiển vòng hở: trạng thái XONG dựa trên góc đã ra lệnh vì MG996R không phản hồi vị trí. Thứ hai, kết quả hiệu chỉnh phụ thuộc vị trí tờ giấy và robot. Thứ ba, tay kẹp chưa giữ chắc vật thon. Thứ tư, YOLO chưa được huấn luyện cho vật thật. Thứ năm, chưa có số liệu tỉ lệ hoàn thành và nhiệt độ servo.
+Hệ thống hiện có năm hạn chế. Thứ nhất, điều khiển vòng hở: trạng thái XONG dựa trên góc đã ra lệnh vì MG996R không phản hồi vị trí. Thứ hai, kết quả hiệu chỉnh phụ thuộc vị trí tờ giấy và robot. Thứ ba, tay kẹp chưa giữ chắc vật thon. Thứ tư, chương trình chỉ nhận vật có màu đậm đặt trên giấy trắng. Thứ năm, chưa có số liệu tỉ lệ hoàn thành và nhiệt độ servo.
 
 Hướng phát triển: thử nghiệm bản mới trên cánh tay thật và đếm số lần XONG; cải thiện tay kẹp, ví dụ tăng ma sát hoặc dùng vật thân thẳng, rồi đưa kẹp vào điều kiện success; hiệu chỉnh lại khi đổi tờ giấy; đo vị trí đầu kẹp bằng camera để có phản hồi vòng kín; và thêm dashboard IoT qua MQTT nếu đề bài yêu cầu.
 
 Dòng dưới là hai lỗi tích hợp đã xử lý: thứ tự camera trên macOS thay đổi giữa các lần chạy, nên chương trình tìm camera theo tên; Arduino Uno tự khởi động lại mỗi khi cổng USB được mở lại, nên chương trình giữ một kết nối duy nhất và báo khi Arduino vừa reset.
 
+Tiếp theo, {ctrl} trình bày phần code điều khiển.
+
 Nếu được hỏi: phát hiện Arduino reset bằng cách nào? Gói JSON có thời gian chạy t; khi t trở về gần 0, giao diện báo ARDUINO VUA RESET. Vì sao camera đổi thứ tự? OpenCV đánh số camera theo uniqueID, còn danh sách của hệ điều hành xếp camera dùng gần nhất lên đầu. Đo đầu kẹp bằng camera thế nào? Ví dụ dán mã ArUco lên càng kẹp và dùng homography của tờ giấy; đây là hướng đề xuất, chưa thực hiện. Có thể chuyển sang tự gửi phím không? Về kỹ thuật là gửi phím theo Plan; nhóm chỉ thực hiện khi đo được độ lệch còn lại.
 
-Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 8, 9, 10, 13; cameras.py:4-12,75-115; control.py (ArduinoSerialLink: mở lại cổng, phát hiện reset); README.md mục 5 và 6.
+Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 8, 9, 10, 13; cameras.py:1-6,26-46; control.py (ArduinoSerialLink: mở lại cổng, phát hiện reset); README.md mục 5 và 6.
 """)
 
 
@@ -1483,7 +1492,7 @@ def slide_summary(prs, n):
         text(s, x + 1.9, 4.25, (CW - 0.25) / 2 - 2.0, 0.72, v, 15, INK, True, anchor=MIDDLE)
     box(s, M, 5.25, CW, 1.45, fill=TEAL_SOFT)
     text(s, M, 5.42, CW, 0.6, "Cảm ơn thầy cô và các bạn đã lắng nghe", 26, TEAL, True, align=CENTER)
-    text(s, M, 6.1, CW, 0.4, "  ·  ".join(name(k) for k in ("hw", "cv", "ctrl", "succ")) + "  ·  hỏi đáp", 13, TEXT2,
+    text(s, M, 6.1, CW, 0.4, "  ·  ".join(name(k) for k in SPEAK_ORDER) + "  ·  hỏi đáp", 13, TEXT2,
          align=CENTER)
     footer(s, n)
     notes(s, """
@@ -1515,17 +1524,16 @@ ORDER = [  # (khóa, hàm dựng, người nói: None = cả nhóm)
     ("div_cv", lambda p, n: slide_divider(p, n, "cv"), "cv"),
     ("a4", slide_a4, "cv"),
     ("objects", slide_objects, "cv"),
+    ("success", slide_success, "succ"),
+    ("trial", slide_trial, "succ"),
+    ("results", slide_results, "succ"),
+    ("limits", slide_limits, "succ"),
     ("div_ctrl", lambda p, n: slide_divider(p, n, "ctrl"), "ctrl"),
     ("flow", slide_flow, "ctrl"),
     ("fwcode", slide_fwcode, "ctrl"),
     ("ik", slide_ik, "ctrl"),
     ("screen", slide_screen, "ctrl"),
     ("calib", slide_calib, "ctrl"),
-    ("div_succ", lambda p, n: slide_divider(p, n, "succ"), "succ"),
-    ("success", slide_success, "succ"),
-    ("trial", slide_trial, "succ"),
-    ("results", slide_results, "succ"),
-    ("limits", slide_limits, "succ"),
     ("summary", slide_summary, None),
 ]
 TOTAL = len(ORDER)
@@ -1598,7 +1606,7 @@ def build(out_path=OUT_PPTX):
 REQUIRED_IMAGES = [
     "demo_06_grip_side.jpg", "demo_06_grip_top.jpg", "demo_07_carry_side.jpg", "demo_07_carry_top.jpg",
     "demo_08_place_side.jpg", "demo_08_place_top.jpg", "hw_electronics.jpg", "sw_annot_top.jpg", "sw_annot_side.jpg",
-    "ui_guide_cameras.png", "ui_screen_before.png", "ui_screen_done.png", "calib_before_after_side.jpg",
+    "ui_screen_before.png", "ui_screen_done.png", "calib_before_after_side.jpg",
 ]
 
 if __name__ == "__main__":

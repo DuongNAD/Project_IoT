@@ -22,8 +22,8 @@ sys.path.insert(0, os.path.join(HERE, "tools"))
 from qa_deck import REMOVED_DESIGN, RISKY  # noqa: E402  (cùng danh sách với công cụ kiểm bộ 25 slide)
 
 PPTX = os.path.join(HERE, "Project_IoT_ThuyetTrinh.pptx")
-TOTAL = 25
-SIMULATED_SCREEN_SLIDES = {18, 21}  # màn hình "lệnh bấm phím" và "success" (chạy trên ảnh đã lưu)
+TOTAL = 24
+SIMULATED_SCREEN_SLIDES = {14, 22}  # màn hình "success" và "lệnh bấm phím" (chạy trên ảnh đã lưu)
 DELETED_NAMES = ("grasp_assist_4dof", "guide_screen", "test_ik", "GraspAssist4DOF", "STAGE_NAMES", "fake_assist")
 FONTS = {"Arial", "Courier New"}
 EMU_IN = 914400
