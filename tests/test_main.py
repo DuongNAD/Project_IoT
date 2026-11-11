@@ -20,8 +20,7 @@ def test_parse_args_defaults_and_options():
     assert (args.top, args.side, args.no_serial, args.seconds) == ("1", "anh.png", True, 3.0)
 
 
-def test_slug_and_camera_report(capsys, monkeypatch):
-    assert M.slug("Cam TREN: OBSBOT (1)") == "cam_tren_obsbot_1"
+def test_camera_report(capsys, monkeypatch):
     monkeypatch.setattr(M, "list_camera_names", lambda: ["OBSBOT Meet SE", "Camera MacBook Air"])
     M.report_cameras()
     assert "[0] OBSBOT Meet SE, [1] Camera MacBook Air" in capsys.readouterr().out
@@ -73,7 +72,7 @@ def test_headless_run_writes_the_screen_and_a_summary_with_both_parts(scene_file
     assert summary["to_giay"]["cam_ngang"]["co_luoi"] is True
     cup = summary["vat_the"][0]
     assert abs(cup["x_cm"] - 20.0) < 0.5 and abs(cup["y_cm"] - 12.0) < 0.5
-    one, two = summary["nhom_1_dieu_khien"], summary["nhom_2_success"]
+    one, two = summary["dieu_khien"], summary["success"]
     assert one["trong_tam_voi"] is True and len(one["servo_can_toi"]) == 3 and len(one["lenh"]) == 3
     assert two["trang_thai"] in ("moving", "done") and len(two["servo_dung"]) == 3  # Hai phần nối nhau: kết luận dựa trên lệnh của phần 1
 
@@ -127,16 +126,3 @@ def test_servo_keys_move_the_simulated_arm(scene_files):
         assert app.handle_key(255)  # Không có phím nào (waitKey hết giờ) thì bỏ qua
     finally:
         app.close()
-
-
-def test_snapshots_save_both_raw_frames(scene_files, tmp_path, monkeypatch):
-    monkeypatch.setattr(M, "CAPTURE_DIR", str(tmp_path / "captures"))
-    app = make_app(scene_files)
-    try:
-        assert wait_until(app, lambda: app.cam_top.get_raw_frame() is not None and app.cam_side.get_raw_frame() is not None)
-        app.handle_key(ord("c"))
-    finally:
-        app.close()
-    saved = sorted(p.name for p in (tmp_path / "captures").iterdir())
-    assert len(saved) == 2 and any("ngang" in n for n in saved) and any("tren" in n for n in saved)
-

@@ -1,4 +1,4 @@
-"""Cả chuỗi nối nhau trên cảnh giả lập: camera -> vision -> NHÓM 1 điều khiển -> NHÓM 2 success. Làm đúng theo lệnh trên màn hình thì phải ra XONG."""
+"""Cả chuỗi nối nhau trên cảnh giả lập: camera -> vision -> khối điều khiển -> khối success. Làm đúng theo lệnh trên màn hình thì phải ra XONG."""
 
 import time
 

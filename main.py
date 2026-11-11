@@ -5,16 +5,14 @@ Hỗ trợ điều khiển cánh tay robot 4 servo bằng 2 camera: chỉ cho bi
   uv run python main.py            cam TREN = OBSBOT, cam NGANG = camera MacBook
   uv run python main.py --help     đổi nguồn camera, chạy không cần robot / camera...
 
-Các phần nối nhau:  camera -> vision.py (vật nằm ở đâu) -> control.py (NHÓM 1: bấm phím gì) -> success.py (NHÓM 2: đã tới chưa) -> screen.py (hiện lên màn hình)
+Các phần nối nhau:  camera -> vision.py (vật nằm ở đâu) -> control.py (khối điều khiển: bấm phím gì) -> success.py (khối success: đã tới chưa) -> screen.py (hiện lên màn hình)
 """
 
 import argparse
 import json
 import os
-import re
 import sys
 import time
-from datetime import datetime
 
 import cv2
 
@@ -25,7 +23,7 @@ from screen import CAM_H, CAM_W, SCREEN_WINDOW, build_screen
 from success import Success
 from vision import Vision, draw_target, px_to_cm
 
-CAPTURE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")  # Ảnh chụp (phím C), nằm cạnh main.py
+CAPTURE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")  # Kết quả --headless (mặc định captures/headless), cạnh main.py
 
 HELP_TEXT = """💡 Làm theo lệnh to ở giữa màn hình (bấm phím trên cửa sổ video):
    A / D                 : xoay đế sang PHẢI / TRÁI (nhìn theo cam NGANG), mỗi lần 2°
@@ -34,11 +32,7 @@ HELP_TEXT = """💡 Làm theo lệnh to ở giữa màn hình (bấm phím trên
    J / L                 : mở / khép kẹp, mỗi lần 5° (kẹp không tính vào thành công)
    R                     : chụp vị trí vật làm đích, tính góc cần tới một lần (vật bị dời thì bấm R lại)
    B                     : hiệu chỉnh đế robot (click vào trục xoay đế trên hình cam TREN)      U : dò lại 4 mã ArUco
-   C                     : chụp ảnh gốc 2 camera vào captures/                                  Q : thoát"""
-
-
-def slug(text):
-    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+   Q                     : thoát"""
 
 
 def parse_args(argv=None):
@@ -68,22 +62,6 @@ def screen_to_frame(x, y, frame_shape):
     return (fx, fy) if 0 <= fx < w and 0 <= fy < h else None
 
 
-def save_snapshots(cameras):
-    """Lưu frame gốc của từng camera vào CAPTURE_DIR, chung một mốc thời gian để dễ ghép cặp ảnh."""
-    os.makedirs(CAPTURE_DIR, exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    for cam in cameras:
-        frame = cam.get_raw_frame()
-        if frame is None:
-            print(f"⚠️ Cam {cam.role}: chưa có tín hiệu, không chụp được")
-            continue
-        path = os.path.join(CAPTURE_DIR, f"{stamp}_cam_{slug(cam.role)}_{slug(cam.label)}.jpg")
-        if cv2.imwrite(path, frame):
-            print(f"📸 Đã lưu {path}")
-        else:
-            print(f"⚠️ Không ghi được {path}")
-
-
 class App:
     """Vòng lặp chính: 2 camera -> vision (vật ở đâu) -> control (bấm phím gì) -> success (đã tới chưa) -> màn hình."""
 
@@ -98,8 +76,8 @@ class App:
         self.cam_side = Camera(args.side, "NGANG")
         self.cam_top = Camera(args.top, "TREN")
         self.vision = Vision()                                     # Vision: tờ giấy + vật nằm ở đâu
-        self.control = Control(serial_enabled=not args.no_serial)  # NHÓM 1: bấm phím gì
-        self.success = Success()                                   # NHÓM 2: đã tới chưa
+        self.control = Control(serial_enabled=not args.no_serial)  # Khối điều khiển: bấm phím gì
+        self.success = Success()                                   # Khối success: đã tới chưa
         self.calib_base = False   # Đang chờ click vào trục xoay đế robot (phím B)
         self.cache = {}           # Khung đã xử lý gần nhất của mỗi góc nhìn, dùng lại khi camera chưa có khung mới
         self.top_shape = None     # Kích thước khung gốc cam TREN, để đổi vị trí click chuột thành pixel ảnh gốc
@@ -132,8 +110,8 @@ class App:
     def render(self):
         """Dựng một khung màn hình: (ảnh màn hình, Plan của control, Result của success)."""
         left, right = self._frame(self.cam_side, "side"), self._frame(self.cam_top, "topdown")
-        plan = self.control.update(self.vision.objects)  # NHÓM 1: vật ở đâu -> góc cần tới -> bấm phím gì
-        result = self.success.update(plan)                # NHÓM 2: đã tới chưa
+        plan = self.control.update(self.vision.objects)  # Khối điều khiển: vật ở đâu -> góc cần tới -> bấm phím gì
+        result = self.success.update(plan)                # Khối success: đã tới chưa
         titles = (f"CAM NGANG: {self.cam_side.label}", f"CAM TREN: {self.cam_top.label} (nhin tu tren)")
         screen = build_screen(self._with_target(left, "side", plan), self._with_target(right, "topdown", plan), plan, result, titles=titles)
         if self.calib_base:
@@ -192,8 +170,6 @@ class App:
             self.vision.reset_sheet()
             self.cache.clear()
             print("🔄 Đã quên vị trí các mã ArUco, đang dò lại tờ giấy")
-        elif key in (ord("c"), ord("C")):
-            save_snapshots([self.cam_side, self.cam_top])
         return True
 
     # ------------------------------------------------------------------ chạy
@@ -230,7 +206,7 @@ class App:
             "to_giay": {"cam_tren": sheet_info("topdown"), "cam_ngang": sheet_info("side")},
             "de_robot": {k: ARM_CONFIG[k] for k in ("base_x_cm", "base_y_cm", "base_heading_deg")},
             "vat_the": [{"ten": o["name"], "x_cm": round(o["x_cm"], 1), "y_cm": round(o["y_cm"], 1)} for o in self.control.objects],
-            "nhom_1_dieu_khien": {
+            "dieu_khien": {
                 "vat_muc_tieu": plan.target_name,
                 "vi_tri_cm": [round(v, 1) for v in plan.target_cm] if plan.target_cm else None,
                 "trong_tam_voi": bool(plan.reachable),
@@ -238,7 +214,7 @@ class App:
                 "servo_can_toi": plan.goal,
                 "lenh": [{"servo": m.label, "phim": m.key, "so_lan": m.steps, "huong": m.words, "do": m.degrees} for m in plan.moves],
             },
-            "nhom_2_success": {"trang_thai": result.state, "xong": bool(result.done), "con_lai_lan_bam": result.remaining, "servo_dung": result.joints_ok},
+            "success": {"trang_thai": result.state, "xong": bool(result.done), "con_lai_lan_bam": result.remaining, "servo_dung": result.joints_ok},
         }
 
     def run_headless(self):

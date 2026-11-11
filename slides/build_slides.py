@@ -580,7 +580,7 @@ def slide_system(prs, n):
     box(s, M, 5.62, CW, 1.0, fill=BG2)
     code = [("plan   = self.control.update(self.vision.objects)", "# khối điều khiển"),
             ("result = self.success.update(plan)", "# khối success"),
-            ("screen = build_screen(..., plan, result)", "# màn hình (main.py:135-138)")]
+            ("screen = build_screen(..., plan, result)", "# màn hình (main.py:113-116)")]
     text(s, M + 0.25, 5.74, CW - 0.4, 0.85, [[(c.ljust(53), {}), (k, {"color": MUTED})] for c, k in code], 12.5, INK, font=MONO,
          spacing=1.12)
     footer(s, n)
@@ -593,9 +593,9 @@ Khối điều khiển tính góc cần tới của ba servo và lập danh sác
 
 Người dùng bấm phím theo gợi ý. Phím được gửi xuống Arduino qua USB ở 9600 baud; Arduino điều khiển bốn servo qua PCA9685 và gửi lại gói JSON chứa bốn góc servo, khoảng 5 gói mỗi giây. Phần cứng này là phần một, em trình bày tiếp theo.
 
-Nếu được hỏi: chương trình có tự gửi phím không? Không, chỉ gửi khi người dùng bấm. Vì sao trong code gọi là nhóm 1, nhóm 2? Đó là tên hai khối trong mã nguồn (control.py, success.py). Có dùng Bluetooth không? Có: khi điều khiển từ xa, máy Dell xem màn hình Mac qua Wi-Fi và gửi phím qua module HC-05 ở chân D2, D3; Mac vẫn nối cáp USB để nhận góc servo.
+Nếu được hỏi: chương trình có tự gửi phím không? Không, chỉ gửi khi người dùng bấm. Có dùng Bluetooth không? Có: khi điều khiển từ xa, máy Dell xem màn hình Mac qua Wi-Fi và gửi phím qua module HC-05 ở chân D2, D3; Mac vẫn nối cáp USB để nhận góc servo.
 
-Nguồn: README.md (sơ đồ đầu trang, mục 1 và 3); main.py:135-138; robot_arm_4dof.ino:6,8,86,203-207; control.py (ArduinoSerialLink).
+Nguồn: README.md (sơ đồ đầu trang, mục 1 và 3); main.py:113-116; robot_arm_4dof.ino:6,8,86,203-207; control.py (ArduinoSerialLink).
 """)
 
 
@@ -911,7 +911,7 @@ Tiếp theo, {cv} và {succ} trình bày phần computer vision và hỗ trợ g
 
 Nếu được hỏi: dùng phím Z cần chú ý gì? Cả bốn servo mất xung nên cánh tay hạ xuống theo trọng lực; cần đưa tay kẹp xuống vị trí trống trước. Giới hạn 160 độ có vượt dải xung không? Có, xung khoảng 2,56 ms, hơi vượt dải danh định 2,5 ms; nhóm chấp nhận để kẹp chặt hơn, kèm cơ chế tự ngắt xung sau 60 giây. Vì sao khi ngắt xung lúc mở hết thì hàm kẹp khép lại? Khi mất xung, hai hàm kẹp khép thành hình chữ V hẹp, khe còn khoảng 1–2 cm (ước lượng từ ảnh), nên khi tiếp cận cần bấm J để mở lại.
 
-Nguồn: robot_arm_4dof.ino:16-23,160-176,191-201; control.py (trạng thái relaxed, cảnh báo FIRMWARE CU KHONG CO PHIM Z); README.md mục 6; 05_SO_LIEU_VA_NGUON.md mục 6.
+Nguồn: robot_arm_4dof.ino:16-23,160-176,191-201; control.py (trạng thái relaxed); README.md mục 6; 05_SO_LIEU_VA_NGUON.md mục 6.
 """)
 
 
@@ -992,7 +992,7 @@ Tiếp theo, {succ} trình bày nửa sau của phần này: hỗ trợ gắp.
 
 Nếu được hỏi: vì sao không dùng YOLO? Bản trước có YOLO11 nhưng hay nhận nhầm bộ phận robot, nên nhóm bỏ để mã đơn giản; tách màu đủ cho cốc màu đậm. Vật màu trắng hoặc xám thì sao? Chưa nhận được; đây là một hạn chế. Vì sao phải bấm R mà không theo camera liên tục? Khi tay kẹp tiến vào, nó che và đẩy cốc nên vị trí camera thấy bị nhảy; chụp một lần thì đích đứng yên và mã đơn giản hơn.
 
-Nguồn: vision.py:68-95; tests/test_vision.py:74-105; control.py:539-550 (phím R).
+Nguồn: vision.py:68-95; tests/test_vision.py:74-105; control.py:491-502 (phím R).
 """)
 
 
@@ -1062,7 +1062,7 @@ Bên phải là chương trình Python trên laptop, chạy ở mỗi khung hìn
 
 Nếu được hỏi: vì sao firmware đọc HC-05 trước USB? Để phím từ Bluetooth không bị bỏ qua khi USB cũng có dữ liệu; mỗi vòng chỉ đọc một ký tự. Vì sao không gửi trực tiếp lệnh góc? Để Arduino chỉ cần xử lý từng phím, giống khi điều khiển bằng tay.
 
-Nguồn: robot_arm_4dof.ino:84-208; main.py:132-144,175-197; control.py:576-588 (press); success.py.
+Nguồn: robot_arm_4dof.ino:84-208; main.py:110-122,153-173; control.py:528-535 (press); success.py.
 """)
 
 
@@ -1201,7 +1201,7 @@ Ví dụ, cốc ở (20,1; 7,4) cm cho góc gợi ý: đế 74, vai 58, khuỷu 
 
 Nếu được hỏi: công thức được kiểm tra thế nào? Bộ test đưa kết quả động học ngược vào động học thuận trên hơn 100 điểm trong tầm với, sai số dưới 0,1 mm. Vì sao chọn nghiệm khuỷu hướng lên? Tam giác hai khâu có hai nghiệm; chọn một chiều cố định để mỗi điểm chỉ có một bộ góc. Vật ngoài tầm với thì sao? Giao diện báo VAT NGOAI TAM VOI và khoảng cách cần dời vật lại gần.
 
-Nguồn: control.py:33-64,93-156,169-190,216-240; tests/test_control.py:16-35; 05_SO_LIEU_VA_NGUON.md mục 3 và 16 (ví dụ tính lại bằng check_facts.py --deep).
+Nguồn: control.py:32-63,92-155,168-189,214-236; tests/test_control.py:16-35; 05_SO_LIEU_VA_NGUON.md mục 3 và 16 (ví dụ tính lại bằng check_facts.py --deep).
 """)
 
 
@@ -1240,7 +1240,7 @@ Chữ không dấu vì OpenCV không hiển thị được dấu tiếng Việt.
 
 Nếu được hỏi: chương trình có tự gửi phím không? Không; chỉ gửi khi người dùng bấm. Vì sao chỉ hiển thị một lệnh chính? Để người điều khiển thực hiện ngay, không cần đọc bảng số. Thứ tự lệnh thế nào? Đế, rồi vai, rồi khuỷu; servo đã đạt được bỏ qua. Ảnh đã lưu thì gợi ý lấy từ đâu? Chương trình đọc khung hình đã lưu như camera đang chạy; cánh tay mô phỏng đặt ở 90/90/90.
 
-Nguồn: screen.py:46-77; main.py:123-144; control.py:206-212; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
+Nguồn: screen.py:46-77; main.py:101-122; control.py:205-210; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
 """)
 
 
@@ -1400,7 +1400,7 @@ def slide_results(prs, n):
         "Hiệu chỉnh cho tờ giấy mới",
         "Dashboard IoT / MQTT",
     ], 16, after=8, mark="—", mark_color=ORANGE, indent=0.3)
-    stats = [("102 / 102", ["test tự động", "đều đạt"], TEAL),
+    stats = [("100 / 100", ["test tự động", "đều đạt"], TEAL),
              ("13", ["tệp test"], INK),
              ("8,5 mm", ["sai số hiệu chỉnh", "trên 10 mẫu"], TEAL)]
     sw = (CW - 0.5) / 3
@@ -1414,13 +1414,13 @@ def slide_results(prs, n):
     notes(s, """
 Slide này tổng hợp những việc đã thực hiện và chưa thực hiện.
 
-Đã thực hiện: hệ tọa độ chung cho hai camera; kẹp và di chuyển cốc trên cánh tay thật bằng bàn phím; hiệu chỉnh mô hình từ 10 mẫu với sai số 8,5 mm, chi tiết ở phần ba; firmware bảo vệ servo kẹp đã nạp và kiểm tra; giao diện gợi ý phím và kiểm tra góc. 102 test tự động đều đạt, không cần camera hay Arduino.
+Đã thực hiện: hệ tọa độ chung cho hai camera; kẹp và di chuyển cốc trên cánh tay thật bằng bàn phím; hiệu chỉnh mô hình từ 10 mẫu với sai số 8,5 mm, chi tiết ở phần ba; firmware bảo vệ servo kẹp đã nạp và kiểm tra; giao diện gợi ý phím và kiểm tra góc. 100 test tự động đều đạt, không cần camera hay Arduino.
 
 Chưa thực hiện: đếm số lần XONG trên cánh tay thật với bản mới; kiểm tra gợi ý mới trên phần cứng; kẹp chắc vật thon; đo nhiệt độ servo; hiệu chỉnh cho tờ giấy mới; dashboard IoT qua MQTT và cảm biến lực, vốn có trong kế hoạch ngày 28/10.
 
-Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Mã được đơn giản hóa ngày 2/11; thử nghiệm bản mới trên cánh tay thật là bước tiếp theo. Test gồm những gì? Điều khiển 28, hiệu chỉnh 11, Serial 9, computer vision 8, success 7, chương trình chính 7, độ bền 6, camera 5, khớp mô hình 5, điều khiển từ xa 11, màn hình 3, đầu–cuối 2. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm có thể thêm MQTT từ gói JSON hiện có.
+Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Mã được đơn giản hóa ngày 2/11; thử nghiệm bản mới trên cánh tay thật là bước tiếp theo. Test gồm những gì? Điều khiển 27, hiệu chỉnh 11, Serial 9, computer vision 8, success 7, chương trình chính 6, độ bền 6, camera 5, khớp mô hình 5, điều khiển từ xa 11, màn hình 3, đầu–cuối 2. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm có thể thêm MQTT từ gói JSON hiện có.
 
-Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; lệnh python -m pytest -q (102 test, 11/11/2026; xem 05_SO_LIEU_VA_NGUON.md mục 11).
+Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; lệnh python -m pytest -q (100 test, 11/11/2026; xem 05_SO_LIEU_VA_NGUON.md mục 11).
 """)
 
 

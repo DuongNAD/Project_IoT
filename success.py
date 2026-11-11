@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NHÓM 2 - SUCCESS: đã tới chưa?
+KHỐI SUCCESS: đã tới chưa?
 Đọc Plan của control.py rồi trả lời: ba servo đế / vai / khuỷu đã tới góc gợi ý chưa?
 Thành công = cả 3 servo lệch không quá 1 bước bấm (2°) và giữ như vậy 1 giây thì đếm thêm 1 lần. Kẹp không tính.
 """

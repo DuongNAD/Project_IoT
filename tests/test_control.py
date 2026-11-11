@@ -1,4 +1,4 @@
-"""NHÓM 1 - ĐIỀU KHIỂN: hình học cánh tay (FK / IK), góc servo bấm tới được, lệnh bấm phím, phím R chụp đích, phím và cổng USB giả lập."""
+"""KHỐI ĐIỀU KHIỂN: hình học cánh tay (FK / IK), góc servo bấm tới được, lệnh bấm phím, phím R chụp đích, phím và cổng USB giả lập."""
 
 import math
 
@@ -63,7 +63,7 @@ def test_predict_tip_at_home_matches_forward_kinematics():
 def test_moves_tell_which_key_how_many_times_and_which_way():
     base, shoulder, elbow = C.plan_moves([90, 90, 90, 95], [74, 60, 86, 95])
     # Đế 90 -> 74 = giảm 16° = 8 lần D (bước 2°), sang TRÁI theo cam NGANG
-    assert (base.key, base.steps, base.degrees, base.words, base.arrow, base.step) == ("d", 8, 16, "SANG TRAI", "left", 2)
+    assert (base.key, base.steps, base.degrees, base.words, base.step) == ("d", 8, 16, "SANG TRAI", 2)
     assert (shoulder.key, shoulder.steps, shoulder.degrees, shoulder.words) == ("s", 15, 30, "HA XUONG")
     assert (elbow.key, elbow.steps, elbow.degrees, elbow.words) == ("k", 2, 4, "KHUYU XUONG")
 
@@ -204,16 +204,6 @@ def test_the_gripper_keys_do_not_change_the_arm_plan(ctl):
     ctl.press("l")
     after = ctl.update([obj(20.0, 12.0)])
     assert after.now[3] == 100 and [m.steps for m in after.moves] == [m.steps for m in base.moves]
-
-
-def test_z_key_warns_when_the_firmware_is_too_old_to_know_it(ctl):
-    ctl.link.connected = True  # Giả như đang nối USB nhưng firmware chưa từng báo "armrelax"
-    ctl.link.ser = type("Port", (), {"write": lambda self, b: None, "flush": lambda self: None})()
-    assert ctl.press("z")
-    assert "FIRMWARE CU" in ctl.update([]).banner and not ctl.link.get_arm_relaxed()
-    ctl.link.firmware_has_arm_relax = True
-    ctl.banner = ""
-    assert ctl.press("z") and ctl.update([]).banner == ""
 
 
 def test_control_warns_once_when_the_arduino_resets(ctl):

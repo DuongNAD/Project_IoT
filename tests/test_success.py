@@ -1,4 +1,4 @@
-"""NHÓM 2 - SUCCESS: đã tới chưa? Nhận Plan của nhóm điều khiển, trả lời xong / chưa xong, còn bao nhiêu lần bấm, đếm số lần thành công."""
+"""KHỐI SUCCESS: đã tới chưa? Nhận Plan của khối điều khiển, trả lời xong / chưa xong, còn bao nhiêu lần bấm, đếm số lần thành công."""
 
 import control as C
 import success as S

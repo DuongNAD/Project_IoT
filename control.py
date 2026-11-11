@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NHÓM 1 - ĐIỀU KHIỂN: vật ở đâu -> servo phải quay tới góc nào -> bấm phím gì, mấy lần.
+KHỐI ĐIỀU KHIỂN: vật ở đâu -> servo phải quay tới góc nào -> bấm phím gì, mấy lần.
 
     vật (x, y cm trên tờ giấy) --IK--> 3 góc servo cần tới --so với góc hiện tại--> "bấm phím D x8, S x16 ..."
 
@@ -8,7 +8,7 @@ Phần này lo toàn bộ việc ĐIỀU KHIỂN cánh tay:
   1. Hình học cánh tay: động học thuận / ngược (FK / IK), đổi góc khớp <-> góc servo Arduino, đổi tọa độ tờ giấy <-> hệ robot.
   2. Cổng USB tới Arduino: gửi phím (W A S D I K J L H X Z), đọc góc servo thật mà firmware báo về.
   3. Phím R chụp vị trí vật gần đế nhất làm đích và tính góc cần tới MỘT lần; mỗi khung so góc servo hiện tại với góc đó ra lệnh bấm phím (Move).
-Kết quả mỗi khung hình là một Plan, chuyển cho NHÓM 2 (success.py) để kết luận "đã tới chưa".
+Kết quả mỗi khung hình là một Plan, chuyển cho khối success (success.py) để kết luận "đã tới chưa".
 Phần nhìn (camera, ArUco, tìm vật) nằm ở vision.py; phần vẽ màn hình ở screen.py; main.py nối các phần lại.
 """
 
@@ -16,7 +16,6 @@ import glob
 import json
 import math
 import os
-import re
 import threading
 import time
 from dataclasses import dataclass, field
@@ -204,11 +203,10 @@ def predict_tip(servo_angles, cfg=None):
 # ==============================================================================
 # Khớp -> (phím tăng góc, phím giảm góc). Trái / phải nhìn theo cam NGANG (MacBook nhìn từ phía trước vào robot): D = sang trái, A = sang phải
 KEYS = {"base": ("a", "d"), "shoulder": ("w", "s"), "elbow": ("i", "k")}
-WORDS = {  # phím -> (lời chỉ, hướng mũi tên)
-    "d": ("SANG TRAI", "left"), "a": ("SANG PHAI", "right"),
-    "w": ("NANG LEN", "up"), "s": ("HA XUONG", "down"),
-    "i": ("KHUYU LEN", "up"), "k": ("KHUYU XUONG", "down"),
-}
+WORDS = {"d": "SANG TRAI", "a": "SANG PHAI", "w": "NANG LEN", "s": "HA XUONG", "i": "KHUYU LEN", "k": "KHUYU XUONG"}  # phím -> lời chỉ
+# Phím -> (servo, +1 tăng góc / -1 giảm góc), giống switch(cmd) trong firmware: dùng để MÔ PHỎNG khi chưa cắm USB
+KEY_MOVES = {"a": ("base", 1), "d": ("base", -1), "w": ("shoulder", 1), "s": ("shoulder", -1),
+             "i": ("elbow", 1), "k": ("elbow", -1), "l": ("grip", 1), "j": ("grip", -1)}
 LABELS = {"base": "DE (xoay)", "shoulder": "VAI", "elbow": "KHUYU"}
 ARM_JOINTS = ("base", "shoulder", "elbow")  # Kẹp không tính trong bản đơn giản
 
@@ -225,7 +223,6 @@ class Move:
     steps: int      # Số lần bấm (làm tròn xuống, phần lẻ nhỏ hơn 1 bước bỏ qua)
     degrees: int    # Độ lệch thật |goal - now|
     words: str      # Lời chỉ ("SANG TRAI")
-    arrow: str      # Hướng mũi tên ("left", "right", "up", "down")
 
 
 def plan_moves(now, goal):
@@ -235,13 +232,12 @@ def plan_moves(now, goal):
         delta = int(round(goal[ch] - now[ch]))
         step = SERVO_STEPS[joint]
         key = None if delta == 0 else KEYS[joint][0 if delta > 0 else 1]
-        words, arrow = WORDS.get(key, ("", ""))
-        moves.append(Move(joint, LABELS[joint], int(now[ch]), int(goal[ch]), step, key, abs(delta) // step, abs(delta), words, arrow))
+        moves.append(Move(joint, LABELS[joint], int(now[ch]), int(goal[ch]), step, key, abs(delta) // step, abs(delta), WORDS.get(key, "")))
     return moves
 
 
 # ==============================================================================
-# 4. CỔNG USB SERIAL TỚI ARDUINO (TƯƠNG THÍCH CẢ FIRMWARE CŨ LẪN MỚI)
+# 4. CỔNG USB SERIAL TỚI ARDUINO
 # ==============================================================================
 # Windows / Linux: chỉ xét cổng USB thật (có VID), bỏ cổng Bluetooth ảo và cổng modem của điện thoại cắm USB
 NOT_ARDUINO_PORT_WORDS = ("modem", "mobile", "bluetooth")
@@ -277,13 +273,12 @@ def find_arduino_port():
 
 class ArduinoSerialLink:
     """
-    Luồng nền đọc/gửi tín hiệu qua cáp USB với Arduino (9600 baud):
-    - Tương thích NGAY LẬP TỨC với code Arduino gốc của bạn: tự bắt dòng "Phím bấm: <cmd>"
-      khi bạn bấm Bluetooth HC-05 để cộng/trừ 5 độ theo thời gian thực.
-    - Nếu bạn nạp thêm hàm sendServoState() (JSON), luồng sẽ đồng bộ chính xác tuyệt đối
-      mảng 4 góc {"servo":[base, shoulder, elbow, grip]}.
-    - Nếu chưa cắm cáp USB Arduino, tự động chạy ở chế độ Mô phỏng (Simulation) để vẫn
-      test được toàn bộ Camera + IK + Gợi ý trên màn hình.
+    Cổng USB tới Arduino (9600 baud), đọc ở luồng nền.
+    - Gửi phím: mỗi lần bấm một ký tự (w a s d i k j l h x z).
+    - Nhận gói JSON firmware gửi ngay sau mỗi phím và 5 lần / giây: {"t": ms, "servo": [đế, vai, khuỷu, kẹp], "relax": 0|1, "armrelax": 0|1}.
+    - Chưa cắm cáp (hoặc enabled=False): MÔ PHỎNG, tự cộng / trừ góc như firmware để vẫn chạy được camera + IK + màn hình.
+    - Arduino Uno tự reset mỗi khi đường DTR của cổng USB hạ rồi nâng (VD chương trình khác mở / đóng cổng): cả 4 servo giật về Home.
+      Nhận ra bằng thời gian chạy "t" tụt về gần 0; khi phải mở lại cổng thì mở tay cầm MỚI trước rồi mới đóng tay cầm cũ.
     """
 
     READ_RETRY_S = 0.3             # Lỗi đọc tạm thời: đợi chừng này rồi đọc lại, không đóng cổng
@@ -297,14 +292,9 @@ class ArduinoSerialLink:
         self.port = None
         self.ser = None
         self.connected = False
-        self.servo = [SERVO_LIMITS[k][2] for k in CHANNEL_KEYS]  # [angleBase, angleShoulder, angleElbow, angleGrip] = Home lúc Arduino khởi động
-        self.last_cmd = ""
-        self.last_rx_time = 0.0
-        self.relaxed = False  # Servo kẹp đang nghỉ (firmware đã ngắt xung PWM để nguội)
-        self.arm_relaxed = False  # Firmware đã ngắt xung 3 servo đế / vai / khuỷu (phím z): góc báo về chỉ là góc lệnh cuối, cánh tay có thể đã sụp xuống
-        self.firmware_has_arm_relax = False  # Đã thấy trường "armrelax" trong JSON: firmware đang chạy có phím z (firmware cũ bỏ qua phím z)
-        # Arduino Uno tự reset mỗi khi đường DTR của cổng USB bị hạ rồi nâng lên (VD chương trình khác mở / đóng cổng): cả 4 servo giật về
-        # Home 180/90/90/95. Nhận ra bằng thời gian chạy "t" (millis) trong gói JSON bất ngờ tụt về gần 0.
+        self.servo = [SERVO_LIMITS[k][2] for k in CHANNEL_KEYS]  # [đế, vai, khuỷu, kẹp] = Home lúc Arduino khởi động
+        self.relaxed = False      # Servo kẹp đang nghỉ (firmware đã ngắt xung PWM để nguội)
+        self.arm_relaxed = False  # Cả cánh tay đang nghỉ (phím z): góc báo về chỉ là góc lệnh cuối, cánh tay có thể đã sụp xuống
         self.last_firmware_ms = None
         self.reset_count = 0
         self.lock = threading.Lock()
@@ -317,44 +307,27 @@ class ArduinoSerialLink:
         return find_arduino_port()
 
     def apply_key_locally(self, cmd):
-        """Áp dụng đúng logic switch(cmd) của Arduino (bước SERVO_STEPS) để cập nhật góc servo."""
+        """MÔ PHỎNG một phím như firmware: đổi góc trong giới hạn, H về Home, X cho kẹp nghỉ, Z cho cả 4 servo nghỉ."""
         c = cmd.lower()
-        lim = SERVO_LIMITS
         with self.lock:
-            b, s, e, g = self.servo
-            if c in ("a", "d", "w", "s", "i", "k", "h"):
-                self.arm_relaxed = False  # Phím di chuyển đế / vai / khuỷu (hoặc h) cấp xung lại cho cánh tay đang nghỉ
-            if c == "a":
-                b = min(lim["base"][1], max(lim["base"][0], b + SERVO_STEPS["base"]))
-            elif c == "d":
-                b = min(lim["base"][1], max(lim["base"][0], b - SERVO_STEPS["base"]))
-            elif c == "w":
-                s = min(lim["shoulder"][1], max(lim["shoulder"][0], s + SERVO_STEPS["shoulder"]))
-            elif c == "s":
-                s = min(lim["shoulder"][1], max(lim["shoulder"][0], s - SERVO_STEPS["shoulder"]))
-            elif c == "i":
-                e = min(lim["elbow"][1], max(lim["elbow"][0], e + SERVO_STEPS["elbow"]))
-            elif c == "k":
-                e = min(lim["elbow"][1], max(lim["elbow"][0], e - SERVO_STEPS["elbow"]))
-            elif c == "j":
-                g = min(lim["grip"][1], max(lim["grip"][0], g - SERVO_STEPS["grip"]))
-                self.relaxed = False
-            elif c == "l":
-                g = min(lim["grip"][1], max(lim["grip"][0], g + SERVO_STEPS["grip"]))
-                self.relaxed = False
+            if c in KEY_MOVES:
+                joint, sign = KEY_MOVES[c]
+                ch = CHANNEL_KEYS.index(joint)
+                lo, hi, _ = SERVO_LIMITS[joint]
+                self.servo[ch] = min(hi, max(lo, self.servo[ch] + sign * SERVO_STEPS[joint]))
             elif c == "h":
-                b, s, e, g = (SERVO_LIMITS[k][2] for k in CHANNEL_KEYS)  # Home, khớp phím h của firmware
+                self.servo = [SERVO_LIMITS[k][2] for k in CHANNEL_KEYS]
+            if c in ("a", "d", "w", "s", "i", "k", "h"):
+                self.arm_relaxed = False  # Phím di chuyển (hoặc h) cấp xung lại cho cánh tay đang nghỉ
+            if c in ("j", "l", "h"):
                 self.relaxed = False
-            elif c == "x":
+            if c in ("x", "z"):
                 self.relaxed = True
-            elif c == "z":
+            if c == "z":
                 self.arm_relaxed = True
-                self.relaxed = True
-            self.servo = [b, s, e, g]
-            self.last_cmd = c.upper()
 
     def send_key(self, cmd):
-        """Gửi 1 ký tự lệnh ('w','a','s','d','i','k','j','l','h') xuống Arduino (hoặc cập nhật mô phỏng)."""
+        """Gửi 1 ký tự lệnh xuống Arduino; chưa cắm USB thì cập nhật mô phỏng."""
         if not cmd:
             return
         ch = cmd[0]
@@ -365,7 +338,6 @@ class ArduinoSerialLink:
                 return
             except Exception:
                 self.connected = False
-        # Nếu chưa cắm USB hoặc đang mô phỏng thì cập nhật trực tiếp
         self.apply_key_locally(ch)
 
     def _track_firmware_uptime(self, t_ms):
@@ -378,43 +350,22 @@ class ArduinoSerialLink:
             print("⚠️ Arduino vừa reset (thời gian chạy của firmware quay về 0): cánh tay giật về Home 180/90/90/95, kiểm tra trước khi bấm tiếp")
 
     def _parse_line(self, line):
+        """Đọc gói JSON trạng thái. Dòng khác (banner khởi động, "Phím bấm: x") bỏ qua: gói JSON luôn đến ngay sau đó."""
         line = line.strip()
-        if not line:
+        if not line.startswith("{"):
             return
-        # 1. Gói JSON từ hàm sendServoState(): {"t":1234,"servo":[90,90,90,95],"relax":0} ("relax" chỉ có ở firmware mới)
-        if line.startswith("{") and "servo" in line:
-            try:
-                data = json.loads(line)
-                arr = data.get("servo", [])
-                if len(arr) >= 4:
-                    with self.lock:
-                        self.servo = [int(arr[0]), int(arr[1]), int(arr[2]), int(arr[3])]
-                        self.relaxed = bool(data.get("relax", 0))
-                        self.arm_relaxed = bool(data.get("armrelax", 0))  # Chỉ có ở firmware có phím z
-                        self.firmware_has_arm_relax = self.firmware_has_arm_relax or "armrelax" in data
-                        self._track_firmware_uptime(data.get("t"))
-                        self.last_rx_time = time.time()
-                return
-            except Exception:
-                pass
-
-        # 2. Thông báo khởi động lại từ Arduino: "Robot Arm Ready! WASD + IK + JL + X (nghi kep) + Z (nghi het)"
-        if "Robot Arm Ready" in line:
-            print(f"🤖 Arduino báo: {line}")  # Banner cho biết đang chạy bản firmware nào (có phím X / Z hay chưa)
-            with self.lock:
-                self.servo = [SERVO_LIMITS[k][2] for k in CHANNEL_KEYS]
-                self.relaxed = False
-                self.arm_relaxed = False
-                self.last_rx_time = time.time()
+        try:
+            data = json.loads(line)
+            servo = [int(v) for v in data["servo"]]
+        except (ValueError, KeyError, TypeError):
             return
-
-        # 3. Tương thích trực tiếp với dòng Serial.print("Phím bấm: "); Serial.println(cmd); trong code gốc!
-        m = re.search(r"Ph.*m\s*b.*m:\s*([a-zA-Z])", line)
-        if m:
-            cmd_char = m.group(1)
-            self.apply_key_locally(cmd_char)
-            with self.lock:
-                self.last_rx_time = time.time()
+        if len(servo) < 4:
+            return
+        with self.lock:
+            self.servo = servo[:4]
+            self.relaxed = bool(data.get("relax", 0))
+            self.arm_relaxed = bool(data.get("armrelax", 0))
+            self._track_firmware_uptime(data.get("t"))
 
     def _port_exists(self):
         if self.port is None:
@@ -482,8 +433,9 @@ class ArduinoSerialLink:
                     time.sleep(self.PORT_WAIT_S)
 
     def get_state(self):
+        """(4 góc servo, đã nối USB chưa, tên cổng)."""
         with self.lock:
-            return list(self.servo), self.connected, self.port, self.last_cmd
+            return list(self.servo), self.connected, self.port
 
     def get_arm_relaxed(self):
         """True khi cả cánh tay đang nghỉ (đã ngắt xung bằng phím z): đừng tin góc servo báo về, bấm phím di chuyển để cấp xung lại."""
@@ -509,7 +461,7 @@ class ArduinoSerialLink:
 # ==============================================================================
 @dataclass
 class Plan:
-    """Kết quả của NHÓM 1 mỗi khung hình, chuyển sang NHÓM 2 (success.py)."""
+    """Kết quả của khối điều khiển mỗi khung hình, chuyển sang khối success (success.py)."""
     found: bool                 # Đã có đích chưa (bấm R lúc camera thấy vật)
     target_name: str            # Tên vật làm đích
     target_cm: tuple            # (x, y) vật trên tờ giấy (cm) lúc bấm R, None khi chưa có đích
@@ -559,7 +511,7 @@ class Control:
         """Nhận các vật camera thấy (x_cm, y_cm, name) và trả về Plan: góc servo hiện tại so với góc đích đã chụp bằng R."""
         base_xy = (ARM_CONFIG["base_x_cm"], ARM_CONFIG["base_y_cm"])
         self.objects = sorted(objects, key=lambda o: math.hypot(o["x_cm"] - base_xy[0], o["y_cm"] - base_xy[1]))
-        servo_now, usb_ok, port, _ = self.link.get_state()
+        servo_now, usb_ok, port = self.link.get_state()
         resets = self.link.get_reset_count()
         if resets != self.seen_resets:  # Cánh tay vừa giật về Home 180/90/90/95 mà người dùng không bấm gì: báo để kiểm tra trước khi bấm tiếp
             self.seen_resets = resets
@@ -578,11 +530,6 @@ class Control:
         ch = (key or "")[:1].lower()
         if not ch or ch not in "wasdikjlhxz":
             return False
-        if ch == "z" and self.link.connected and not self.link.firmware_has_arm_relax:
-            # Firmware cũ bỏ qua phím z: gửi đi cũng không ngắt xung, mà người dùng sẽ tưởng servo đã nghỉ nên phải nói rõ
-            self.banner = "FIRMWARE CU KHONG CO PHIM Z: servo van co xung. Nap lai bang flash.sh"
-            print("⚠️ Firmware đang chạy chưa có phím Z (nghỉ hết): servo vẫn còn xung. Nạp lại bằng ./robot_arm_4dof/flash.sh (phím X chỉ cho servo kẹp nghỉ)")
-            return True
         self.link.send_key(ch)
         return True
 

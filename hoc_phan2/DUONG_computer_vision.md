@@ -24,9 +24,9 @@ Mỗi bước: mở đúng dòng, đọc, rồi tự trả lời câu hỏi ở 
 
 | Đọc | Ý chính | Tự hỏi |
 |---|---|---|
-| `main.py:87-105` (`App.__init__`) | tạo 2 `Camera`, 1 `Vision`, `Control`, `Success` | Cam TRÊN và cam NGANG được tạo ở dòng nào? |
-| `main.py:108-121` (`_frame`) | chỉ xử lý lại khi `frame_id` đổi (có khung mới); mất tín hiệu thì hiện "Dang cho tin hieu" và **xóa danh sách vật cũ** | Vì sao cần `self.cache`? (vòng lặp chạy nhanh hơn camera; không cache thì một ảnh bị dò ArUco nhiều lần) |
-| `main.py:132-144` (`render`) | `vision.objects` → `control.update` → `success.update` → `build_screen` | Kể lại 5 bước được đánh số trên slide 3 |
+| `main.py:65-83` (`App.__init__`) | tạo 2 `Camera`, 1 `Vision`, `Control`, `Success` | Cam TRÊN và cam NGANG được tạo ở dòng nào? |
+| `main.py:86-99` (`_frame`) | chỉ xử lý lại khi `frame_id` đổi (có khung mới); mất tín hiệu thì hiện "Dang cho tin hieu" và **xóa danh sách vật cũ** | Vì sao cần `self.cache`? (vòng lặp chạy nhanh hơn camera; không cache thì một ảnh bị dò ArUco nhiều lần) |
+| `main.py:110-122` (`render`) | `vision.objects` → `control.update` → `success.update` → `build_screen` | Kể lại 5 bước được đánh số trên slide 3 |
 
 ### Bước 2 · Tìm camera: cam nào là cam nào
 
@@ -69,7 +69,7 @@ Tự hỏi: vì sao nắp cốc nhìn từ trên bị lệch ra xa tâm ảnh? V
 |---|---|
 | `vision.py:130-163` (`Vision.process_frame`) | ghép bước 3 + 4 cho từng camera; chỉ cam TRÊN mới tìm vật; vẽ mã, lưới 5 cm, vòng xanh quanh vật, dòng `Luoi A4: thay n/4 ma ArUco` hoặc `KHONG THAY TO A4` |
 | `vision.py:112-127` | lưới 5 cm (nhìn là biết lưới có bám tờ giấy không), dấu `DICH` và `KEP` |
-| `control.py:539-550` (`lock_target`, phím `R`) | ô "Chọn mục tiêu" trên slide 13: bấm `R` thì vật gần đế nhất trong ảnh lúc đó thành đích, góc cần tới tính **một lần**, không theo camera nữa; vật bị dời thì bấm `R` lại |
+| `control.py:491-502` (`lock_target`, phím `R`) | ô "Chọn mục tiêu" trên slide 13: bấm `R` thì vật gần đế nhất trong ảnh lúc đó thành đích, góc cần tới tính **một lần**, không theo camera nữa; vật bị dời thì bấm `R` lại |
 
 ## Test của phần bạn
 

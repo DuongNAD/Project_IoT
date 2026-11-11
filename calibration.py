@@ -9,7 +9,7 @@ Hiện lưu vị trí trục xoay Đế robot trên tờ A4 (cm) và HƯỚNG ro
     Robot nhìn về +Y (vào trong tờ giấy từ mép Y = 0) là 90°; robot đứng mép Y = 21 nhìn về -Y là -90°.
 Bấm phím B trong main.py rồi click vào trục xoay đế để hiệu chỉnh lại khi dời robot hoặc dời tờ giấy.
 
-Hiệu chỉnh bằng gắp thử (phím Y trong main.py, xem arm_fit.py) khớp thêm hướng robot và hai góc chuẩn vai / khuỷu khi servo ở 90°
+Hiệu chỉnh bằng các lần ôm thật (công cụ ngoài arm_fit.py) khớp thêm hướng robot và hai góc chuẩn vai / khuỷu khi servo ở 90°
 (mục "arm"), nên vị trí / hướng đế và hai góc này cùng được lưu lại.
 
 Mục "claw" (tùy chọn) lưu hình học càng kẹp đo từ các lần ôm thật: càng kẹp gắn cứng vào khâu khuỷu nên độ lệch của điểm kẹp quay theo
@@ -27,7 +27,7 @@ CALIBRATION_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cal
 SHEET_W_CM = 29.7
 SHEET_H_CM = 21.0
 
-# Hai góc chuẩn của vai / khuỷu (ARM_CONFIG) mà hiệu chỉnh bằng gắp thử (phím Y trong main.py) lưu vào mục "arm"
+# Hai góc chuẩn của vai / khuỷu (ARM_CONFIG) mà hiệu chỉnh bằng các lần ôm thật (arm_fit.py) lưu vào mục "arm"
 ARM_OFFSET_KEYS = ("theta2_at_90_deg", "theta3_at_90_deg")
 # Hình học càng kẹp (mm) lưu ở mục "claw": chiều dài khâu khuỷu -> điểm kẹp và độ lệch phụ cố định của kẹp. Mỗi giá trị nằm trong [0, 400] mm
 CLAW_KEYS = ("L3_mm", "L4_r_mm", "L4_z_mm")

@@ -126,7 +126,7 @@ def need(path: Path) -> bool:
 
 
 MANIFEST_PATH = SLIDES / "assets" / "manifest.json"
-OLD_UI_NOTE = "Giao diện CŨ đã bỏ (bản trước khi đơn giản hóa thành hai nhóm điều khiển / success): KHÔNG dùng trong slide."
+OLD_UI_NOTE = "Giao diện CŨ đã bỏ (bản trước khi đơn giản hóa thành hai khối điều khiển / success): KHÔNG dùng trong slide."
 DEMO_NOTE = "Khung cắt từ video, người điều khiển bằng bàn phím theo gợi ý trên màn hình bản cũ (trước khi đơn giản hóa), chưa tự động."
 
 

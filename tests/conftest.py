@@ -21,7 +21,7 @@ def isolated_state(tmp_path, monkeypatch):
 
 @pytest.fixture
 def ctl():
-    """Nhóm điều khiển ở chế độ mô phỏng (serial_enabled=False nên không bao giờ mở cổng Arduino thật)."""
+    """Khối điều khiển ở chế độ mô phỏng (serial_enabled=False nên không bao giờ mở cổng Arduino thật)."""
     c = control.Control(serial_enabled=False)
     yield c
     c.release()

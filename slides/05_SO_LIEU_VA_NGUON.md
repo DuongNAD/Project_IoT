@@ -1,7 +1,7 @@
 # 05 · Số liệu và nguồn (nguồn sự thật duy nhất cho slide)
 
 Mọi con số, tên linh kiện và nhận định trên slide **chỉ được lấy từ file này**. Kiểm tra lần cuối: **10/11/2026**, sau khi rút gọn mã phần 2
-(`vision.py`, `cameras.py`, `screen.py`, `success.py`, `generate_aruco_a4.py`; bỏ YOLO, điện thoại, xoay hình, tráo camera). Ngày 11/11: đế khởi động ở 180°, điều khiển từ xa bằng máy Dell đưa lại ở dạng gọn (`share.py`, `remote.py`); phím R chụp đích một lần. 102 test, chạy trên máy Windows
+(`vision.py`, `cameras.py`, `screen.py`, `success.py`, `generate_aruco_a4.py`; bỏ YOLO, điện thoại, xoay hình, tráo camera). Ngày 11/11: đế khởi động ở 180°, điều khiển từ xa bằng máy Dell đưa lại ở dạng gọn (`share.py`, `remote.py`); phím R chụp đích một lần; rút gọn cổng USB (bỏ phần cho firmware cũ), bỏ phím C. 100 test, chạy trên máy Windows
 (xem mục 11). Bộ slide đã dựng: `Project_IoT_ThuyetTrinh.pptx` (25 slide, 3 phần cho 4 người, `build_slides.py`).
 
 Kiểm lại bằng máy sau mỗi lần sửa mã: `.venv/bin/python -B slides/tools/check_facts.py` (so các hằng số ở mục 17 và mọi dẫn `file:dòng` trong các file `.md` với mã hiện tại).
@@ -24,18 +24,18 @@ Nhãn trạng thái:
 |---|---|---|---|
 | Vi điều khiển | Arduino Uno (board `arduino:avr:uno`) | CODE | `robot_arm_4dof/flash.sh:19`; `README.md` mục 1 |
 | Mạch PWM | PCA9685, địa chỉ I²C 0x40, xung 50 Hz | CODE | `robot_arm_4dof.ino:8,90` |
-| Servo | 4 × MG996R: kênh 0 đế, 1 vai, 2 khuỷu, 3 kẹp | CODE | `README.md` mục 1; `robot_arm_4dof.ino:26-29`; `control.py:53` |
-| Bước mỗi phím | đế, vai, khuỷu **2°**; kẹp **5°** | CODE | `robot_arm_4dof.ino:13-14`; `control.py:60` |
-| Giới hạn góc | đế 0–180°, vai 25–155°, khuỷu 25–155°, kẹp 95–**160°** | CODE | `control.py:54-59`; `robot_arm_4dof.ino:19-21,121-152` |
-| Góc khởi động / Home | **180** / 90 / 90 / 95° (phím `H` đưa về): đế quay hết sang phải (nhìn theo cam NGANG) để cánh tay không che vật ở cam TRÊN; trước 11/11 là 90 / 90 / 90 / 95° | CODE | `robot_arm_4dof.ino:26-29,154-158`; `control.py:54-59` |
+| Servo | 4 × MG996R: kênh 0 đế, 1 vai, 2 khuỷu, 3 kẹp | CODE | `README.md` mục 1; `robot_arm_4dof.ino:26-29`; `control.py:52` |
+| Bước mỗi phím | đế, vai, khuỷu **2°**; kẹp **5°** | CODE | `robot_arm_4dof.ino:13-14`; `control.py:59` |
+| Giới hạn góc | đế 0–180°, vai 25–155°, khuỷu 25–155°, kẹp 95–**160°** | CODE | `control.py:53-58`; `robot_arm_4dof.ino:19-21,121-152` |
+| Góc khởi động / Home | **180** / 90 / 90 / 95° (phím `H` đưa về): đế quay hết sang phải (nhìn theo cam NGANG) để cánh tay không che vật ở cam TRÊN; trước 11/11 là 90 / 90 / 90 / 95° | CODE | `robot_arm_4dof.ino:26-29,154-158`; `control.py:53-58` |
 | Nguồn servo | nguồn tổ ong riêng 5–6 V vào cổng xanh PCA9685, **không** lấy từ cổng USB | CODE (tài liệu) | `README.md` mục 1 |
 | Bluetooth | HC-05 qua `SoftwareSerial` chân D2/D3, 9600 baud; nhận phím từ máy Dell khi điều khiển từ xa (mục 5) | CODE | `robot_arm_4dof.ino:6,87` |
-| Cổng USB tới laptop | Serial 9600 baud | CODE | `robot_arm_4dof.ino:86`; `control.py:262` |
+| Cổng USB tới laptop | Serial 9600 baud | CODE | `robot_arm_4dof.ino:86`; `control.py:289` |
 | Gói trạng thái Arduino → laptop | JSON `{"t":…,"servo":[đế,vai,khuỷu,kẹp],"relax":0\|1,"armrelax":0\|1}`; gửi ngay sau mỗi phím và mỗi 200 ms (5 gói/giây danh định, **đo thực tế 4–5 gói/giây**) | CODE + ĐO | `robot_arm_4dof.ino:70-83,186-188,203-207` |
 | **Góc servo báo về là góc LỆNH** | gói JSON in các biến `angleBase`, `angleShoulder`… mà firmware đã gán; MG996R không báo vị trí thật. "Đã tới góc" nghĩa là lệnh đã tới góc, **không** phải đã đo thấy cánh tay ở đó | CODE | `robot_arm_4dof.ino:70-83` |
 | Cam TRÊN | OBSBOT Meet SE treo phía trên tờ giấy, nhìn xuống, 1920×1080 | CODE + ĐO | `README.md` mục 1; ghi chú phiên 02/11 (memory `project-iot-camera-setup`) |
 | Cam NGANG | camera tích hợp MacBook đặt thấp trước tờ giấy, 1920×1080 | CODE + ĐO | `README.md` mục 1; `cameras.py:20-23` |
-| Hệ điều hành và thư viện | macOS (tìm camera theo tên qua `system_profiler`), Python ≥ 3.12, OpenCV, pyserial, Pillow (xuất PDF tờ A4). Phần cho Windows: cổng `COMx` (ưu tiên CH340 / Arduino), tên camera DirectShow qua `pygrabber`; **mọi ảnh và số đo trong slide đều làm trên macOS** | CODE | `pyproject.toml`; `control.py:246-276`; `cameras.py:26-37` |
+| Hệ điều hành và thư viện | macOS (tìm camera theo tên qua `system_profiler`), Python ≥ 3.12, OpenCV, pyserial, Pillow (xuất PDF tờ A4). Phần cho Windows: cổng `COMx` (ưu tiên CH340 / Arduino), tên camera DirectShow qua `pygrabber`; **mọi ảnh và số đo trong slide đều làm trên macOS** | CODE | `pyproject.toml`; `control.py:242-272`; `cameras.py:26-37` |
 
 ## 2. Tờ A4, hệ tọa độ và nhận diện vật
 
@@ -45,40 +45,40 @@ Nhãn trạng thái:
 | Mã ArUco của tờ | 4 mã `DICT_4X4_50`, ID 0–3, cạnh 2,8 cm, cách mép 0,25 cm, sát 4 góc | CODE | `vision.py:17-18`; `generate_aruco_a4.py:16-22` |
 | Hệ tọa độ | gốc ở góc ngoài mã ID 0; X chạy ID 0 → ID 1 (29,7 cm); Y chạy ID 0 → ID 3 (21,0 cm); gắn với **tờ giấy**, không phụ thuộc camera nào nhìn | CODE | `README.md` mục 4; `calibration.py:5-8` |
 | Homography | từ các mã ArUco 0–3 (cần ≥ 2 mã), cho **cả hai camera**; ảnh phẳng của tờ giấy dựng bằng `warpPerspective` | CODE | `vision.py:45-62,71` |
-| Che mất mã | nhớ vị trí từng mã nên che 1–3 mã vẫn còn lưới; dời camera hoặc tờ giấy thì bấm `U` để quên | CODE + MÔ PHỎNG | `README.md` mục 4; `main.py:191-194`; `tests/test_vision.py:48` |
+| Che mất mã | nhớ vị trí từng mã nên che 1–3 mã vẫn còn lưới; dời camera hoặc tờ giấy thì bấm `U` để quên | CODE + MÔ PHỎNG | `README.md` mục 4; `main.py:169-172`; `tests/test_vision.py:48` |
 | **Cách tìm vật** | tách màu HSV trên ảnh phẳng của tờ giấy: độ bão hòa ≥ 90, sáng ≥ 60; bỏ khối < 1,5 cm² (nhiễu, dây điện) hoặc > 50 cm² (bàn tay, không lọt miệng kẹp), khối cách mép giấy dưới 1 cm, khối hơn 30% dính phần đen của cánh tay | CODE | `vision.py:68-96`; `tests/test_vision.py:74-105` |
 | YOLO | **đã bỏ** ngày 10/11 khi rút gọn phần 2 (trước đó là tùy chọn `--yolo`, mặc định tắt, bản COCO chưa fine-tune, có nhận nhầm) | CODE | `README.md` mục 9 |
 | Kích thước cốc đỏ số 3 | thân 34 mm, nắp ≈ 40 mm, cao 50 mm (độ cao dùng để bù thị sai) | ĐO | `vision.py:23` |
-| Chọn vật (phím `R`) | bấm `R`: vật gần đế nhất trong ảnh lúc bấm thành đích, góc cần tới tính **một lần** lúc bấm, sau đó không theo camera nữa (tay kẹp che hay đẩy lệch vật cũng không đổi đích); vật bị dời thì bấm `R` lại; chưa bấm `R` thì chưa có lệnh; dời đế (phím `B`) thì bỏ đích cũ. Bỏ ngày 11/11: theo dõi vật liên tục (trung bình 10 khung, nhớ 120 s khi bị che, `R` bỏ chốt) | CODE | `control.py:539-556`; `tests/test_control.py:118-193` |
+| Chọn vật (phím `R`) | bấm `R`: vật gần đế nhất trong ảnh lúc bấm thành đích, góc cần tới tính **một lần** lúc bấm, sau đó không theo camera nữa (tay kẹp che hay đẩy lệch vật cũng không đổi đích); vật bị dời thì bấm `R` lại; chưa bấm `R` thì chưa có lệnh; dời đế (phím `B`) thì bỏ đích cũ. Bỏ ngày 11/11: theo dõi vật liên tục (trung bình 10 khung, nhớ 120 s khi bị che, `R` bỏ chốt) | CODE | `control.py:491-508`; `tests/test_control.py:118-193` |
 | **Hiệu chỉnh phối cảnh cam TRÊN** | cam treo cao ≈ 46 cm nhìn xuống; vật cao 5 cm hiện lệch ≈ 1 cm; công thức `p_thật = n + (p_đo − n)·(H − h)/H` (n: tâm ảnh, H: 46 cm, h: độ cao vật). Một phép đo ngày 02/11: cam TRÊN (20,6; 6,8) cm, cam MacBook (20,0; 7,8) cm, lệch **1,2 cm**; sau hiệu chỉnh còn **0,2 cm** | CODE + ĐO (một vị trí cốc) | `vision.py:22-23,77-93`; `tests/test_vision.py:64-71` |
 | Độ cao 46 cm của cam TRÊN | ước từ ảnh (≈ 27 px/cm ở mặt bàn); không đo bằng thước | ƯỚC LƯỢNG | `vision.py:22`; ghi chú phiên 02/11 |
 
-## 3. NHÓM 1 · Điều khiển (`control.py`): từ vật tới phím cần bấm
+## 3. Khối điều khiển (`control.py`): từ vật tới phím cần bấm
 
 | Mục | Giá trị | Nhãn | Nguồn |
 |---|---|---|---|
-| Việc của nhóm 1 | vật ở (X, Y) cm → góc ba servo cần tới (IK) → danh sách phím cần bấm; giữ cổng USB tới Arduino. **Không biết** thế nào là "xong" | CODE | `control.py:1-13`; `README.md` (đầu trang, bảng hai nhóm) |
-| Số đo cánh tay mặc định (`ARM_CONFIG`) | d₁ = 70 mm (mặt bàn → trục vai), L₂ = 105 mm (vai → khuỷu), L₃ = 100 mm (khuỷu → cổ tay), tâm hai ngón kẹp lệch L₄ᵣ = 65 mm ra trước và L₄z = 25 mm xuống dưới | CODE (số đo thước) | `control.py:33-38` |
-| Góc chuẩn khi servo 90° (mặc định) | khâu L₂ nghiêng +45°, khâu L₃ gập −45° so với L₂; **thực tế khác** (xem mục 8) | CODE | `control.py:46-47` |
-| Mô hình | đế quay θ₁ = atan2(y, x); vai + khuỷu giải tam giác hai khâu (nghiệm khuỷu hướng lên); **không có servo cổ tay** nên hướng ngón kẹp không chọn được | CODE | `control.py:93-136` |
-| Điểm kẹp mục tiêu | cao **25 mm** (nửa thân cốc cao 50 mm) | CODE | `control.py:64` |
-| Đổi sang servo | đế = 90 + θ₁; vai = 90 + (θ₂ − θ₂@90); khuỷu = 90 + (θ₃ − θ₃@90); làm tròn về bội số của bước (2°) quanh neo 90°, kẹp trong giới hạn | CODE | `control.py:139-156` |
-| Đổi tọa độ | giấy (cm) ↔ hệ robot (mm) theo vị trí và hướng của đế | CODE | `control.py:169-190`; `tests/test_control.py:42` |
-| Phím và hướng | `A` / `D` xoay đế **sang phải / sang trái, nhìn theo cam NGANG (MacBook)**; `W` / `S` nâng / hạ vai; `I` / `K` khuỷu lên / xuống; `J` / `L` mở / khép kẹp; `H` Home; `X` kẹp nghỉ; `Z` cả 4 servo nghỉ | CODE | `control.py:206-212`; `README.md` mục 2 |
+| Việc của khối điều khiển | vật ở (X, Y) cm → góc ba servo cần tới (IK) → danh sách phím cần bấm; giữ cổng USB tới Arduino. **Không biết** thế nào là "xong" | CODE | `control.py:1-13`; `README.md` (đầu trang, bảng hai nhóm) |
+| Số đo cánh tay mặc định (`ARM_CONFIG`) | d₁ = 70 mm (mặt bàn → trục vai), L₂ = 105 mm (vai → khuỷu), L₃ = 100 mm (khuỷu → cổ tay), tâm hai ngón kẹp lệch L₄ᵣ = 65 mm ra trước và L₄z = 25 mm xuống dưới | CODE (số đo thước) | `control.py:32-37` |
+| Góc chuẩn khi servo 90° (mặc định) | khâu L₂ nghiêng +45°, khâu L₃ gập −45° so với L₂; **thực tế khác** (xem mục 8) | CODE | `control.py:45-46` |
+| Mô hình | đế quay θ₁ = atan2(y, x); vai + khuỷu giải tam giác hai khâu (nghiệm khuỷu hướng lên); **không có servo cổ tay** nên hướng ngón kẹp không chọn được | CODE | `control.py:92-135` |
+| Điểm kẹp mục tiêu | cao **25 mm** (nửa thân cốc cao 50 mm) | CODE | `control.py:63` |
+| Đổi sang servo | đế = 90 + θ₁; vai = 90 + (θ₂ − θ₂@90); khuỷu = 90 + (θ₃ − θ₃@90); làm tròn về bội số của bước (2°) quanh neo 90°, kẹp trong giới hạn | CODE | `control.py:138-155` |
+| Đổi tọa độ | giấy (cm) ↔ hệ robot (mm) theo vị trí và hướng của đế | CODE | `control.py:168-189`; `tests/test_control.py:42` |
+| Phím và hướng | `A` / `D` xoay đế **sang phải / sang trái, nhìn theo cam NGANG (MacBook)**; `W` / `S` nâng / hạ vai; `I` / `K` khuỷu lên / xuống; `J` / `L` mở / khép kẹp; `H` Home; `X` kẹp nghỉ; `Z` cả 4 servo nghỉ | CODE | `control.py:205-210`; `README.md` mục 2 |
 | Lưu ý chú thích | chú thích trong firmware ghi `a (Trái)` theo hướng nhìn của chính robot; trên màn hình và slide dùng hướng nhìn theo cam NGANG, ngược lại | CODE | `robot_arm_4dof.ino:120`; `screen.py:52` |
-| Kế hoạch bấm (`Plan`, `Move`) | mỗi servo một `Move` gồm phím, số lần (= độ lệch ÷ bước, làm tròn xuống), hướng, số độ; **kẹp không bao giờ nằm trong Plan** | CODE | `control.py:216-240,469-485`; `tests/test_control.py:64-90` |
+| Kế hoạch bấm (`Plan`, `Move`) | mỗi servo một `Move` gồm phím, số lần (= độ lệch ÷ bước, làm tròn xuống), hướng, số độ; **kẹp không bao giờ nằm trong Plan** | CODE | `control.py:214-236,462-477`; `tests/test_control.py:64-90` |
 | Kiểm IK ↔ FK | trên lưới > 100 điểm trong tầm với, FK(IK(p)) trùng p với sai số **< 0,1 mm**; mọi góc servo ra đều bấm tới được | MÔ PHỎNG | `tests/test_control.py:16-32` |
-| Ngoài tầm với | IK báo `reachable = False` và dời vật thêm bao nhiêu mm; màn hình ghi `Vat ngoai tam voi` | CODE | `control.py:93-136`; `screen.py:21-26`; `tests/test_control.py:35` |
+| Ngoài tầm với | IK báo `reachable = False` và dời vật thêm bao nhiêu mm; màn hình ghi `Vat ngoai tam voi` | CODE | `control.py:92-135`; `screen.py:21-26`; `tests/test_control.py:35` |
 | **Ví dụ tính được** | với `calibration.json` hiện tại, cốc ở **(20,1; 7,4) cm** → robot x = 240 mm, y = −73 mm → gợi ý **đế 74°, vai 58°, khuỷu 90°**. Từ tư thế 90/90/90: đế −16° = phím **D × 8**, vai −32° = phím **S × 16**, khuỷu 0 (đã đúng) | CODE (tính lại 02/11 23:07) | mục 16; `main.py` chạy `--headless` 22:46 cho cùng kế hoạch (ghi chú phiên) |
 | Ví dụ trên ảnh màn hình (slide 8) | khung camera thật 20:27: cốc ở **(16,5; 13,8) cm** → gợi ý **[đế 88°, vai 60°, khuỷu 84°]**; từ 90/90/90 (Home của bản trước 11/11): **S × 15** (hạ vai 30°), **K × 3** (khuỷu xuống 6°), đế lệch 2° nên `DA DUNG`; còn **18 lần bấm** | MÔ PHỎNG (chương trình chạy trên ảnh đã lưu; đế đổi sang hệ lúc chụp, xem mục 5) | ảnh `ui_screen_before.png`; `slides/tools/make_screen_images.py` |
-| Cổng USB | 9600 baud, đọc nền, **mở tay cầm mới trước khi đóng tay cầm cũ** (để DTR không hạ), không đóng cổng vì một lỗi đọc thoáng qua, tự nhận ra Arduino reset khi thời gian chạy `t` quay về 0 | CODE | `control.py:246-463`; `tests/test_serial_link.py:96-150` |
-| Gửi phím | app chỉ gửi phím khi **người bấm**; không còn chế độ tự gửi (Auto-Step đã bỏ) | CODE | `control.py:576-588`; `main.py:175-197` |
+| Cổng USB | 9600 baud, đọc nền, **mở tay cầm mới trước khi đóng tay cầm cũ** (để DTR không hạ), không đóng cổng vì một lỗi đọc thoáng qua, tự nhận ra Arduino reset khi thời gian chạy `t` quay về 0 | CODE | `control.py:243-455`; `tests/test_serial_link.py:96-150` |
+| Gửi phím | app chỉ gửi phím khi **người bấm**; không còn chế độ tự gửi (Auto-Step đã bỏ) | CODE | `control.py:528-535`; `main.py:153-173` |
 
-## 4. NHÓM 2 · Success (`success.py`): đã tới chưa?
+## 4. Khối success (`success.py`): đã tới chưa?
 
 | Mục | Giá trị | Nhãn | Nguồn |
 |---|---|---|---|
-| Việc của nhóm 2 | nhận `Plan` của nhóm 1, trả lời một câu: ba servo đế / vai / khuỷu đã tới góc gợi ý chưa. **Không biết** gì về camera, IK hay cổng USB | CODE | `success.py:1-6` |
+| Việc của khối success | nhận `Plan` của khối điều khiển, trả lời một câu: ba servo đế / vai / khuỷu đã tới góc gợi ý chưa. **Không biết** gì về camera, IK hay cổng USB | CODE | `success.py:1-6` |
 | Quy tắc "đã tới" | mỗi servo lệch **≤ 1 bước bấm (2°)** so với góc gợi ý (lệch 3° là chưa) | CODE | `success.py:11,27`; `tests/test_success.py:23` |
 | Quy tắc "một lần thành công" | cả ba servo đã tới và **giữ liên tục ≥ 1,0 giây** thì đếm thêm 1; giữ thêm không đếm nữa; lướt qua chưa đủ 1 s không đếm; rời góc rồi tới lại đủ lâu thì đếm lần hai | CODE | `success.py:12,40-58`; `tests/test_success.py:46-65` |
 | Kẹp **không tính** | kẹp lệch 55° vẫn XONG; bản đơn giản chỉ cần đưa đầu kẹp tới đúng chỗ của vật | CODE | `success.py:4`; `tests/test_success.py:31` |
@@ -86,7 +86,7 @@ Nhãn trạng thái:
 | Kết quả (`Result`) | `state`, `done`, `joints_ok` (3 giá trị), `next_move` (việc đầu tiên chưa xong theo thứ tự đế → vai → khuỷu), `remaining` (tổng số lần bấm còn lại), `count` | CODE | `success.py:15-22` |
 | Vì sao dung sai 2° | "mô hình hình học chỉ chính xác cỡ đó"; bắt căn tới 0° chỉ làm người dùng đuổi theo nhiễu | CODE (chú thích) | `success.py:11`; `tests/test_success.py:24` |
 | Chuỗi nối nhau | làm đúng lệnh to trên màn hình (bấm phím `key` `steps` lần, nhìn lại lệnh mới) thì ra XONG, đếm đúng 1 lần, không bấm thừa; bấm lệch 4° thì hết XONG và số đã đếm không mất | MÔ PHỎNG | `tests/test_end_to_end.py:11-47` |
-| Hai nhóm chỉ nói chuyện qua một đối tượng | `Plan` (nhóm 1 sinh ra, nhóm 2 đọc); cùng một `Plan` cho cùng một kết luận, không cần camera hay cổng USB | CODE | `README.md` (đầu trang); `tests/test_end_to_end.py:50-56` |
+| Hai khối chỉ nói chuyện qua một đối tượng | `Plan` (khối điều khiển sinh ra, khối success đọc); cùng một `Plan` cho cùng một kết luận, không cần camera hay cổng USB | CODE | `README.md` (đầu trang); `tests/test_end_to_end.py:50-56` |
 | **Giới hạn của "XONG"** | góc servo là **góc lệnh** (mục 1): XONG chứng minh phím đã được bấm đúng số lần, **không** chứng minh hai ngón kẹp thật đang ở sát vật. Độ đúng của gợi ý phụ thuộc mô hình hình học (mục 8) | CODE | `robot_arm_4dof.ino:70-83`; `success.py:29-30` |
 | **Trạng thái thật** | **chưa có lần đếm thành công nào trên cánh tay thật**: bản này mới chạy bằng test, bằng camera giả lập và bằng ảnh đã lưu (`--no-serial --headless`); Arduino được rút ra lúc ≈ 22:40 | MÔ PHỎNG / CHƯA | ghi chú phiên 02/11; `ls logs` (không có thư mục) |
 
@@ -98,9 +98,9 @@ Nhãn trạng thái:
 | Ô 1 | lệnh to màu cam: `BAM D x8: SANG TRAI 16 do`; ba dòng servo (`DE (xoay): 90 -> 74 do   bam D x8`), dòng đã tới ghi `DA DUNG` màu xanh | CODE | `screen.py:51-60` |
 | Ô 2 | `CHUA XONG` + `con N lan bam`, hoặc **`XONG!`** màu xanh khi cả ba servo tới góc; `Thanh cong: N lan` | CODE | `screen.py:62-71` |
 | Trạng thái khác | ô 1 ghi `Chua co dich: ... roi bam R`, `Vat ngoai tam voi`, `Tay dang nghi` hoặc `Khong can bam them`; ô 2 ghi `CHUA XONG` | CODE | `screen.py:21-26` |
-| Trên hai camera | vòng **DICH** (chỗ vật) và dấu **KEP** (đầu kẹp theo mô hình) vẽ trên mặt giấy; lưới 5 cm; viền tờ giấy; dòng `Luoi A4: thay n/4 ma ArUco` | CODE | `main.py:123-130`; `vision.py:112-127,141-163` |
-| Chân trang | trạng thái USB (`DA KET NOI` hoặc `MO PHONG`), hàng phím tắt; banner `ARDUINO VUA RESET` hoặc `FIRMWARE CU KHONG CO PHIM Z` | CODE | `screen.py:73-76`; `control.py:563-566,583` |
-| **Điều khiển từ xa** | máy Dell cách ≈ 2 m: `remote.py` lấy ảnh màn hình Mac qua Wi-Fi (`share.py`, `http://<ip Mac>:8000/screen.jpg`, chỉ cho xem, không nhận lệnh) và gửi phím `A D W S I K J L H X Z` qua Bluetooth HC-05 thẳng tới Arduino; `H`, `Z` phải bấm 2 lần trong 2 giây; `R` bấm trên bàn phím Mac. Mac vẫn nối USB để nhận góc servo và tính lệnh, success | CODE + MÔ PHỎNG | `share.py`; `remote.py`; `main.py:200-217`; `tests/test_share.py`, `tests/test_remote.py` |
+| Trên hai camera | vòng **DICH** (chỗ vật) và dấu **KEP** (đầu kẹp theo mô hình) vẽ trên mặt giấy; lưới 5 cm; viền tờ giấy; dòng `Luoi A4: thay n/4 ma ArUco` | CODE | `main.py:101-108`; `vision.py:112-127,141-163` |
+| Chân trang | trạng thái USB (`DA KET NOI` hoặc `MO PHONG`), hàng phím tắt; banner `ARDUINO VUA RESET` | CODE | `screen.py:73-76`; `control.py:515-518` |
+| **Điều khiển từ xa** | máy Dell cách ≈ 2 m: `remote.py` lấy ảnh màn hình Mac qua Wi-Fi (`share.py`, `http://<ip Mac>:8000/screen.jpg`, chỉ cho xem, không nhận lệnh) và gửi phím `A D W S I K J L H X Z` qua Bluetooth HC-05 thẳng tới Arduino; `H`, `Z` phải bấm 2 lần trong 2 giây; `R` bấm trên bàn phím Mac. Mac vẫn nối USB để nhận góc servo và tính lệnh, success | CODE + MÔ PHỎNG | `share.py`; `remote.py`; `main.py:176-193`; `tests/test_share.py`, `tests/test_remote.py` |
 | Điều khiển từ xa trên phần cứng | bản rút gọn 11/11 **chưa chạy với HC-05 và máy Dell thật**; test dùng cổng Serial giả và máy chủ cục bộ | CHƯA | — |
 | Chữ **không dấu** | OpenCV `putText` không vẽ được dấu tiếng Việt: giữ nguyên, nói rõ khi thuyết trình | CODE | `screen.py:10` |
 | Ảnh màn hình trên slide | `ui_screen_before.png` (khung camera 20:27) và `ui_screen_done.png` (khung 20:32:52, sau khi **mô phỏng** bấm 21 phím theo lệnh) là màn hình **thật của chương trình (giao diện trước khi rút gọn `screen.py` ngày 10/11; chạy lại `make_screen_images.py` trên Mac để có giao diện mới), chạy trên ảnh camera thật đã lưu, cánh tay MÔ PHỎNG** (chân trang ghi `USB Arduino: MO PHONG`, tiêu đề camera ghi `anh da luu`): không phải lần chạy trực tiếp. Ảnh chụp lúc tờ giấy còn hướng ban đầu còn `calibration.json` ghi theo tờ đã xoay 180°, nên script đổi đế về hệ lúc chụp rồi tự kiểm (dấu `KEP` đã hiệu chỉnh cách cốc ≤ 2 cm, không thì dừng). Hai ảnh cho cốc lệch 1,5 cm vì hai ngón kẹp che cốc ở khung 20:32:52 | MÔ PHỎNG | `slides/tools/make_screen_images.py` |
@@ -114,7 +114,7 @@ Nhãn trạng thái:
 | Ngắt xung tự động | kẹp **mở hết cỡ (đúng 95°)** 5 giây không có lệnh kẹp → ngắt xung; kẹp **đã khép (> 95°)** quá 60 giây → ngắt xung (vật có thể tuột) | CODE | `robot_arm_4dof.ino:22-23,191-201` |
 | Phím nghỉ | `X` nghỉ servo kẹp ngay; **`Z` nghỉ cả 4 servo** (cánh tay tự sụp theo trọng lực: hạ đầu kẹp tựa xuống chỗ trống trước); chỉ phím di chuyển mới cấp xung lại | CODE | `robot_arm_4dof.ino:160-176`; `README.md` mục 6 |
 | Cờ trong JSON | `relax` (kẹp nghỉ), `armrelax` (ba servo còn lại nghỉ) | CODE | `robot_arm_4dof.ino:78-82` |
-| Chương trình biết tay đang nghỉ | trạng thái `relaxed` (`CANH TAY DANG NGHI`); bấm `Z` khi firmware cũ chưa có phím Z thì cảnh báo `FIRMWARE CU KHONG CO PHIM Z` | CODE | `control.py:273,477,568`; `tests/test_control.py:210` |
+| Chương trình biết tay đang nghỉ | trạng thái `relaxed` (`Tay dang nghi`), lấy từ cờ `armrelax` trong gói JSON | CODE | `control.py:367,440,520`; `tests/test_serial_link.py:150` |
 | **Đã nạp và kiểm** | firmware cuối (phím Z, bước 2°/5°, giới hạn 160°) nạp lúc 21:42:45 và 21:54:48 ngày 02/11, kiểm trên mạch thật: banner kết thúc `+ Z (nghi het)`, JSON có `armrelax`. Trước đó (17:35) bản chống nóng kênh kẹp: `relax` chuyển 0 → 1 sau 5 giây ở 95° | ĐO (ghi chú phiên) | memory `project-iot-arduino-firmware`; `robot_arm_4dof.ino:99` |
 | Kẹp đã ngắt xung thì tự khép | khi PWM kênh kẹp bị cắt, hai hàm rơi thành hình chữ V hẹp (khe ≈ 1–2 cm), trong khi kẹp có xung ở 95° thì mở rộng ≈ 7 cm. Hệ quả: ngắt xung sau 5 s ở 95° làm hàm sập nếu không bấm `J` lại | ƯỚC LƯỢNG (ảnh zoom ±30%) | ghi chú phiên 02/11 20:18 |
 | Nhiệt độ servo | **chưa đo**; chưa có số "nguội đi bao nhiêu độ" | CHƯA | — |
@@ -165,18 +165,18 @@ Nhãn trạng thái:
 | Mục | Giá trị | Nhãn | Nguồn |
 |---|---|---|---|
 | Chỉ số camera trên macOS | `cv2.VideoCapture(i)` sắp camera theo `uniqueID`; danh sách của AVFoundation / `system_profiler` xếp camera "dùng gần nhất" lên đầu nên đổi thứ tự giữa các lần chạy (đã thấy: lúc `[OBSBOT, MacBook]`, lúc `[MacBook, OBSBOT]`; có lúc hai khung cùng là OBSBOT). Cách xử lý: tìm camera theo **tên**, đổi sang chỉ số theo đúng quy tắc sắp `uniqueID` ngay trước mỗi lần mở | ĐO + CODE | `cameras.py:1-6,26-46`; `README.md` mục 5; `tests/test_cameras.py:21` |
-| Arduino Uno tự reset | mở rồi đóng cổng USB làm đường DTR hạ xuống rồi nâng lên → Uno reset → 4 servo giật về Home 180/90/90/95. Thường do **một chương trình thứ hai** mở cổng khi `main.py` đang chạy. Cách xử lý: không đóng cổng khi đọc lỗi thoáng qua; mở tay cầm mới **trước** khi đóng tay cầm cũ; nhận ra reset khi thời gian chạy `t` quay về 0 và báo `ARDUINO VUA RESET` | ĐO + CODE | `control.py:340-347,391-441`; `README.md` mục 6; `tests/test_serial_link.py:96-140` |
+| Arduino Uno tự reset | mở rồi đóng cổng USB làm đường DTR hạ xuống rồi nâng lên → Uno reset → 4 servo giật về Home 180/90/90/95. Thường do **một chương trình thứ hai** mở cổng khi `main.py` đang chạy. Cách xử lý: không đóng cổng khi đọc lỗi thoáng qua; mở tay cầm mới **trước** khi đóng tay cầm cũ; nhận ra reset khi thời gian chạy `t` quay về 0 và báo `ARDUINO VUA RESET` | ĐO + CODE | `control.py:343-350,383-406`; `README.md` mục 6; `tests/test_serial_link.py:96-140` |
 
 ## 11. Mã nguồn và kiểm thử
 
 | Mục | Giá trị | Nhãn | Nguồn |
 |---|---|---|---|
-| Kiểm thử | **102 test**: `test_control` 28, `test_calibration` 11, `test_serial_link` 9, `test_vision` 8, `test_success` 7, `test_main` 7, `test_robustness` 6, `test_remote` 6, `test_cameras` 5, `test_arm_fit` 5, `test_share` 5, `test_screen` 3, `test_end_to_end` 2 (13 tệp test). Chạy ngày 10/11 trên máy Windows: 85 đạt; 8 test mở cửa sổ OpenCV lỗi vì bản OpenCV ở máy này không có phần cửa sổ, thay các hàm cửa sổ bằng hàm rỗng thì đạt cả 93. Chạy lại 11/11 trên máy Windows (môi trường `uv sync` mới, sau khi đổi Home đế sang 180°): **93/93 đạt**; thêm điều khiển từ xa: 104/104 đạt; đổi phím R sang chụp đích một lần: **102/102 đạt**. **Chưa chạy lại trên Mac** | ĐO | `pytest -q`, 10/11 và 11/11/2026 |
+| Kiểm thử | **100 test**: `test_control` 27, `test_calibration` 11, `test_serial_link` 9, `test_vision` 8, `test_success` 7, `test_main` 6, `test_robustness` 6, `test_remote` 6, `test_cameras` 5, `test_arm_fit` 5, `test_share` 5, `test_screen` 3, `test_end_to_end` 2 (13 tệp test). Chạy ngày 10/11 trên máy Windows: 85 đạt; 8 test mở cửa sổ OpenCV lỗi vì bản OpenCV ở máy này không có phần cửa sổ, thay các hàm cửa sổ bằng hàm rỗng thì đạt cả 93. Chạy lại 11/11 trên máy Windows (môi trường `uv sync` mới, sau khi đổi Home đế sang 180°): **93/93 đạt**; thêm điều khiển từ xa: 104/104 đạt; đổi phím R sang chụp đích một lần: 102/102 đạt; rút gọn cổng USB, bỏ phím C: **100/100 đạt**. **Chưa chạy lại trên Mac** | ĐO | `pytest -q`, 10/11 và 11/11/2026 |
 | Không chạm phần cứng | không test nào đụng camera, cổng Serial hay `calibration.json` thật; cảnh dựng bằng camera giả lập có đáp án chính xác | CODE | `README.md` mục 7 |
-| Quy mô | 8 module Python ≈ **1 586 dòng** (`main.py` 299 · `control.py` 590 · `success.py` 58 · `screen.py` 77 · `vision.py` 163 · `cameras.py` 118 · `calibration.py` 140 · `arm_fit.py` 141) + điều khiển từ xa (`share.py` 92 · `remote.py` 262) + firmware 208 dòng + `generate_aruco_a4.py` 29 dòng + 13 file test ≈ 1 720 dòng. Phần 2 (vision, cameras, screen, success, generate_aruco_a4) từ 1 677 còn 447 dòng | CODE | `wc -l` (11/11) |
-| Chạy không cần phần cứng | `main.py --top a.jpg --side b.jpg --no-serial --headless --seconds 10 --dump-dir out/` → `dual_view.png`, ảnh chú thích của 2 camera, `summary.json` (có `nhom_1_dieu_khien` và `nhom_2_success`) | CODE | `README.md` mục 7; `main.py:244-270` |
-| Mỗi khung hình là ba dòng | `plan = control.update(vision.objects)` → `result = success.update(plan)` → `build_screen(…, plan, result)` | CODE | `README.md` mục 3; `main.py:135-138` |
-| Repo | `github.com/DuongNAD/Project_IoT`: nhánh `main` (`e3f2d85`, 03/11/2026) đã có bản hai nhóm (`control.py`, `success.py`, `screen.py`, `vision.py`, `cameras.py`, `calibration.py`, `arm_fit.py`, `tests/`, `README.md`) và phần gộp từ máy Windows. `captures/`, `calibration.json` và `slides/assets/real/` nằm trong `.gitignore`; riêng `slides/Project_IoT_ThuyetTrinh.pptx`, `.pdf` và `slides/preview/` **đang được git theo dõi và có nhúng ảnh thật** | CODE | `git log`; `.gitignore`; `slides/.gitignore` |
+| Quy mô | 8 module Python ≈ **1 509 dòng** (`main.py` 275 · `control.py` 537 · `success.py` 58 · `screen.py` 77 · `vision.py` 163 · `cameras.py` 118 · `calibration.py` 140 · `arm_fit.py` 141) + điều khiển từ xa (`share.py` 92 · `remote.py` 262) + firmware 208 dòng + `generate_aruco_a4.py` 29 dòng + 13 file test ≈ 1 700 dòng. Phần 2 (vision, cameras, screen, success, generate_aruco_a4) từ 1 677 còn 447 dòng | CODE | `wc -l` (11/11) |
+| Chạy không cần phần cứng | `main.py --top a.jpg --side b.jpg --no-serial --headless --seconds 10 --dump-dir out/` → `dual_view.png`, ảnh chú thích của 2 camera, `summary.json` (có `dieu_khien` và `success`) | CODE | `README.md` mục 7; `main.py:220-246` |
+| Mỗi khung hình là ba dòng | `plan = control.update(vision.objects)` → `result = success.update(plan)` → `build_screen(…, plan, result)` | CODE | `README.md` mục 3; `main.py:113-116` |
+| Repo | `github.com/DuongNAD/Project_IoT`: nhánh `main` (`e3f2d85`, 03/11/2026) đã có bản hai khối (`control.py`, `success.py`, `screen.py`, `vision.py`, `cameras.py`, `calibration.py`, `arm_fit.py`, `tests/`, `README.md`) và phần gộp từ máy Windows. `captures/`, `calibration.json` và `slides/assets/real/` nằm trong `.gitignore`; riêng `slides/Project_IoT_ThuyetTrinh.pptx`, `.pdf` và `slides/preview/` **đang được git theo dõi và có nhúng ảnh thật** | CODE | `git log`; `.gitignore`; `slides/.gitignore` |
 | Sao lưu bản trước khi đơn giản hóa | `~/Documents/project/Project_IoT_backup_truoc_don_gian_hoa_2026-11-02.tgz` (14 MB, ngoài repo) | CODE | `README.md` mục 9 |
 
 ## 12. Đã bỏ khi đơn giản hóa (02/11, khoảng 22:00–22:50)
@@ -240,8 +240,8 @@ Kết quả `grep` MQTT, paho, ESP32, FSR, dashboard trong mã nguồn (`*.py`, 
 ## 15. Cần bạn xác nhận (không suy ra được từ máy)
 
 1. Tên môn học hoặc sự kiện, ngày giờ, địa điểm, thời lượng được phép.
-2. Tên và vai trò các thành viên; ai nói slide nào; **"nhóm 1 · điều khiển" và "nhóm 2 · success" là hai phần mã hay hai nhóm người?** (slide gọi chúng là nhóm 1 và nhóm 2).
-3. ~~Đã commit và push mã nguồn mới lên GitHub chưa?~~ Đã xong: `main` = `e3f2d85` (03/11/2026) có bản hai nhóm; slide 15 trỏ tới repo.
+2. Tên và vai trò các thành viên; ai nói slide nào; ~~"nhóm 1 · điều khiển" và "nhóm 2 · success" là hai phần mã hay hai nhóm người?~~ Ngày 11/11 mã đổi tên thành **khối điều khiển / khối success** (slide gọi chúng là nhóm 1 và nhóm 2).
+3. ~~Đã commit và push mã nguồn mới lên GitHub chưa?~~ Đã xong: `main` = `e3f2d85` (03/11/2026) có bản hai khối; slide 15 trỏ tới repo.
 4. Giảng viên có **bắt buộc dashboard IoT / MQTT** hoặc **mô hình học máy** không (kế hoạch 28/10 còn hỏi điều này).
 5. **Đã chạy bản mới trực tiếp với cánh tay thật chưa?** Nếu rồi, cho mình số `Thanh cong` và ảnh màn hình để đổi các dòng "chưa" ở slide 9, 11, 13.
 6. Tờ giấy đang dùng là tờ cũ (in nhỏ) hay tờ mới? Hiệu chỉnh hiện tại chỉ đúng cho tờ cũ.
@@ -297,9 +297,9 @@ CALIB_BASE = 13.83 31.67 -92.4
 CALIB_THETA = 60.2 -58.6
 CALIB_CLAW = 183.7 0.0 0.0
 CALIB_FIT = n:10 rms:8.5 loo:11.6
-PY_LINES = 1586
+PY_LINES = 1509
 FIRMWARE_LINES = 208
-TESTS = 102
+TESTS = 100
 HUG_ERR_CM = 5.4 3.5 5.9
 GOAL_CUP_20_1_7_4 = 74 58 90
 KEYS_FROM_HOME = d:8 s:16

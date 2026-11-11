@@ -137,25 +137,23 @@ def test_reset_is_detected_when_the_firmware_uptime_goes_backwards():
     assert link.get_reset_count() == 1
 
 
-def test_firmware_banner_is_echoed_so_the_log_shows_which_sketch_is_running(capsys):
+def test_only_the_json_packet_changes_the_state():
     link = g.ArduinoSerialLink(enabled=False)
     link.servo = [100, 80, 70, 120]
-    link._parse_line("Robot Arm Ready! WASD + IK + JL + X (nghi kep) + Z (nghi het)\r\n")
-    assert "Z (nghi het)" in capsys.readouterr().out
-    assert link.get_state()[0] == [180, 90, 90, 95]  # Arduino vừa khởi động nên về Home (đế hết bên phải)
-    link._parse_line("Phím bấm: w")  # Dòng khác không được in lại
-    assert capsys.readouterr().out == ""
+    for line in ("Robot Arm Ready! WASD + IK + JL + X (nghi kep) + Z (nghi het)\r\n", "Phím bấm: w", "{hong", '{"servo":[1,2]}'):
+        link._parse_line(line)  # Banner, dòng "Phím bấm", JSON hỏng: bỏ qua, gói JSON đầy đủ đến ngay sau đó
+    assert link.get_state()[0] == [100, 80, 70, 120]
+    link._parse_line('{"t":5,"servo":[180,90,90,95],"relax":0,"armrelax":0}')
+    assert link.get_state()[0] == [180, 90, 90, 95]
 
 
 def test_arm_relaxed_flag_follows_the_firmware_json_and_the_simulated_keys():
     link = g.ArduinoSerialLink(enabled=False)
-    assert not link.get_arm_relaxed() and not link.firmware_has_arm_relax
-    link._parse_line('{"t":1,"servo":[90,90,90,95],"relax":0}')  # Firmware chưa có phím z: JSON không có "armrelax"
-    assert not link.get_arm_relaxed() and not link.firmware_has_arm_relax
+    assert not link.get_arm_relaxed()
     link._parse_line('{"t":2,"servo":[90,90,90,95],"relax":1,"armrelax":1}')
-    assert link.get_arm_relaxed() and link.firmware_has_arm_relax
+    assert link.get_arm_relaxed() and link.relaxed
     link._parse_line('{"t":3,"servo":[95,90,90,95],"relax":0,"armrelax":0}')
-    assert not link.get_arm_relaxed() and link.firmware_has_arm_relax
+    assert not link.get_arm_relaxed() and not link.relaxed
 
     sim = g.ArduinoSerialLink(enabled=False)  # Chế độ mô phỏng đúng như firmware có phím z
     sim.apply_key_locally("z")

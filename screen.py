@@ -72,6 +72,6 @@ def build_screen(view_left, view_right, plan, result, titles=("CAM NGANG", "CAM 
 
     # Chân trang: USB, phím tắt, cảnh báo (VD: Arduino vừa reset)
     usb = "USB Arduino: DA KET NOI" if plan.usb_ok else "USB Arduino: MO PHONG (chua ket noi)"
-    put(img, f"{usb}    [R] chup dich  [H] ve Home  [U] do lai ma  [C] chup anh  [Q] thoat", 20, SCREEN_H - 40, 0.55, GRAY, 1)
+    put(img, f"{usb}    [R] chup dich  [H] ve Home  [U] do lai ma  [Q] thoat", 20, SCREEN_H - 40, 0.55, GRAY, 1)
     put(img, plan.banner, 20, SCREEN_H - 14, 0.6, ORANGE)
     return img

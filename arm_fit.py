@@ -2,7 +2,7 @@
 """
 Hiệu chỉnh hình học cánh tay bằng các lần "gắp thử".
 
-Người dùng đưa hai ngón kẹp bao quanh một vật trên tờ giấy rồi bấm Y: mỗi lần ghi một mẫu gồm góc 3 servo (đế, vai, khuỷu),
+Người dùng đưa hai ngón kẹp bao quanh một vật trên tờ giấy rồi ghi lại một mẫu gồm góc 3 servo (đế, vai, khuỷu),
 vị trí vật trên tờ giấy (cm) và độ cao điểm kẹp (mm). Vật nằm giữa hai ngón nên điểm kẹp của cánh tay đang trùng vị trí vật,
 không phụ thuộc camera nhìn nghiêng hay nhìn thẳng. Từ vài mẫu ở các vị trí khác nhau, khớp lại 5 thông số mà thước đo không
 cho biết chính xác:

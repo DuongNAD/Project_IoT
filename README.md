@@ -7,7 +7,7 @@ Hệ thống nhìn tờ giấy A4 bằng **2 camera**, tìm vật có màu trên
  camera TREN + NGANG ──► vision.py ──► vật nằm ở (x, y) cm
                                             │
                         ┌───────────────────▼───────────────────┐        ┌────────────────────────────────┐
-                        │  NHÓM 1 - ĐIỀU KHIỂN   (control.py)   │  Plan  │  NHÓM 2 - SUCCESS  (success.py)│
+                        │  KHỐI ĐIỀU KHIỂN       (control.py)   │  Plan  │  KHỐI SUCCESS      (success.py)│
                         │  vật ở đâu -> góc servo cần tới       │ ─────► │  3 servo tới góc đó chưa?      │
                         │  -> bấm phím gì, mấy lần; USB Arduino │        │  -> XONG / còn N lần bấm       │
                         └───────────────────────────────────────┘        └───────────────┬────────────────┘
@@ -15,12 +15,12 @@ Hệ thống nhìn tờ giấy A4 bằng **2 camera**, tìm vật có màu trên
                                               màn hình (screen.py): 2 camera + phần 1 + phần 2 ◄──────────┘
 ```
 
-Hai nhóm chỉ nói chuyện với nhau qua **một đối tượng `Plan`**, nên làm riêng được:
+Hai khối chỉ nói chuyện với nhau qua **một đối tượng `Plan`**, nên làm riêng được:
 
-| | Nhóm 1 - ĐIỀU KHIỂN (`control.py`) | Nhóm 2 - SUCCESS (`success.py`) |
+| | Khối ĐIỀU KHIỂN (`control.py`) | Khối SUCCESS (`success.py`) |
 |---|---|---|
 | Việc | tính góc servo cần tới (IK), lập lệnh bấm phím, gửi phím qua USB | kết luận "đã tới chưa", đếm số lần thành công |
-| Đầu vào | các vật camera thấy + góc servo thật Arduino báo về | `Plan` của nhóm 1 |
+| Đầu vào | các vật camera thấy + góc servo thật Arduino báo về | `Plan` của khối điều khiển |
 | Đầu ra | `Plan`: góc hiện tại, góc cần tới, 3 `Move` (phím, số lần, hướng, độ) | `Result`: `done`, từng servo đúng chưa, còn bao nhiêu lần bấm, `count` |
 | Không biết gì về | thế nào là "xong" | cách tính góc, camera, USB |
 
@@ -69,7 +69,6 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `R` | **chụp đích**: lấy vật gần đế nhất trong ảnh lúc bấm, tính góc cần tới **một lần** (không theo camera nữa, tay kẹp che hay đẩy lệch vật cũng không đổi đích); vật bị dời thì bấm `R` lại. Chưa bấm `R` thì chưa có lệnh |
 | `B` | hiệu chỉnh đế robot (mục 4), `ESC` để hủy |
 | `U` | quên vị trí 4 mã ArUco đã nhớ (sau khi dời camera hoặc tờ giấy) |
-| `C` | chụp ảnh gốc cả 2 camera vào `captures/` |
 | `Q` | thoát |
 
 ### Điều khiển từ xa: máy Dell cách ~2 m (xem qua Wi-Fi, bấm phím qua Bluetooth)
@@ -101,8 +100,8 @@ Chuẩn bị:
 | Tệp | Vai trò |
 |---|---|
 | `main.py` | nối các phần: camera → vision → control → success → màn hình; phím, chuột, tham số dòng lệnh |
-| `control.py` | **NHÓM 1**: hình học cánh tay (FK / IK), cổng USB Arduino, chọn vật, `Plan` + `Move` |
-| `success.py` | **NHÓM 2**: `check(plan)` → `Result`; `Success` đếm số lần thành công |
+| `control.py` | **Khối điều khiển**: hình học cánh tay (FK / IK), cổng USB Arduino, chọn vật, `Plan` + `Move` |
+| `success.py` | **Khối success**: `check(plan)` → `Result`; `Success` đếm số lần thành công |
 | `screen.py` | vẽ màn hình: 2 camera + phần 1 + phần 2 nối nhau |
 | `vision.py` | dò tờ A4 qua ArUco (Homography pixel ↔ cm), tìm vật có màu, bù thị sai theo độ cao vật |
 | `cameras.py` | tìm camera theo tên, mỗi camera đọc trên một luồng riêng, mất tín hiệu thì tự mở lại |
@@ -112,7 +111,7 @@ Chuẩn bị:
 | `remote.py` | app máy Dell: xem màn hình Mac qua Wi-Fi, gửi phím qua Bluetooth HC-05 (chép riêng tệp này sang Dell cũng chạy) |
 | `generate_aruco_a4.py` | tạo tờ A4 4 mã ArUco để in (`aruco_A4_clean.pdf`) |
 | `robot_arm_4dof/` | firmware Arduino và `flash.sh` |
-| `tests/` | bộ test, mỗi nhóm một tệp (`test_control.py`, `test_success.py`, `test_screen.py`, ...) |
+| `tests/` | bộ test, mỗi khối một tệp (`test_control.py`, `test_success.py`, `test_screen.py`, ...) |
 | `hoc_phan2/` | hướng dẫn đọc code và slide cho hai người trình bày phần 2 (computer vision, hỗ trợ gắp) |
 
 Mỗi khung hình trong `main.py` chỉ là ba dòng: `plan = control.update(vision.objects)` → `result = success.update(plan)` → `build_screen(..., plan, result)`.
@@ -148,7 +147,7 @@ quy tắc sắp theo `uniqueID` của OpenCV, ngay trước mỗi lần mở. B�
 - Kẹp là cơ cấu song song **phi tuyến**: từ 95° lên 125° hàm chỉ khép thêm ~0,5 cm; vật rộng ~4 cm (như cốc đỏ) bị đẩy ra khi khép tới 150-160°. Cốc thon dần xuống
   đáy nên hai mặt kẹp đẩy nó ra như hạt dưa: nên dán ma sát (băng keo hai mặt / xốp mỏng) lên mặt trong hai ngón hoặc dùng vật có thân thẳng.
 - Nạp firmware: `./robot_arm_4dof/flash.sh` (dùng `arduino-cli` có sẵn trong Arduino IDE 2, board `arduino:avr:uno`). Arduino reset khi nạp nên servo giật về
-  Home: cắt nguồn servo hoặc đưa cánh tay ra chỗ trống trước. Banner `Robot Arm Ready! ... + Z (nghi het)` là firmware mới đã chạy.
+  Home: cắt nguồn servo hoặc đưa cánh tay ra chỗ trống trước. Nạp xong, đế quay hết sang phải (Home 180°) là firmware mới đã chạy.
 - Arduino Uno **tự reset mỗi khi đường DTR của cổng USB hạ xuống rồi nâng lên**, cả 4 servo giật về Home 180/90/90/95. Thường do một chương trình khác mở rồi đóng
   cổng `/dev/cu.usbmodem*` lúc `main.py` đang chạy. **Đừng mở cổng bằng chương trình khác khi `main.py` đang chạy.** `main.py` nhận ra reset qua thời gian
   chạy của firmware quay về 0 và báo `ARDUINO VUA RESET` ở chân màn hình.
@@ -160,11 +159,11 @@ uv run pytest        # FK / IK, lệnh bấm phím, chọn vật, success, màn 
 ```
 
 Không test nào chạm vào camera, cổng Serial hay `calibration.json` thật (cảnh dựng bằng camera giả lập có đáp án chính xác).
-Chạy cả chương trình không cửa sổ, không camera, không robot (dùng ảnh chụp bằng phím `C`; không ai bấm `R` nên chương trình tự chụp đích ở khung đầu tiên thấy vật):
+Chạy cả chương trình không cửa sổ, không camera, không robot (dùng 2 ảnh camera đã lưu; không ai bấm `R` nên chương trình tự chụp đích ở khung đầu tiên thấy vật):
 
 ```bash
 uv run python main.py --top captures/tren.jpg --side captures/ngang.jpg --no-serial --headless --seconds 10 --dump-dir out/
-# out/ có dual_view.png (màn hình), ảnh đã chú thích của 2 camera và summary.json (nhom_1_dieu_khien, nhom_2_success)
+# out/ có dual_view.png (màn hình), ảnh đã chú thích của 2 camera và summary.json (dieu_khien, success)
 ```
 
 ## 8. Xử lý sự cố

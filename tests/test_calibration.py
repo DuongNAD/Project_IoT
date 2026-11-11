@@ -129,7 +129,7 @@ def test_claw_geometry_round_trip_and_bad_values_are_ignored(tmp_path):
 
 
 def test_claw_section_survives_arm_offset_updates(tmp_path):
-    """Phím Y / E (store_arm_offsets) ghi lại mục arm nhưng không được làm mất mục claw đã lưu."""
+    """Lưu kết quả khớp (store_arm_offsets) ghi lại mục arm nhưng không được làm mất mục claw đã lưu."""
     path = tmp_path / "cal.json"
     cal.store_claw_geometry(186.9, 0, 0, path=str(path))
     cal.store_arm_offsets(52.0, -48.0, path=str(path), defaults=(45.0, -45.0))
