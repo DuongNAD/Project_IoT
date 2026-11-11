@@ -14,7 +14,7 @@ HOLD_S = 1.0         # Giữ đúng liên tục 1 giây mới đếm 1 lần th�
 
 @dataclass
 class Result:
-    state: str  # done | moving (còn phải bấm) | no_target (chưa có đích: chưa bấm R) | unreachable (ngoài tầm với) | relaxed (tay đang nghỉ)
+    state: str  # done | moving (còn phải bấm) | no_target (chưa có đích: chưa bấm R) | unreachable (ngoài tầm với)
     done: bool
     joints_ok: list = field(default_factory=list)  # Đế, vai, khuỷu đã tới góc gợi ý chưa
     next_move: object = None                       # Việc đầu tiên còn phải làm, theo thứ tự đế -> vai -> khuỷu
@@ -26,9 +26,7 @@ def check(plan):
     """Đánh giá một Plan (không nhớ gì giữa hai lần gọi)."""
     joints = [m.degrees <= TOLERANCE_STEPS * m.step for m in plan.moves]
     pending = [m for m, ok in zip(plan.moves, joints) if not ok]
-    if plan.relaxed:
-        state = "relaxed"  # Tay đã ngắt xung: góc báo về chỉ là góc lệnh cuối, không tin được
-    elif not plan.found:
+    if not plan.found:
         state = "no_target"
     elif not plan.reachable:
         state = "unreachable"

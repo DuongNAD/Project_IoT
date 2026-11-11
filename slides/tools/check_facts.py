@@ -160,10 +160,12 @@ def live_facts() -> dict[str, str | None]:
 
 
 DEEP_SNIPPET = r"""
-import json, math, control as c
+import json, math, sys, control as c
+sys.path.insert(0, "slides/tools")
+import fk  # động học thuận (dấu KEP cũ), chỉ công cụ slide dùng
 from calibration import apply_calibration
 hugs = [((85, 60, 90), (16.9, 14.4)), ((80, 70, 75), (13.3, 14.0)), ((75, 85, 50), (10.8, 7.7))]
-err = [round(math.hypot(c.predict_tip(s)[0] - u[0], c.predict_tip(s)[1] - u[1]), 1) for s, u in hugs]
+err = [round(math.hypot(fk.predict_tip(s)[0] - u[0], fk.predict_tip(s)[1] - u[1]), 1) for s, u in hugs]
 apply_calibration(c.ARM_CONFIG)
 rx, ry = c.table_cm_to_robot_mm(20.1, 7.4)
 ik = c.ik_4dof_joint(rx, ry, c.GRASP_Z_MM)

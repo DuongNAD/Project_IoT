@@ -22,7 +22,6 @@ MESSAGES = {  # Trạng thái của success.py -> lời nhắn ở ô 1 (trạng
     "done": "Khong can bam them",
     "no_target": "Chua co dich: dat vat co mau len to A4 roi bam R",
     "unreachable": "Vat ngoai tam voi: dat vat gan de robot hon",
-    "relaxed": "Tay dang nghi: bam W A S D I K H de cap xung lai",
 }
 
 

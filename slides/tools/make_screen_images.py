@@ -41,11 +41,14 @@ import numpy as np  # noqa: E402
 from PIL import Image  # noqa: E402
 
 import control as C  # noqa: E402
+import fk  # noqa: E402  (động học thuận: chỗ đầu kẹp theo mô hình)
 import main as M  # noqa: E402
 import prepare_real_assets as P  # noqa: E402  (blur_regions, upsert_entries)
 import vision as V  # noqa: E402
 from calibration import CALIBRATION_PATH, apply_calibration  # noqa: E402
 from success import check  # noqa: E402
+
+ARM_DEFAULTS = dict(C.ARM_CONFIG)  # Số mặc định trong control.py, chụp lại trước khi photo_frame_config() ghi đè C.ARM_CONFIG
 
 REAL = SLIDES / "assets" / "real"
 CAPTURES = PROJECT / "captures"
@@ -94,7 +97,7 @@ def rotate_sheet_180(cfg: dict) -> None:
 
 def photo_frame_config() -> dict:
     """ARM_CONFIG của calibration.json, đổi sang hệ tờ giấy lúc chụp ảnh 20:27-21:16 (xem docstring đầu file). Hai góc chuẩn vai / khuỷu và hình học càng kẹp không đổi."""
-    cfg = dict(C.ARM_CONFIG_DEFAULTS)
+    cfg = dict(ARM_DEFAULTS)
     if not apply_calibration(cfg):
         raise SystemExit("Không có calibration.json (hoặc rỗng): không có hiệu chỉnh để minh họa.")
     rotate_sheet_180(cfg)
@@ -255,10 +258,10 @@ def run_calibration(cfg_photo: dict) -> dict:
     view_side, view_top = sheet_view(raw_side, side=True), sheet_view(raw_top, side=False)
     cup_cm, cup_box = cup_ground_from_side(raw_side, view_side)
 
-    raw_cfg = dict(C.ARM_CONFIG_DEFAULTS)
+    raw_cfg = dict(ARM_DEFAULTS)
     apply_calibration(raw_cfg)
-    configs = {"default": dict(C.ARM_CONFIG_DEFAULTS), "calibrated": cfg_photo, "calibration_json_chua_xoay": raw_cfg}
-    tips = {name: C.predict_tip(CALIB_SERVO, cfg) for name, cfg in configs.items()}
+    configs = {"default": dict(ARM_DEFAULTS), "calibrated": cfg_photo, "calibration_json_chua_xoay": raw_cfg}
+    tips = {name: fk.predict_tip(CALIB_SERVO, cfg) for name, cfg in configs.items()}
     dist = {name: float(np.hypot(t[0] - cup_cm[0], t[1] - cup_cm[1])) for name, t in tips.items()}
     if dist["calibrated"] > CALIB_MAX_CM:
         raise SystemExit(f"Dấu 'KEP' đã hiệu chỉnh cách cốc {dist['calibrated']:.1f} cm (> {CALIB_MAX_CM} cm): calibration.json không còn khớp hệ tờ giấy của ảnh "

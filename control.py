@@ -5,8 +5,8 @@ KHỐI ĐIỀU KHIỂN: vật ở đâu -> servo phải quay tới góc nào -> 
     vật (x, y cm trên tờ giấy) --IK--> 3 góc servo cần tới --so với góc hiện tại--> "bấm phím D x8, S x16 ..."
 
 Phần này lo toàn bộ việc ĐIỀU KHIỂN cánh tay:
-  1. Hình học cánh tay: động học thuận / ngược (FK / IK), đổi góc khớp <-> góc servo Arduino, đổi tọa độ tờ giấy <-> hệ robot.
-  2. Cổng USB tới Arduino: gửi phím (W A S D I K J L H X Z), đọc góc servo thật mà firmware báo về.
+  1. Hình học cánh tay: đổi tọa độ tờ giấy -> hệ robot, động học ngược (IK) bằng hai tam giác, đổi góc khớp -> góc servo Arduino.
+  2. Cổng USB tới Arduino: gửi phím (W A S D I K J L H X), đọc góc servo firmware báo về (góc đã ra lệnh: MG996R không đo được góc thật).
   3. Phím R chụp vị trí vật gần đế nhất làm đích và tính góc cần tới MỘT lần; mỗi khung so góc servo hiện tại với góc đó ra lệnh bấm phím (Move).
 Kết quả mỗi khung hình là một Plan, chuyển cho khối success (success.py) để kết luận "đã tới chưa".
 Phần nhìn (camera, ArUco, tìm vật) nằm ở vision.py; phần vẽ màn hình ở screen.py; main.py nối các phần lại.
@@ -14,15 +14,10 @@ Phần nhìn (camera, ArUco, tìm vật) nằm ở vision.py; phần vẽ màn h
 
 import json
 import math
-import os
 import threading
-import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-try:
-    import serial
-except ImportError:
-    serial = None
+import serial
 
 
 # ==============================================================================
@@ -44,8 +39,6 @@ ARM_CONFIG = {
     "theta2_at_90_deg": 45.0,   # Khi angleShoulder = 90° thì khâu L2 nghiêng +45° so với phương ngang
     "theta3_at_90_deg": -45.0,  # Khi angleElbow = 90° thì khâu L3 gập -45° so với khâu L2
 }
-# Giá trị mặc định trong code (trước khi nạp calibration.json): dùng để biết khi nào hiệu chỉnh trở về đúng mặc định
-ARM_CONFIG_DEFAULTS = dict(ARM_CONFIG)
 
 # Servo: giới hạn an toàn và bước mỗi lần bấm phím, khớp robot_arm_4dof.ino (STEP_ARM = 2, STEP_GRIP = 5, GRIP_CLOSE_LIMIT = 160)
 CHANNEL_KEYS = ("base", "shoulder", "elbow", "grip")  # Thứ tự kênh 0..3 của Arduino
@@ -57,45 +50,19 @@ SERVO_LIMITS = {
 }
 SERVO_STEPS = {"base": 2, "shoulder": 2, "elbow": 2, "grip": 5}
 SERVO_ANCHORS = {"base": 90, "shoulder": 90, "elbow": 90, "grip": 95}  # Neo lưới góc: mọi góc bấm tới được = neo + k * bước (Home ở cột 3 của SERVO_LIMITS)
-GRIP_OPEN_DEG = 95
 
 GRASP_Z_MM = 25.0        # Độ cao điểm kẹp mục tiêu (mm): nửa thân cốc, đúng độ cao dùng khi hiệu chỉnh hình học bằng các lần ôm
 
 
 # ==============================================================================
-# 2. ĐỘNG HỌC THUẬN (FK) & NGƯỢC (IK), ĐỔI GÓC KHỚP <-> GÓC SERVO, ĐỔI TỌA ĐỘ
+# 2. ĐỘNG HỌC NGƯỢC (IK), ĐỔI GÓC KHỚP -> GÓC SERVO, ĐỔI TỌA ĐỘ
 # ==============================================================================
-def fk_4dof_joint(theta1_deg, theta2_deg, theta3_deg, cfg=None):
-    """
-    Động học thuận (Forward Kinematics) từ góc khớp hình học (theta1, theta2, theta3) (độ)
-    sang tọa độ điểm kẹp (x, y, z) (mm) trong hệ tọa độ gốc Robot:
-      +x: hướng thẳng về phía trước mặt đế robot
-      +y: hướng sang bên trái đế robot
-      +z: hướng thẳng đứng lên trên từ mặt bàn
-    """
-    c = cfg or ARM_CONFIG
-    t1 = math.radians(theta1_deg)
-    t2 = math.radians(theta2_deg)
-    t23 = math.radians(theta2_deg + theta3_deg)
-
-    r_w = c["L2_mm"] * math.cos(t2) + c["L3_mm"] * math.cos(t23)
-    z_w = c["L2_mm"] * math.sin(t2) + c["L3_mm"] * math.sin(t23)
-
-    r = r_w + c["L4_r_mm"]
-    z = c["d1_mm"] + z_w - c["L4_z_mm"]
-    x = r * math.cos(t1)
-    y = r * math.sin(t1)
-    return x, y, z
-
-
 def ik_4dof_joint(x_mm, y_mm, z_mm, cfg=None):
     """
     Động học ngược giải tích (Analytical Inverse Kinematics) cho cánh tay 4 bậc tự do.
     Trả về dict:
       - reachable (bool): Điểm (x, y, z) có nằm trong tầm với hình học không
       - theta1_deg, theta2_deg, theta3_deg: Góc khớp hình học (độ)
-      - r_mm: Khoảng cách ngang từ tâm đế đến vật (mm)
-      - move_closer_mm: Số mm cần dịch vật lại gần đế nếu ngoài tầm với
     """
     c = cfg or ARM_CONFIG
     L2 = c["L2_mm"]
@@ -108,13 +75,10 @@ def ik_4dof_joint(x_mm, y_mm, z_mm, cfg=None):
     z_w = (z_mm + c["L4_z_mm"]) - c["d1_mm"]
 
     dist_sq = r_w * r_w + z_w * z_w
-    dist = math.sqrt(dist_sq)
-    max_reach = L2 + L3
     min_reach = abs(L2 - L3)
 
     D = (dist_sq - L2 * L2 - L3 * L3) / (2.0 * L2 * L3)
     reachable = abs(D) <= 1.0
-    move_closer_mm = max(0.0, dist - (max_reach - 2.0)) if dist > max_reach else 0.0
 
     # Kẹp D trong [-1, 1] để luôn tính ra bộ góc gần mục tiêu nhất ngay cả khi hơi quá tầm
     D_clamped = max(-1.0, min(1.0, D))
@@ -129,8 +93,6 @@ def ik_4dof_joint(x_mm, y_mm, z_mm, cfg=None):
         "theta1_deg": theta1_deg,
         "theta2_deg": math.degrees(theta2_rad),
         "theta3_deg": math.degrees(theta3_rad),
-        "r_mm": r,
-        "move_closer_mm": move_closer_mm,
     }
 
 
@@ -154,16 +116,6 @@ def joint_to_servo(theta1_deg, theta2_deg, theta3_deg, cfg=None):
     return servo
 
 
-def arduino_servo_to_joint(servo_angles, cfg=None):
-    """Đổi ngược từ 4 góc servo Arduino [base, shoulder, elbow, grip] sang góc khớp (theta1, theta2, theta3)."""
-    c = cfg or ARM_CONFIG
-    b, s, e, _ = servo_angles
-    theta1 = float(b) - 90.0
-    theta2 = c["theta2_at_90_deg"] + (float(s) - 90.0)
-    theta3 = c["theta3_at_90_deg"] + (float(e) - 90.0)
-    return theta1, theta2, theta3
-
-
 def table_cm_to_robot_mm(x_cm, y_cm, cfg=None):
     """
     Đổi tọa độ điểm (X_cm, Y_cm) trên tờ giấy A4 sang tọa độ (x_mm, y_mm) trong hệ gốc Đế Robot.
@@ -177,24 +129,6 @@ def table_cm_to_robot_mm(x_cm, y_cm, cfg=None):
     fx, fy = math.cos(h), math.sin(h)
     dx, dy = x_cm - c["base_x_cm"], y_cm - c["base_y_cm"]
     return (dx * fx + dy * fy) * 10.0, (dx * fy - dy * fx) * 10.0
-
-
-def robot_mm_to_table_cm(x_robot_mm, y_robot_mm, cfg=None):
-    """Đổi ngược từ tọa độ (x_mm, y_mm) hệ gốc Robot sang tọa độ (X_cm, Y_cm) trên tờ giấy A4."""
-    c = cfg or ARM_CONFIG
-    h = math.radians(c.get("base_heading_deg", -90.0))
-    fx, fy = math.cos(h), math.sin(h)
-    xr, yr = x_robot_mm / 10.0, y_robot_mm / 10.0
-    return c["base_x_cm"] + xr * fx + yr * fy, c["base_y_cm"] + xr * fy - yr * fx
-
-
-def predict_tip(servo_angles, cfg=None):
-    """Điểm kẹp theo mô hình ứng với góc 3 servo đế / vai / khuỷu: (X_cm, Y_cm trên tờ giấy, z_mm so với mặt bàn)."""
-    c = cfg or ARM_CONFIG
-    theta1, theta2, theta3 = arduino_servo_to_joint((servo_angles[0], servo_angles[1], servo_angles[2], GRIP_OPEN_DEG), c)
-    x_mm, y_mm, z_mm = fk_4dof_joint(theta1, theta2, theta3, c)
-    x_cm, y_cm = robot_mm_to_table_cm(x_mm, y_mm, c)
-    return x_cm, y_cm, z_mm
 
 
 # ==============================================================================
@@ -240,161 +174,56 @@ def plan_moves(now, goal):
 # ==============================================================================
 class ArduinoSerialLink:
     """
-    Cổng USB tới Arduino (9600 baud), đọc ở luồng nền.
+    Cổng USB tới Arduino (9600 baud).
     - Gửi phím: mỗi lần bấm một ký tự (w a s d i k j l h x z).
-    - Nhận gói JSON firmware gửi ngay sau mỗi phím và 5 lần / giây: {"t": ms, "servo": [đế, vai, khuỷu, kẹp], "relax": 0|1, "armrelax": 0|1}.
+    - Nhận gói JSON firmware gửi ngay sau mỗi phím và 5 lần / giây: {"t": ms, "servo": [đế, vai, khuỷu, kẹp], "relax": 0|1, "armrelax": 0|1}; app chỉ lấy "servo".
+      Đọc ở một luồng nền để vòng lặp chính không phải đứng chờ Arduino.
     - Không ghi cổng (port=None): MÔ PHỎNG, tự cộng / trừ góc như firmware để vẫn chạy được camera + IK + màn hình.
-    - Arduino Uno tự reset mỗi khi đường DTR của cổng USB hạ rồi nâng (VD chương trình khác mở / đóng cổng): cả 4 servo giật về Home.
-      Vì vậy giữ một kết nối duy nhất; phải mở lại cổng thì mở tay cầm MỚI trước rồi mới đóng tay cầm cũ.
+    - Mở cổng MỘT lần lúc chạy và không mở lại: Arduino Uno tự reset (cả 4 servo giật về Home) mỗi lần cổng được mở.
+      Rút cáp USB thì cắm lại rồi chạy lại chương trình.
     """
 
-    READ_RETRY_S = 0.3             # Lỗi đọc tạm thời: đợi chừng này rồi đọc lại, không đóng cổng
-    READ_ERRORS_BEFORE_REOPEN = 5  # Lỗi đọc liên tiếp ngần này lần mà cổng vẫn còn thì mới mở lại cổng
-    PORT_WAIT_S = 1.5              # Chưa mở được cổng: đợi chừng này rồi thử lại
-
     def __init__(self, port=None, baud=9600):
-        self.port = port  # Cổng ghi tay (--port), None = mô phỏng
-        self.baud = baud
-        self.ser = None
-        self.connected = False
         self.servo = [SERVO_LIMITS[k][2] for k in CHANNEL_KEYS]  # [đế, vai, khuỷu, kẹp] = Home lúc Arduino khởi động
-        self.relaxed = False      # Servo kẹp đang nghỉ (firmware đã ngắt xung PWM để nguội)
-        self.arm_relaxed = False  # Cả cánh tay đang nghỉ (phím z): góc báo về chỉ là góc lệnh cuối, cánh tay có thể đã sụp xuống
-        self.lock = threading.Lock()
-        self.running = True
-        self.thread = threading.Thread(target=self._loop, daemon=True)
+        self.ser = None
         if port is not None:
-            self.thread.start()
-
-    def apply_key_locally(self, cmd):
-        """MÔ PHỎNG một phím như firmware: đổi góc trong giới hạn, H về Home, X cho kẹp nghỉ, Z cho cả 4 servo nghỉ."""
-        c = cmd.lower()
-        with self.lock:
-            if c in KEY_MOVES:
-                joint, sign = KEY_MOVES[c]
-                ch = CHANNEL_KEYS.index(joint)
-                lo, hi, _ = SERVO_LIMITS[joint]
-                self.servo[ch] = min(hi, max(lo, self.servo[ch] + sign * SERVO_STEPS[joint]))
-            elif c == "h":
-                self.servo = [SERVO_LIMITS[k][2] for k in CHANNEL_KEYS]
-            if c in ("a", "d", "w", "s", "i", "k", "h"):
-                self.arm_relaxed = False  # Phím di chuyển (hoặc h) cấp xung lại cho cánh tay đang nghỉ
-            if c in ("j", "l", "h"):
-                self.relaxed = False
-            if c in ("x", "z"):
-                self.relaxed = True
-            if c == "z":
-                self.arm_relaxed = True
+            self.ser = serial.Serial(port, baud, timeout=0.2)  # Không mở được cổng thì chương trình dừng, báo lỗi của pyserial
+            print(f"🔌 Đã kết nối USB Serial Arduino tại {port} @ {baud} baud")
+            threading.Thread(target=self._read_loop, daemon=True).start()
+        self.connected = self.ser is not None  # Đã nối USB chưa (chân trang màn hình)
 
     def send_key(self, cmd):
-        """Gửi 1 ký tự lệnh xuống Arduino; chưa cắm USB thì cập nhật mô phỏng."""
-        if not cmd:
-            return
-        ch = cmd[0]
-        if self.connected and self.ser is not None:
+        """Gửi 1 ký tự lệnh xuống Arduino; chưa nối USB thì cập nhật mô phỏng."""
+        if self.connected:
+            self.ser.write(cmd[:1].encode())
+        else:
+            self.apply_key_locally(cmd[:1])
+
+    def apply_key_locally(self, c):
+        """MÔ PHỎNG một phím như firmware: đổi góc trong giới hạn, H về Home."""
+        if c in KEY_MOVES:
+            joint, sign = KEY_MOVES[c]
+            ch = CHANNEL_KEYS.index(joint)
+            lo, hi, _ = SERVO_LIMITS[joint]
+            self.servo[ch] = min(hi, max(lo, self.servo[ch] + sign * SERVO_STEPS[joint]))
+        elif c == "h":
+            self.servo = [SERVO_LIMITS[k][2] for k in CHANNEL_KEYS]
+
+    def _read_loop(self):
+        """Luồng nền: đọc từng dòng firmware gửi lên, lấy góc 4 servo."""
+        while True:
+            line = self.ser.readline().decode("utf-8", errors="ignore").strip()
+            if not line.startswith("{"):
+                continue  # Banner khởi động, dòng "Phím bấm: x"...: bỏ qua, gói JSON luôn đến ngay sau đó
             try:
-                self.ser.write(ch.encode("utf-8"))
-                self.ser.flush()
-                return
-            except Exception:
-                self.connected = False
-        self.apply_key_locally(ch)
-
-    def _parse_line(self, line):
-        """Đọc gói JSON trạng thái. Dòng khác (banner khởi động, "Phím bấm: x") bỏ qua: gói JSON luôn đến ngay sau đó."""
-        line = line.strip()
-        if not line.startswith("{"):
-            return
-        try:
-            data = json.loads(line)
-            servo = [int(v) for v in data["servo"]]
-        except (ValueError, KeyError, TypeError):
-            return
-        if len(servo) < 4:
-            return
-        with self.lock:
-            self.servo = servo[:4]
-            self.relaxed = bool(data.get("relax", 0))
-            self.arm_relaxed = bool(data.get("armrelax", 0))
-
-    def _port_exists(self):
-        if self.port is None:
-            return False
-        if not self.port.upper().startswith("COM"):
-            return os.path.exists(self.port)
-        # Windows: COMx không phải đường dẫn tệp nên hỏi danh sách cổng (không thì lỗi đọc thoáng qua nào cũng mở lại cổng, Arduino bị reset)
-        try:
-            from serial.tools import list_ports
-
-            return any(p.device.upper() == self.port.upper() for p in list_ports.comports())
-        except Exception:
-            return False
-
-    def _open_port(self):
-        """
-        Mở cổng Serial rồi thay tay cầm cũ (nếu có) bằng tay cầm mới; True nếu mở được. Luôn mở tay cầm MỚI trước rồi mới đóng tay cầm
-        cũ: lúc đó đường DTR không bị hạ xuống rồi nâng lên, đúng nhịp làm Arduino Uno tự reset và cả 4 servo giật về Home 180/90/90/95.
-        """
-        try:
-            new = serial.Serial(self.port, self.baud, timeout=0.15)
-        except Exception:
-            new = None
-        old, self.ser = self.ser, new
-        self.connected = new is not None
-        if old is not None:
-            try:
-                old.close()
-            except Exception:
-                pass
-        if new is None:
-            return False
-        print(f"🔌 Đã kết nối USB Serial Arduino tại {self.port} @ {self.baud} baud")
-        return True
-
-    def _loop(self):
-        if serial is None:
-            return
-        read_errors = 0
-        while self.running:
-            if not self.connected or self.ser is None:
-                if not self._open_port():
-                    time.sleep(self.PORT_WAIT_S)
-                    continue
-                read_errors = 0
-
-            try:
-                raw = self.ser.readline()
-                read_errors = 0
-                if raw:
-                    text = raw.decode("utf-8", errors="ignore")
-                    self._parse_line(text)
-            except Exception:
-                read_errors += 1
-                if self._port_exists() and read_errors < self.READ_ERRORS_BEFORE_REOPEN:
-                    # Lỗi đọc thoáng qua (VD chương trình khác vừa mở cổng): đọc lại, đừng đóng cổng kẻo Arduino bị reset
-                    time.sleep(self.READ_RETRY_S)
-                    continue
-                read_errors = 0
-                if not self._open_port():
-                    time.sleep(self.PORT_WAIT_S)
-
-    def get_state(self):
-        """(4 góc servo, đã nối USB chưa, tên cổng)."""
-        with self.lock:
-            return list(self.servo), self.connected, self.port
-
-    def get_arm_relaxed(self):
-        """True khi cả cánh tay đang nghỉ (đã ngắt xung bằng phím z): đừng tin góc servo báo về, bấm phím di chuyển để cấp xung lại."""
-        with self.lock:
-            return self.arm_relaxed
+                data = json.loads(line)
+                self.servo = [int(v) for v in data["servo"]][:4]
+            except (ValueError, KeyError, TypeError):
+                continue  # Dòng bị cắt dở: bỏ qua, 0,2 giây sau có gói mới
 
     def release(self):
-        self.running = False
         if self.ser is not None:
-            try:
-                self.ser.close()
-            except Exception:
-                pass
+            self.ser.close()
 
 
 # ==============================================================================
@@ -404,17 +233,12 @@ class ArduinoSerialLink:
 class Plan:
     """Kết quả của khối điều khiển mỗi khung hình, chuyển sang khối success (success.py)."""
     found: bool                 # Đã có đích chưa (bấm R lúc camera thấy vật)
-    target_name: str            # Tên vật làm đích
     target_cm: tuple            # (x, y) vật trên tờ giấy (cm) lúc bấm R, None khi chưa có đích
     reachable: bool             # Vật nằm trong tầm với của cánh tay
-    move_closer_mm: float       # Nếu ngoài tầm: cần dời vật lại gần đế thêm bao nhiêu mm
-    relaxed: bool               # Cánh tay đang nghỉ (đã ngắt xung bằng phím Z)
     now: list                   # 4 góc servo hiện tại [đế, vai, khuỷu, kẹp]
     goal: list                  # 3 góc cần tới [đế, vai, khuỷu]
     moves: list                 # 3 Move (đế, vai, khuỷu)
-    usb_ok: bool = False
-    port: str = None
-    n_objects: int = 0
+    usb_ok: bool = False        # Đã nối USB tới Arduino chưa (chân trang màn hình)
 
 
 class Control:
@@ -434,8 +258,7 @@ class Control:
         obj = self.objects[0]
         rx, ry = table_cm_to_robot_mm(obj["x_cm"], obj["y_cm"])
         ik = ik_4dof_joint(rx, ry, GRASP_Z_MM)
-        self.target = {"name": obj["name"], "cm": (obj["x_cm"], obj["y_cm"]), "reachable": bool(ik["reachable"]),
-                       "move_closer_mm": float(ik["move_closer_mm"]),
+        self.target = {"cm": (obj["x_cm"], obj["y_cm"]), "reachable": bool(ik["reachable"]),
                        "goal": joint_to_servo(ik["theta1_deg"], ik["theta2_deg"], ik["theta3_deg"])}
         return "locked"
 
@@ -444,19 +267,17 @@ class Control:
         """Nhận các vật camera thấy (x_cm, y_cm, name) và trả về Plan: góc servo hiện tại so với góc đích đã chụp bằng R."""
         base_xy = (ARM_CONFIG["base_x_cm"], ARM_CONFIG["base_y_cm"])
         self.objects = sorted(objects, key=lambda o: math.hypot(o["x_cm"] - base_xy[0], o["y_cm"] - base_xy[1]))
-        servo_now, usb_ok, port = self.link.get_state()
-        base = dict(now=list(servo_now), usb_ok=usb_ok, port=port, n_objects=len(self.objects), relaxed=self.link.get_arm_relaxed())
+        servo_now = list(self.link.servo)  # Góc 4 servo Arduino báo về (hoặc góc mô phỏng)
+        base = dict(now=servo_now, usb_ok=self.link.connected)
         t = self.target
         if t is None:
-            return Plan(found=False, target_name="", target_cm=None, reachable=True, move_closer_mm=0.0, goal=list(servo_now[:3]),
-                        moves=plan_moves(servo_now, servo_now), **base)
-        return Plan(found=True, target_name=t["name"], target_cm=t["cm"], reachable=t["reachable"], move_closer_mm=t["move_closer_mm"],
-                    goal=list(t["goal"]), moves=plan_moves(servo_now, t["goal"]), **base)
+            return Plan(found=False, target_cm=None, reachable=True, goal=list(servo_now[:3]), moves=plan_moves(servo_now, servo_now), **base)
+        return Plan(found=True, target_cm=t["cm"], reachable=t["reachable"], goal=list(t["goal"]), moves=plan_moves(servo_now, t["goal"]), **base)
 
     def press(self, key):
         """Gửi một phím điều khiển xuống Arduino (hoặc cập nhật mô phỏng nếu chưa nối USB). Trả về True nếu là phím điều khiển."""
         ch = (key or "")[:1].lower()
-        if not ch or ch not in "wasdikjlhxz":
+        if not ch or ch not in "wasdikjlhx":
             return False
         self.link.send_key(ch)
         return True

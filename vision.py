@@ -117,14 +117,12 @@ def draw_grid(img, H_cm2px, k):
         cv2.line(img, point(H_cm2px, 0, y), point(H_cm2px, SHEET_W_CM, y), (200, 200, 200), int(2 * k))
 
 
-def draw_target(img, H_cm2px, target_cm, claw_cm):
-    """DICH: vòng cam quanh vật cần tới. KEP: dấu + vàng ở chỗ đầu kẹp theo mô hình."""
+def draw_target(img, H_cm2px, target_cm):
+    """DICH: vòng cam quanh vật cần tới (vị trí lúc bấm R)."""
     k = max(1.0, img.shape[1] / 1280)
-    p, q = point(H_cm2px, *target_cm), point(H_cm2px, *claw_cm)
+    p = point(H_cm2px, *target_cm)
     cv2.circle(img, p, int(26 * k), (0, 165, 255), int(3 * k))
     text(img, "DICH", (p[0] + 30 * k, p[1]), (0, 165, 255))
-    cv2.drawMarker(img, q, (0, 255, 255), cv2.MARKER_CROSS, int(24 * k), int(2 * k))
-    text(img, "KEP", (q[0] + 14 * k, q[1] + 40 * k), (0, 255, 255))  # Dưới dấu +: không đè nhãn DICH khi kẹp đã tới vật
 
 
 class Vision:
