@@ -1,6 +1,6 @@
 # 00 · Đọc trước
 
-Bộ slide thuyết trình đề tài: `Project_IoT_ThuyetTrinh.pptx` (+ `.pdf`), **25 slide**, 3 phần cho 4 người:
+Bộ slide thuyết trình đề tài: `Project_IoT_ThuyetTrinh.pptx` (+ `.pdf`), **26 slide**, 3 phần cho 4 người:
 01 linh kiện → 02 computer vision & hỗ trợ gắp (Nguyễn Anh Dương, Phạm Trương Vũ) → 03 code điều khiển. Chữ trên slide ngắn; lời nói,
 "Nếu được hỏi" và "Nguồn" nằm trong ghi chú của từng slide.
 
@@ -29,8 +29,8 @@ python slides/tools/check_facts.py # sau mỗi lần sửa mã
 ## Còn phải làm
 
 - [ ] Điền `[Tên A]` (linh kiện), `[Tên C]` (code điều khiển) ở bảng `TEAM`; `[Môn học]`, `[Ngày báo cáo]`, giảng viên, lớp ở bìa.
-- [ ] Ảnh ở slide 12, 13, 14, 22 chụp bằng **giao diện trước khi rút gọn mã ngày 10/11** (chú thích trên slide ghi "giao diện bản trước").
-  Trên MacBook chạy `python slides/tools/make_screen_images.py`, đặt `UI_OLD = False` trong `build_slides.py`, dựng lại; kiểm lại các số trong ghi chú slide 22
+- [ ] Ảnh ở slide 12, 13, 14, 16, 23 chụp bằng **giao diện trước khi rút gọn mã ngày 10/11** (chú thích trên slide ghi "giao diện bản trước").
+  Trên MacBook chạy `python slides/tools/make_screen_images.py`, đặt `UI_OLD = False` trong `build_slides.py`, dựng lại; kiểm lại các số trong ghi chú slide 23
   (vị trí cốc, `S × 15`, còn 18 lần bấm) theo ảnh mới. Ảnh cũ mô phỏng cánh tay ở 90/90/90; Home giờ là **180/90/90/95** (đế hết bên phải)
   nên ảnh mới sẽ bắt đầu bằng lệnh `D` nhiều lần.
 - [ ] Nạp lại firmware (`./robot_arm_4dof/flash.sh`) trên máy cắm Arduino: Home và góc khởi động của đế đổi từ 90° sang **180°** ngày 11/11.
@@ -42,4 +42,4 @@ python slides/tools/check_facts.py # sau mỗi lần sửa mã
 2. "XONG" là ba góc lệnh tới góc gợi ý (MG996R không báo vị trí thật), kẹp không tính; không phải "đã gắp".
 3. Chưa có tỉ lệ thành công trên cánh tay thật.
 4. Sai số hiệu chỉnh 8,5 mm là trên chính 10 mẫu dùng để khớp; đổi tờ giấy hoặc dời robot thì phải đo lại.
-5. Servo kẹp: có ngắt xung, giới hạn 160°, phím `X` / `Z`; chưa đo nhiệt độ.
+5. Servo kẹp: có ngắt xung, giới hạn 160°, phím `X`; chưa đo nhiệt độ.

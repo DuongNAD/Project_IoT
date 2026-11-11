@@ -382,7 +382,7 @@ def caption(slide, x, y, w, s, size=11, h=0.45, color=MUTED, align=LEFT):
 # ==============================================================================
 SECTIONS = {  # phần -> (số phần, tên phần, các slide phần đó trình bày sau slide ngăn)
     "hw": ("01", "Linh kiện", ["parts", "comp1", "comp2", "circuit", "heat"]),
-    "cv": ("02", "Computer vision & Hỗ trợ gắp", ["a4", "objects", "success", "trial", "results", "limits"]),
+    "cv": ("02", "Computer vision & Hỗ trợ gắp", ["a4", "objects", "success", "trial", "eyecheck", "results", "limits"]),
     "ctrl": ("03", "Code điều khiển", ["flow", "fwcode", "ik", "screen", "calib"]),
 }
 SECTION_PEOPLE = {"hw": ("hw",), "cv": ("cv", "succ"), "ctrl": ("ctrl",)}  # phần -> người nói (khóa TEAM)
@@ -392,7 +392,7 @@ TITLES = {
     "circuit": "Sơ đồ mạch", "heat": "Bảo vệ servo kẹp", "a4": "Hệ tọa độ từ tờ A4", "objects": "Nhận diện vật",
     "flow": "Lưu đồ thuật toán", "fwcode": "Code firmware", "ik": "Động học ngược", "screen": "Giao diện chương trình",
     "calib": "Hiệu chỉnh mô hình", "success": "Điều kiện hoàn thành", "trial": "Thử nghiệm trên cánh tay thật",
-    "results": "Kết quả", "limits": "Hạn chế, hướng phát triển",
+    "eyecheck": "Kiểm tra bằng mắt", "results": "Kết quả", "limits": "Hạn chế, hướng phát triển",
 }
 UI_OLD = True  # Ảnh ui_screen_* / sw_annot_* chụp bằng giao diện trước 10/11; chạy lại make_screen_images.py trên Mac rồi đặt False
 UI_NOTE = " (giao diện bản trước)" if UI_OLD else ""
@@ -580,7 +580,7 @@ def slide_system(prs, n):
     box(s, M, 5.62, CW, 1.0, fill=BG2)
     code = [("plan   = self.control.update(self.vision.objects)", "# khối điều khiển"),
             ("result = self.success.update(plan)", "# khối success"),
-            ("screen = build_screen(..., plan, result)", "# màn hình (main.py:85-88)")]
+            ("screen = build_screen(..., plan, result)", "# màn hình (main.py:76-79)")]
     text(s, M + 0.25, 5.74, CW - 0.4, 0.85, [[(c.ljust(53), {}), (k, {"color": MUTED})] for c, k in code], 12.5, INK, font=MONO,
          spacing=1.12)
     footer(s, n)
@@ -595,7 +595,7 @@ Người dùng bấm phím theo gợi ý. Phím được gửi xuống Arduino q
 
 Nếu được hỏi: chương trình có tự gửi phím không? Không, chỉ gửi khi người dùng bấm. Có dùng Bluetooth không? Có: khi điều khiển từ xa, máy Dell xem màn hình Mac qua Wi-Fi và gửi phím qua module HC-05 ở chân D2, D3; Mac vẫn nối cáp USB để nhận góc servo.
 
-Nguồn: README.md (sơ đồ đầu trang, mục 1 và 3); main.py:85-88; robot_arm_4dof.ino:6,8,86,203-207; control.py (ArduinoSerialLink).
+Nguồn: README.md (sơ đồ đầu trang, mục 1 và 3); main.py:76-79; robot_arm_4dof.ino:6,8,86,203-207; control.py (ArduinoSerialLink).
 """)
 
 
@@ -633,7 +633,7 @@ def slide_divider(prs, n, key):
     footer(s, n)
     intro = {
         "hw": "Tiếp theo là phần linh kiện, gồm: danh sách linh kiện, giới thiệu các linh kiện chính, sơ đồ mạch và giải pháp bảo vệ servo kẹp. Mỗi linh kiện được trình bày theo thông số và vai trò trong hệ thống.",
-        "cv": "Em là {cv}. Phần hai do em và {succ} trình bày, gồm hai nửa. Nửa đầu em trình bày computer vision: xác định vị trí vật trên bàn theo xăng-ti-mét, gồm hệ tọa độ từ tờ A4 với bốn mã ArUco và nhận diện vật. Nửa sau {succ} trình bày hỗ trợ gắp: điều kiện hoàn thành, thử nghiệm trên cánh tay thật, kết quả, hạn chế và hướng phát triển.",
+        "cv": "Em là {cv}. Phần hai do em và {succ} trình bày, gồm hai nửa. Nửa đầu em trình bày computer vision: xác định vị trí vật trên bàn theo xăng-ti-mét, gồm hệ tọa độ từ tờ A4 với bốn mã ArUco và nhận diện vật. Nửa sau {succ} trình bày hỗ trợ gắp: điều kiện hoàn thành, thử nghiệm trên cánh tay thật, cách kiểm tra bằng mắt, kết quả, hạn chế và hướng phát triển.",
         "ctrl": "Em là {ctrl}, phụ trách code điều khiển: firmware trên Arduino và khối điều khiển trên laptop. Phần này gồm lưu đồ thuật toán, code firmware, động học ngược, giao diện chương trình và hiệu chỉnh mô hình cánh tay.",
     }[key]
     notes(s, intro + """
@@ -886,16 +886,13 @@ def slide_heat(prs, n):
     fixes = ["Giới hạn góc kẹp 160°, bước 5°",
              "Mở hết (95°), 5 s không có lệnh → ngắt xung",
              "Khép liên tục quá 60 s → ngắt xung",
-             None,  # Hàng phím X / Z vẽ riêng
-             "Giao diện báo trạng thái nghỉ"]
+             None]  # Hàng phím X vẽ riêng
     for i, st in enumerate(fixes):
         y = 2.65 + i * 0.6
         dot(s, x2 + 0.28, y, i + 1, d=0.36, size=13)
         if st is None:
             keycap(s, x2 + 0.82, y - 0.03, "X", 0.42, 0.4, 15)
             text(s, x2 + 1.32, y - 0.03, 2.0, 0.4, "nghỉ kẹp", 15, INK, anchor=MIDDLE)
-            keycap(s, x2 + 3.25, y - 0.03, "Z", 0.42, 0.4, 15)
-            text(s, x2 + 3.75, y - 0.03, 2.6, 0.4, "nghỉ cả 4 servo", 15, INK, anchor=MIDDLE)
         else:
             text(s, x2 + 0.82, y + 0.02, W - M - x2 - 1.0, 0.4, st, 15, INK)
     chip(s, M, 6.1, "ĐÃ NẠP VÀ KIỂM TRA TRÊN MẠCH (02/11)", size=11, h=0.4)
@@ -903,15 +900,15 @@ def slide_heat(prs, n):
     notes(s, """
 Phần cuối của linh kiện là bảo vệ servo kẹp khỏi quá nhiệt. Có hai nguyên nhân: firmware cũ giữ xung PWM liên tục, nên khi kẹp bị chặn servo vẫn chịu tải; và lệnh đóng 175 độ tương ứng xung khoảng 2,74 ms, vượt dải 0,5–2,5 ms của MG996R.
 
-Firmware mới có các biện pháp: giới hạn góc kẹp 160 độ; mở hết mà 5 giây không có lệnh thì ngắt xung; khép liên tục quá 60 giây cũng ngắt xung; phím X cho servo kẹp nghỉ, phím Z cho cả bốn servo nghỉ; và giao diện hiển thị khi cánh tay đang nghỉ.
+Firmware mới có các biện pháp: giới hạn góc kẹp 160 độ; mở hết mà 5 giây không có lệnh thì ngắt xung; khép liên tục quá 60 giây cũng ngắt xung; và phím X cho servo kẹp nghỉ.
 
 Firmware này đã được nạp và kiểm tra trên mạch ngày 2/11. Nhóm chưa đo nhiệt độ servo sau thay đổi.
 
 Tiếp theo, {cv} và {succ} trình bày phần computer vision và hỗ trợ gắp.
 
-Nếu được hỏi: dùng phím Z cần chú ý gì? Cả bốn servo mất xung nên cánh tay hạ xuống theo trọng lực; cần đưa tay kẹp xuống vị trí trống trước. Giới hạn 160 độ có vượt dải xung không? Có, xung khoảng 2,56 ms, hơi vượt dải danh định 2,5 ms; nhóm chấp nhận để kẹp chặt hơn, kèm cơ chế tự ngắt xung sau 60 giây. Vì sao khi ngắt xung lúc mở hết thì hàm kẹp khép lại? Khi mất xung, hai hàm kẹp khép thành hình chữ V hẹp, khe còn khoảng 1–2 cm (ước lượng từ ảnh), nên khi tiếp cận cần bấm J để mở lại.
+Nếu được hỏi: Giới hạn 160 độ có vượt dải xung không? Có, xung khoảng 2,56 ms, hơi vượt dải danh định 2,5 ms; nhóm chấp nhận để kẹp chặt hơn, kèm cơ chế tự ngắt xung sau 60 giây. Vì sao khi ngắt xung lúc mở hết thì hàm kẹp khép lại? Khi mất xung, hai hàm kẹp khép thành hình chữ V hẹp, khe còn khoảng 1–2 cm (ước lượng từ ảnh), nên khi tiếp cận cần bấm J để mở lại.
 
-Nguồn: robot_arm_4dof.ino:16-23,160-176,191-201; control.py (trạng thái relaxed); README.md mục 6; 05_SO_LIEU_VA_NGUON.md mục 6.
+Nguồn: robot_arm_4dof.ino:16-23,160-176,191-201; README.md mục 6; 05_SO_LIEU_VA_NGUON.md mục 6.
 """)
 
 
@@ -992,7 +989,7 @@ Tiếp theo, {succ} trình bày nửa sau của phần này: hỗ trợ gắp.
 
 Nếu được hỏi: vì sao không dùng YOLO? Bản trước có YOLO11 nhưng hay nhận nhầm bộ phận robot, nên nhóm bỏ để mã đơn giản; tách màu đủ cho cốc màu đậm. Vật màu trắng hoặc xám thì sao? Chưa nhận được; đây là một hạn chế. Vì sao phải bấm R mà không theo camera liên tục? Khi tay kẹp tiến vào, nó che và đẩy cốc nên vị trí camera thấy bị nhảy; chụp một lần thì đích đứng yên và mã đơn giản hơn.
 
-Nguồn: vision.py:68-95; control.py:429-440 (phím R).
+Nguồn: vision.py:68-95; control.py:253-263 (phím R).
 """)
 
 
@@ -1062,7 +1059,7 @@ Bên phải là chương trình Python trên laptop, chạy ở mỗi khung hìn
 
 Nếu được hỏi: vì sao firmware đọc HC-05 trước USB? Để phím từ Bluetooth không bị bỏ qua khi USB cũng có dữ liệu; mỗi vòng chỉ đọc một ký tự. Vì sao không gửi trực tiếp lệnh góc? Để Arduino chỉ cần xử lý từng phím, giống khi điều khiển bằng tay.
 
-Nguồn: robot_arm_4dof.ino:84-208; main.py:82-89,99-113; control.py:456-463 (press); success.py.
+Nguồn: robot_arm_4dof.ino:84-208; main.py:73-80,90-103; control.py:277-283 (press); success.py.
 """)
 
 
@@ -1199,9 +1196,9 @@ Thuật toán có bốn bước: đổi tọa độ trên giấy sang tọa đ�
 
 Ví dụ, cốc ở (20,1; 7,4) cm cho góc gợi ý: đế 74, vai 58, khuỷu 90 độ. Từ tư thế 90/90/90, cần bấm D 8 lần và S 16 lần; khuỷu đã đúng góc. Cánh tay không có servo cổ tay nên không điều chỉnh được hướng tay kẹp.
 
-Nếu được hỏi: công thức được kiểm tra thế nào? Bằng mắt: chương trình vẽ dấu KEP, là đầu kẹp tính từ góc servo, lên hình camera; khi hai ngón kẹp ôm cốc thật thì dấu KEP phải nằm trên cốc (ảnh ở slide hiệu chỉnh). Vì sao chọn nghiệm khuỷu hướng lên? Tam giác hai khâu có hai nghiệm; chọn một chiều cố định để mỗi điểm chỉ có một bộ góc. Vật ngoài tầm với thì sao? Giao diện báo VAT NGOAI TAM VOI và khoảng cách cần dời vật lại gần.
+Nếu được hỏi: công thức được kiểm tra thế nào? Lấy góc servo lúc hai ngón kẹp ôm cốc thật, tính ngược ra chỗ đầu kẹp theo mô hình rồi so với vị trí cốc (ảnh ở slide hiệu chỉnh); chương trình không vẽ dấu này lên màn hình. Vì sao chọn nghiệm khuỷu hướng lên? Tam giác hai khâu có hai nghiệm; chọn một chiều cố định để mỗi điểm chỉ có một bộ góc. Vật ngoài tầm với thì sao? Giao diện báo VAT NGOAI TAM VOI và khoảng cách cần dời vật lại gần.
 
-Nguồn: control.py:31-62,91-154,167-188,213-235; 05_SO_LIEU_VA_NGUON.md mục 3 và 16 (ví dụ tính lại bằng check_facts.py --deep).
+Nguồn: control.py:26-54,60-116,119-131,147-169; 05_SO_LIEU_VA_NGUON.md mục 3 và 16 (ví dụ tính lại bằng check_facts.py --deep).
 """)
 
 
@@ -1232,7 +1229,7 @@ def slide_screen(prs, n):
                                 ", còn 18 lần"]], 13, INK)
     footer(s, n)
     notes(s, """
-Đây là giao diện chương trình, chạy trên ảnh camera đã lưu với cánh tay mô phỏng. Hai khung camera phía trên có lưới tọa độ, vòng DICH quanh vật và dấu KEP là vị trí tay kẹp theo mô hình.
+Đây là giao diện chương trình, chạy trên ảnh camera đã lưu với cánh tay mô phỏng. Hai khung camera phía trên có lưới tọa độ và vòng DICH quanh vật; ảnh chụp từ bản trước nên còn dấu KEP vàng, bản hiện tại đã bỏ dấu này.
 
 Bên dưới là hai ô nối nhau. Ô một lấy từ Plan của khối điều khiển: một lệnh chính. Trong ảnh, cốc ở (16,5; 13,8) cm, lệnh là bấm S 15 lần để hạ vai 30 độ, tổng còn 18 lần bấm. Ba hàng bên dưới là ba servo; hàng đã đạt ghi ĐÃ ĐÚNG, như hàng đế chỉ lệch 2 độ. Ô hai lấy từ kết quả của khối success: CHƯA XONG kèm số lần bấm còn lại, hoặc XONG.
 
@@ -1240,7 +1237,7 @@ Chữ không dấu vì OpenCV không hiển thị được dấu tiếng Việt.
 
 Nếu được hỏi: chương trình có tự gửi phím không? Không; chỉ gửi khi người dùng bấm. Vì sao chỉ hiển thị một lệnh chính? Để người điều khiển thực hiện ngay, không cần đọc bảng số. Thứ tự lệnh thế nào? Đế, rồi vai, rồi khuỷu; servo đã đạt được bỏ qua. Ảnh đã lưu thì gợi ý lấy từ đâu? Chương trình đọc khung hình đã lưu như camera đang chạy; cánh tay mô phỏng đặt ở 90/90/90.
 
-Nguồn: screen.py:46-76; main.py:73-89; control.py:204-209; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
+Nguồn: screen.py:45-75; main.py:65-80; control.py:138-143; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
 """)
 
 
@@ -1333,9 +1330,9 @@ Tay kẹp không được xét vì cốc thử nghiệm thon dần về đáy: k
 
 Lưu ý: trạng thái XONG nghĩa là ba góc đã ra lệnh đạt mục tiêu, vì MG996R không phản hồi vị trí thật. Ảnh bên phải là mô phỏng trên ảnh đã lưu; bản này chưa được đếm trên cánh tay thật.
 
-Nếu được hỏi: vì sao cần giữ 1 giây? Để trường hợp đi qua mục tiêu không bị tính. Có kiểm tra bằng camera không? Bản trước có, dựa trên hai camera; nhóm đã bỏ để mã đơn giản hơn. Số lần hoàn thành hiển thị ở đâu? Ở dòng Thanh cong: N lan trong ô success; chưa ghi ra file. Khi không thấy vật? Không báo XONG; trạng thái là chưa thấy vật.
+Nếu được hỏi: vì sao cần giữ 1 giây? Để trường hợp đi qua mục tiêu không bị tính. Có kiểm tra bằng camera không? Bản trước có, dựa trên hai camera; nhóm đã bỏ để mã đơn giản hơn. Số lần hoàn thành hiển thị ở đâu? Ở dòng Thanh cong: N lan trong ô success; chưa ghi ra file. Khi chưa bấm R? Không báo XONG; trạng thái là chưa có đích.
 
-Nguồn: success.py:11-12,15-58; robot_arm_4dof.ino:70-83; README.md mục 6; ảnh ui_screen_done (tạo bằng slides/tools/make_screen_images.py).
+Nguồn: success.py:11-12,15-56; robot_arm_4dof.ino:70-83; README.md mục 6; ảnh ui_screen_done (tạo bằng slides/tools/make_screen_images.py).
 """)
 
 
@@ -1370,6 +1367,40 @@ Góc servo lúc kẹp, đọc từ giao diện bản cũ: đế khoảng 85, vai
 Nếu được hỏi: có video không? [...điền: có / không; nếu có thì chiếu đoạn 20–30 giây]. Kẹp có giữ chắc không? Chưa: cốc thon bị đẩy ra khi khép đến 150–160 độ.
 
 Nguồn: ảnh demo_06, demo_07, demo_08 (khung cắt từ video 02/11/2026, 20:32:52 đến 20:33:12); 05_SO_LIEU_VA_NGUON.md mục 7.
+""")
+
+
+# ==============================================================================
+# 02 · Hỗ trợ gắp · kiểm tra bằng mắt
+# ==============================================================================
+def slide_eye_check(prs, n):
+    s = new_slide(prs, alt=True)
+    header(s, "02 · Hỗ trợ gắp", "Kiểm tra bằng mắt", "succ")
+    label(s, M, 1.95, 6.8, "Chạy chương trình, nhìn bốn điều", TEAL, 10.5)
+    steps(s, M, 2.4, 6.9, [
+        [("Lưới 5 cm bám tờ giấy", {"bold": True}), ": góc dưới ghi Luoi A4: thay 4/4 ma ArUco"],
+        [("Vòng xanh nằm trên cốc", {"bold": True}), ", kèm X, Y (cm)"],
+        [("Bấm R: hiện lệnh to", {"bold": True}), "; bấm đúng phím thì số lần bấm giảm dần"],
+        [("XONG", {"bold": True}), "; giữ 1 giây thì Thanh cong cộng 1"],
+    ], 16, d=0.36, gap=0.3)
+    chip(s, M, 6.15, "CHƯA ĐO TỈ LỆ THÀNH CÔNG", ORANGE, ORANGE_SOFT, size=10)
+    rw = 4.0
+    rx = W - M - rw
+    h1 = image(s, "sw_annot_top.jpg", rx, 1.95, rw, 2.0, mode="cover", focus=(0.5, 0.42))
+    caption(s, rx, 1.95 + h1 + 0.1, rw, "1–2 · Cam TRÊN: lưới 5 cm, vòng xanh quanh cốc", 10, 0.28)
+    h2 = image(s, "ui_screen_done.png", rx, 4.42, rw, None, mode="fit")
+    caption(s, rx, 4.42 + h2 + 0.08, rw, "3–4 · Đủ phím → XONG (mô phỏng)" + UI_NOTE, 10, 0.45)
+    footer(s, n)
+    notes(s, """
+Nhóm kiểm tra hệ thống bằng mắt khi chạy chương trình, theo bốn điều.
+
+Một: lưới 5 cm phải bám đúng tờ giấy, góc dưới ghi Luoi A4: thay 4/4 ma ArUco; lưới lệch là homography sai. Hai: đặt cốc lên giấy, vòng xanh phải nằm trên cốc, kèm tọa độ X, Y theo xăng-ti-mét. Ba: bấm R để chụp đích; ô một hiện lệnh to, ví dụ BAM D x8, và bấm đúng phím thì số lần bấm giảm dần. Bốn: đủ phím thì hiện XONG, giữ 1 giây thì Thanh cong cộng một.
+
+Ảnh trên là khung cam TRÊN với lưới và vòng xanh; ảnh dưới là màn hình khi đủ phím, chạy trên ảnh đã lưu với cánh tay mô phỏng. Nhóm chưa đo tỉ lệ thành công trên cánh tay thật.
+
+Nếu được hỏi: có test tự động không? Không; nhóm kiểm tra bằng cách chạy chương trình và quan sát. Làm sao biết vị trí cốc đúng? So hai camera: sau bù thị sai, hai camera đo cùng một cốc lệch nhau 0,2 cm ở một vị trí đã đo. Làm sao biết góc gợi ý đúng? Bấm theo lệnh tới XONG rồi nhìn hai ngón kẹp có ôm được cốc không; sai số của mô hình nằm ở slide hiệu chỉnh.
+
+Nguồn: README.md mục 7; 05_SO_LIEU_VA_NGUON.md mục 2 và 11; ảnh sw_annot_top, ui_screen_done.
 """)
 
 
@@ -1418,7 +1449,7 @@ Slide này tổng hợp những việc đã thực hiện và chưa thực hiệ
 
 Chưa thực hiện: đếm số lần XONG trên cánh tay thật với bản mới; kiểm tra gợi ý mới trên phần cứng; kẹp chắc vật thon; đo nhiệt độ servo; hiệu chỉnh cho tờ giấy mới; dashboard IoT qua MQTT và cảm biến lực, vốn có trong kế hoạch ngày 28/10.
 
-Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Mã được đơn giản hóa ngày 2/11; thử nghiệm bản mới trên cánh tay thật là bước tiếp theo. Kiểm tra thế nào? Bằng mắt khi chạy chương trình, với hai camera và cánh tay thật; chưa có số liệu tỉ lệ thành công. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm có thể thêm MQTT từ gói JSON hiện có.
+Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Mã được đơn giản hóa sau buổi thử 2/11, lần gần nhất ngày 12/11; thử nghiệm bản mới trên cánh tay thật là bước tiếp theo. Kiểm tra thế nào? Bằng mắt khi chạy chương trình, với hai camera và cánh tay thật; chưa có số liệu tỉ lệ thành công. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm có thể thêm MQTT từ gói JSON hiện có.
 
 Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; 05_SO_LIEU_VA_NGUON.md mục 2 (bù thị sai) và mục 11 (cách kiểm tra).
 """)
@@ -1466,9 +1497,9 @@ Dòng dưới là hai lỗi tích hợp đã xử lý: thứ tự camera trên m
 
 Tiếp theo, {ctrl} trình bày phần code điều khiển.
 
-Nếu được hỏi: biết Arduino vừa reset bằng cách nào? Nhìn cánh tay: cả 4 servo giật về Home, đế quay hết sang phải. Vì sao camera đổi thứ tự? OpenCV đánh số camera theo uniqueID, còn danh sách của hệ điều hành xếp camera dùng gần nhất lên đầu. Đo đầu kẹp bằng camera thế nào? Ví dụ dán mã ArUco lên càng kẹp và dùng homography của tờ giấy; đây là hướng đề xuất, chưa thực hiện. Có thể chuyển sang tự gửi phím không? Về kỹ thuật là gửi phím theo Plan; nhóm chỉ thực hiện khi đo được độ lệch còn lại.
+Nếu được hỏi: biết Arduino vừa reset bằng cách nào? Nhìn cánh tay: cả 4 servo giật về Home, đế quay hết sang phải. Vì sao camera đổi thứ tự? OpenCV đánh số camera theo uniqueID, còn danh sách của hệ điều hành xếp camera dùng gần nhất lên đầu. Rút cáp camera hoặc USB giữa chừng thì sao? Bản đơn giản không tự nối lại: cắm lại cáp rồi chạy lại chương trình. Đo đầu kẹp bằng camera thế nào? Ví dụ dán mã ArUco lên càng kẹp và dùng homography của tờ giấy; đây là hướng đề xuất, chưa thực hiện. Có thể chuyển sang tự gửi phím không? Về kỹ thuật là gửi phím theo Plan; nhóm chỉ thực hiện khi đo được độ lệch còn lại.
 
-Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 8, 9, 10, 13; cameras.py:1-8,35-66; control.py (ArduinoSerialLink: giữ một kết nối); README.md mục 5 và 6.
+Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 8, 9, 10, 13; cameras.py:1-7,19-35; control.py (ArduinoSerialLink: giữ một kết nối); README.md mục 5 và 6.
 """)
 
 
@@ -1572,6 +1603,7 @@ ORDER = [  # (khóa, hàm dựng, người nói: None = cả nhóm)
     ("objects", slide_objects, "cv"),
     ("success", slide_success, "succ"),
     ("trial", slide_trial, "succ"),
+    ("eyecheck", slide_eye_check, "succ"),
     ("results", slide_results, "succ"),
     ("limits", slide_limits, "succ"),
     ("div_ctrl", lambda p, n: slide_divider(p, n, "ctrl"), "ctrl"),

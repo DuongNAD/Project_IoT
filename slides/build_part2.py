@@ -217,13 +217,13 @@ def code_slide(prs, who, title, path, ranges, steps_, marks, notes_text):
 # ==============================================================================
 # 1. Slide ngăn phần
 # ==============================================================================
-ITEMS = ["Sơ đồ luồng dữ liệu", "Vòng lặp mỗi khung hình · main.py", "Tìm camera theo tên · cameras.py", "Hệ tọa độ từ tờ A4 · vision.py",
+ITEMS = ["Sơ đồ luồng dữ liệu", "Vòng lặp mỗi khung hình · main.py", "Đọc camera · cameras.py", "Hệ tọa độ từ tờ A4 · vision.py",
          "Nhận diện vật · vision.py", "Điều kiện hoàn thành · success.py", "Màn hình · screen.py", "Thử nghiệm, kết quả, hạn chế"]
 
 
 def slide_divider(prs):
     s = new_slide(prs, bg=STATEMENT)
-    label(s, M, 1.3, 6.0, "Phần 02 / 03", TEAL)
+    label(s, M, 1.3, 6.0, "Phần 02", TEAL)
     text(s, M, 1.62, 3.4, 1.7, "02", 110, TEAL, True)
     text(s, M, 3.45, 6.6, 1.6, ["Computer vision &", "Hỗ trợ gắp"], 44, INK, True, spacing=1.0)
     text(s, M, 5.13, 6.6, 0.45, f"{name('cv')}  –  {name('succ')}", 22, TEXT2)
@@ -242,7 +242,7 @@ def slide_divider(prs):
         chip(s, x, 6.25, t, B.WHITE if i == 1 else TEXT2, TEAL if i == 1 else BG2, size=10.5, w=w)
         x += w + 0.12
     notes(s, """
-Phần hai do {cv} và {succ} trình bày. {cv} trình bày computer vision: sơ đồ luồng dữ liệu của cả chương trình, vòng lặp mỗi khung hình, cách tìm camera, hệ tọa độ từ tờ A4 và nhận diện vật. {succ} trình bày hỗ trợ gắp: điều kiện hoàn thành, màn hình, rồi thử nghiệm, kết quả và hạn chế.
+Phần hai do {cv} và {succ} trình bày. {cv} trình bày computer vision: sơ đồ luồng dữ liệu của cả chương trình, vòng lặp mỗi khung hình, cách đọc camera, hệ tọa độ từ tờ A4 và nhận diện vật. {succ} trình bày hỗ trợ gắp: điều kiện hoàn thành, màn hình, rồi thử nghiệm, cách kiểm tra bằng mắt, kết quả và hạn chế.
 
 Mỗi slide code lấy nguyên văn từ mã nguồn trên GitHub, có ghi tên tệp và số dòng ở góc trên khung code.
 
@@ -299,11 +299,11 @@ def slide_dataflow(prs):
     notes(s, """
 Đây là sơ đồ luồng dữ liệu của chương trình trên laptop. Mỗi khung hình, dữ liệu đi một chiều qua năm khối, đọc từ trên xuống; mũi tên ghi tên biến thật trong mã.
 
-Hai camera cho ảnh. vision.py dò bốn mã ArUco để có lưới tọa độ, rồi tìm vật có màu trên ảnh cam TRÊN; kết quả là vision.objects, danh sách vật với tọa độ X, Y theo xăng-ti-mét trên tờ A4. control.py, phần ba, tính góc servo cần tới và phím cần bấm, đóng gói thành một đối tượng Plan. success.py chỉ đọc Plan và trả về Result: đã tới chưa, còn bao nhiêu lần bấm, đã thành công mấy lần. screen.py vẽ hai camera và hai ô chữ từ Plan và Result.
+Hai camera cho ảnh. vision.py dò bốn mã ArUco để có lưới tọa độ, rồi tìm vật có màu trên ảnh cam TRÊN; kết quả là vision.objects, danh sách vật với tọa độ X, Y theo xăng-ti-mét trên tờ A4. control.py, phần ba, tính góc servo cần tới và phím cần bấm, đóng gói thành một đối tượng Plan; góc cần tới chỉ có sau khi người điều khiển bấm R để chụp vị trí vật. success.py chỉ đọc Plan và trả về Result: đã tới chưa, còn bao nhiêu lần bấm, đã thành công mấy lần. screen.py vẽ hai camera và hai ô chữ từ Plan và Result.
 
 Bên phải: người dùng bấm phím, phím được gửi xuống Arduino qua USB 9600 baud; Arduino gửi lại góc servo dạng JSON năm lần mỗi giây, khối điều khiển dùng góc này làm góc hiện tại. Khi điều khiển từ xa, máy Dell xem đúng màn hình này qua Wi-Fi (share.py) và gửi phím thẳng tới Arduino qua Bluetooth HC-05; phím R vẫn bấm trên Mac.
 
-Nếu được hỏi: vì sao chia thành các khối như vậy? Mỗi khối chỉ nhận một loại dữ liệu và trả một loại dữ liệu, nên làm và sửa riêng được từng khối; ví dụ success.py chỉ cần một Plan, không cần camera hay Arduino. Dữ liệu có được lưu lại không? Không; mỗi khung hình tính lại từ đầu, chỉ có vị trí mã ArUco và vị trí vật đang chọn được nhớ.
+Nếu được hỏi: vì sao chia thành các khối như vậy? Mỗi khối chỉ nhận một loại dữ liệu và trả một loại dữ liệu, nên làm và sửa riêng được từng khối; ví dụ success.py chỉ cần một Plan, không cần camera hay Arduino. Dữ liệu có được lưu lại không? Không; mỗi khung hình tính lại từ đầu, chỉ có vị trí mã ArUco, đích đã chụp bằng phím R và số lần thành công được nhớ.
 
 Nguồn: main.py:{render}; success.py:{result}; robot_arm_4dof.ino (gói JSON mỗi 200 ms).
 """.replace("{render}", "{}-{}".format(*span("main.py", "    def render")))
@@ -316,30 +316,30 @@ Nguồn: main.py:{render}; success.py:{result}; robot_arm_4dof.ino (gói JSON m�
 def slide_main(prs):
     ranges = [span("main.py", "    def _frame"), span("main.py", "    def render")]
     code_slide(prs, "cv", "Vòng lặp mỗi khung hình · main.py", "main.py", ranges,
-               [(1, "Chỉ xử lý khi có khung mới"), (2, "vision"), (3, "control → Plan"), (4, "success → Result"), (5, "Vẽ màn hình")],
-               [("cached = self.cache.get(mode)", 1), ("self.vision.process_frame", 2), ("plan = self.control.update", 3),
+               [(1, "Đọc khung camera"), (2, "vision"), (3, "control → Plan"), (4, "success → Result"), (5, "Vẽ màn hình")],
+               [("raw = cam.get_raw_frame()", 1), ("self.vision.process_frame", 2), ("plan = self.control.update", 3),
                 ("result = self.success.update", 4), ("screen = build_screen", 5)],
                """
 Đây là phần chạy ở mỗi khung hình trong main.py, nối các khối của sơ đồ trước.
 
-Hàm _frame lấy ảnh của một camera. Số 1: chương trình chỉ xử lý lại khi camera có khung mới, nhận biết qua frame_id; nếu chưa có hình hoặc mất tín hiệu thì hiện khung "Dang cho tin hieu" và xóa danh sách vật cũ, để không gợi ý theo dữ liệu đã cũ. Số 2: ảnh được đưa vào vision.process_frame.
+Hàm _frame lấy ảnh của một camera. Số 1: đọc khung mới nhất của camera; nếu chưa có hình hoặc mất tín hiệu thì hiện ô "Dang cho tin hieu" và xóa danh sách vật cũ, để không gợi ý theo dữ liệu đã cũ. Số 2: ảnh được đưa vào vision.process_frame để dò mã ArUco và tìm vật.
 
 Hàm render: số 3, khối điều khiển nhận vision.objects và trả về plan; số 4, khối success nhận plan và trả về result; số 5, build_screen vẽ màn hình từ hai ảnh camera, plan và result.
 
-Nếu được hỏi: một giây chạy bao nhiêu khung? Tùy camera và máy; chương trình không chờ, cứ có khung mới là xử lý. Vì sao cần cache? Vòng lặp chạy nhanh hơn camera; không có cache thì cùng một ảnh bị dò ArUco nhiều lần.""")
+Nếu được hỏi: một giây chạy bao nhiêu khung? Tùy camera và máy: mỗi vòng đọc một khung của mỗi camera rồi xử lý ngay. Mất tín hiệu thì sao? Ô camera hiện "Dang cho tin hieu"; cắm lại cáp rồi chạy lại chương trình.""")
 
 
 def slide_cameras(prs):
-    ranges = [span("cameras.py", "    def _open"), span("cameras.py", "    def _loop")]
-    code_slide(prs, "cv", "Đọc camera trên luồng riêng · cameras.py", "cameras.py", ranges,
-               [(1, "Mở camera theo chỉ số"), (2, "Lưu khung mới nhất"), (3, "Mất tín hiệu 4 giây: mở lại")],
-               [("elif self.arg.isdigit()", 1), ("self.frame, self.frame_id, self.last_time", 2), ("if self.stalled() and", 3)],
+    ranges = [span("cameras.py", "    def __init__"), span("cameras.py", "    def get_raw_frame")]
+    code_slide(prs, "cv", "Đọc camera · cameras.py", "cameras.py", ranges,
+               [(1, "Ảnh tĩnh để chạy thử"), (2, "Mở camera theo chỉ số"), (3, "Đọc khung mới nhất")],
+               [("if source.lower().endswith", 1), ("elif source.isdigit()", 2), ("ok, frame = self.cap.read()", 3)],
                """
 Phần này trả lời: hai camera được đọc thế nào.
 
-Số 1: hàm _open mở camera theo chỉ số OpenCV: số ghi ở --top là cam TRÊN, số ghi ở --side là cam NGANG; trên Windows dùng DirectShow. Nguồn cũng có thể là một ảnh .png để chạy thử không cần camera. Số 2: hàm _loop chạy trên một luồng riêng, đọc khung liên tục và lưu khung mới nhất kèm số thứ tự frame_id; vòng lặp chính chỉ xử lý lại khi frame_id đổi. Số 3: quá 4 giây không có khung mới, ví dụ rút cáp, thì tự mở lại camera.
+Số 1: nguồn có thể là một ảnh .png hoặc .jpg; lần đọc nào cũng trả lại đúng ảnh đó, để chạy thử không cần camera. Số 2: camera mở theo chỉ số OpenCV: số ghi ở --top là cam TRÊN, số ghi ở --side là cam NGANG; trên Windows mở qua DirectShow. Bộ đệm chỉ giữ một khung để hình không bị trễ. Số 3: mỗi vòng lặp, get_raw_frame đọc khung mới nhất; không có hình thì trả về None và main.py hiện ô "Dang cho tin hieu".
 
-Nếu được hỏi: camera nào là cam TRÊN? Chọn bằng chỉ số khi chạy, ví dụ --top 0 --side 1; macOS có thể đổi thứ tự camera giữa các lần chạy, nên nhìn hai khung hình, thấy đảo thì chạy lại với hai số đổi chỗ. Vì sao đọc trên luồng riêng? Để vòng lặp chính luôn lấy được khung mới nhất, không phải chờ camera.""")
+Nếu được hỏi: camera nào là cam TRÊN? Chọn bằng chỉ số khi chạy, ví dụ --top 0 --side 1; macOS có thể đổi thứ tự camera giữa các lần chạy, nên nhìn hai khung hình, thấy đảo thì chạy lại với hai số đổi chỗ. Rút cáp camera thì sao? Ô camera hiện "Dang cho tin hieu"; cắm lại rồi chạy lại chương trình, bản này không tự mở lại camera.""")
 
 
 def slide_sheet(prs):
@@ -386,11 +386,11 @@ def slide_success(prs):
               span("success.py", "    def update")]
     code_slide(prs, "succ", "Điều kiện hoàn thành · success.py", "success.py", ranges,
                [(1, "Lệch ≤ 2°, giữ 1 giây"), (2, "Servo nào đã tới"), (3, "Trạng thái"), (4, "Đếm lần thành công")],
-               [("TOLERANCE_STEPS =", 1), ("joints = [", 2), ("if plan.relaxed", 3), ("if result.done", 4)],
+               [("TOLERANCE_STEPS =", 1), ("joints = [", 2), ("if not plan.found", 3), ("if result.done", 4)],
                """
 Em là {succ}, trình bày phần hỗ trợ gắp, bắt đầu từ success.py.
 
-Số 1: hai hằng số. Một servo được coi là đã tới nếu lệch không quá một bước bấm, tức 2 độ; cả ba servo phải giữ đúng liên tục 1 giây mới tính một lần thành công. Số 2: hàm check đọc Plan của khối điều khiển, so từng servo đế, vai, khuỷu với góc gợi ý, và cộng số lần bấm còn lại. Số 3: xếp trạng thái theo ưu tiên: tay đang nghỉ, chưa thấy vật, vật ngoài tầm với, còn phải bấm, hoặc xong. Hàm check không nhớ gì giữa hai lần gọi.
+Số 1: hai hằng số. Một servo được coi là đã tới nếu lệch không quá một bước bấm, tức 2 độ; cả ba servo phải giữ đúng liên tục 1 giây mới tính một lần thành công. Số 2: hàm check đọc Plan của khối điều khiển, so từng servo đế, vai, khuỷu với góc gợi ý, và cộng số lần bấm còn lại. Số 3: xếp trạng thái theo ưu tiên: chưa có đích (chưa bấm R), vật ngoài tầm với, còn phải bấm, hoặc xong. Hàm check không nhớ gì giữa hai lần gọi.
 
 Số 4: lớp Success gọi check mỗi khung hình và đếm số lần thành công: bắt đầu tính giờ khi vừa xong, đủ 1 giây thì cộng một, giữ thêm không cộng nữa, rời góc thì tính lại từ đầu.
 
