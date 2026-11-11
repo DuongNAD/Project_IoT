@@ -303,7 +303,7 @@ Hai camera cho ảnh. vision.py dò bốn mã ArUco để có lưới tọa đ�
 
 Bên phải: người dùng bấm phím, phím được gửi xuống Arduino qua USB 9600 baud; Arduino gửi lại góc servo dạng JSON năm lần mỗi giây, khối điều khiển dùng góc này làm góc hiện tại. Khi điều khiển từ xa, máy Dell xem đúng màn hình này qua Wi-Fi (share.py) và gửi phím thẳng tới Arduino qua Bluetooth HC-05; phím R vẫn bấm trên Mac.
 
-Nếu được hỏi: vì sao chia thành các khối như vậy? Mỗi khối chỉ nhận một loại dữ liệu và trả một loại dữ liệu, nên kiểm thử riêng được từng khối; ví dụ success.py được kiểm bằng Plan tự tạo, không cần camera hay Arduino. Dữ liệu có được lưu lại không? Không; mỗi khung hình tính lại từ đầu, chỉ có vị trí mã ArUco và vị trí vật đang chọn được nhớ.
+Nếu được hỏi: vì sao chia thành các khối như vậy? Mỗi khối chỉ nhận một loại dữ liệu và trả một loại dữ liệu, nên làm và sửa riêng được từng khối; ví dụ success.py chỉ cần một Plan, không cần camera hay Arduino. Dữ liệu có được lưu lại không? Không; mỗi khung hình tính lại từ đầu, chỉ có vị trí mã ArUco và vị trí vật đang chọn được nhớ.
 
 Nguồn: main.py:{render}; success.py:{result}; robot_arm_4dof.ino (gói JSON mỗi 200 ms).
 """.replace("{render}", "{}-{}".format(*span("main.py", "    def render")))
@@ -314,8 +314,7 @@ Nguồn: main.py:{render}; success.py:{result}; robot_arm_4dof.ino (gói JSON m�
 # 3-8. Slide code
 # ==============================================================================
 def slide_main(prs):
-    a, b = span("main.py", "    def render")  # Bỏ đoạn vẽ chữ "HIEU CHINH DE" (không thuộc luồng dữ liệu)
-    ranges = [span("main.py", "    def _frame"), (a, find("main.py", "if self.calib_base", a) - 1), (b, b)]
+    ranges = [span("main.py", "    def _frame"), span("main.py", "    def render")]
     code_slide(prs, "cv", "Vòng lặp mỗi khung hình · main.py", "main.py", ranges,
                [(1, "Chỉ xử lý khi có khung mới"), (2, "vision"), (3, "control → Plan"), (4, "success → Result"), (5, "Vẽ màn hình")],
                [("cached = self.cache.get(mode)", 1), ("self.vision.process_frame", 2), ("plan = self.control.update", 3),
@@ -325,25 +324,22 @@ def slide_main(prs):
 
 Hàm _frame lấy ảnh của một camera. Số 1: chương trình chỉ xử lý lại khi camera có khung mới, nhận biết qua frame_id; nếu chưa có hình hoặc mất tín hiệu thì hiện khung "Dang cho tin hieu" và xóa danh sách vật cũ, để không gợi ý theo dữ liệu đã cũ. Số 2: ảnh được đưa vào vision.process_frame.
 
-Hàm render: số 3, khối điều khiển nhận vision.objects và trả về plan; số 4, khối success nhận plan và trả về result; số 5, build_screen vẽ màn hình từ hai ảnh camera, plan và result. Đoạn lược ở giữa chỉ vẽ dòng nhắc khi đang hiệu chỉnh đế robot.
+Hàm render: số 3, khối điều khiển nhận vision.objects và trả về plan; số 4, khối success nhận plan và trả về result; số 5, build_screen vẽ màn hình từ hai ảnh camera, plan và result.
 
 Nếu được hỏi: một giây chạy bao nhiêu khung? Tùy camera và máy; chương trình không chờ, cứ có khung mới là xử lý. Vì sao cần cache? Vòng lặp chạy nhanh hơn camera; không có cache thì cùng một ảnh bị dò ArUco nhiều lần.""")
 
 
 def slide_cameras(prs):
-    ranges = [(find("cameras.py", "def list_camera_names"), span("cameras.py", "def find_camera")[1])]
-    loop = "{}-{}".format(*span("cameras.py", "    def _loop"))
-    code_slide(prs, "cv", "Tìm camera theo tên · cameras.py", "cameras.py", ranges,
-               [(1, "Windows: thứ tự DirectShow"), (2, "macOS: sắp theo uniqueID"), (3, "Tìm theo tên, bỏ camera ảo")],
-               [('if sys.platform == "win32"', 1), ("cams = sorted", 2), ("def find_camera", 3)],
+    ranges = [span("cameras.py", "    def _open"), span("cameras.py", "    def _loop")]
+    code_slide(prs, "cv", "Đọc camera trên luồng riêng · cameras.py", "cameras.py", ranges,
+               [(1, "Mở camera theo chỉ số"), (2, "Lưu khung mới nhất"), (3, "Mất tín hiệu 4 giây: mở lại")],
+               [("elif self.arg.isdigit()", 1), ("self.frame, self.frame_id, self.last_time", 2), ("if self.stalled() and", 3)],
                """
-Phần này trả lời: camera nào là cam TRÊN, camera nào là cam NGANG.
+Phần này trả lời: hai camera được đọc thế nào.
 
-list_camera_names lấy tên các camera theo đúng thứ tự chỉ số mà OpenCV dùng. Số 1: trên Windows, thư viện pygrabber đọc danh sách DirectShow, trùng thứ tự khi OpenCV mở camera bằng DirectShow. Số 2: trên macOS, system_profiler xếp camera dùng gần nhất lên đầu, còn OpenCV đánh số theo uniqueID, nên chương trình sắp lại theo uniqueID. Số 3: find_camera trả về chỉ số camera đầu tiên có tên chứa từ khóa, ví dụ "obsbot" hoặc "macbook", và bỏ qua camera ảo như OBSBOT Virtual Camera.
+Số 1: hàm _open mở camera theo chỉ số OpenCV: số ghi ở --top là cam TRÊN, số ghi ở --side là cam NGANG; trên Windows dùng DirectShow. Nguồn cũng có thể là một ảnh .png để chạy thử không cần camera. Số 2: hàm _loop chạy trên một luồng riêng, đọc khung liên tục và lưu khung mới nhất kèm số thứ tự frame_id; vòng lặp chính chỉ xử lý lại khi frame_id đổi. Số 3: quá 4 giây không có khung mới, ví dụ rút cáp, thì tự mở lại camera.
 
-Sau đó mỗi camera đọc trên một luồng riêng (Camera._loop, cameras.py dòng LOOP): đọc khung liên tục, lưu khung mới nhất kèm số thứ tự frame_id; quá 4 giây không có khung mới, ví dụ rút cáp, thì tự tìm lại camera theo tên và mở lại.
-
-Nếu được hỏi: vì sao không dùng chỉ số cố định 0 và 1? Thứ tự camera trên macOS đổi giữa các lần chạy; đây là một lỗi nhóm đã gặp. Vì sao đọc trên luồng riêng? Để vòng lặp chính luôn lấy được khung mới nhất, không phải chờ camera.""".replace("LOOP", loop))
+Nếu được hỏi: camera nào là cam TRÊN? Chọn bằng chỉ số khi chạy, ví dụ --top 0 --side 1; macOS có thể đổi thứ tự camera giữa các lần chạy, nên nhìn hai khung hình, thấy đảo thì chạy lại với hai số đổi chỗ. Vì sao đọc trên luồng riêng? Để vòng lặp chính luôn lấy được khung mới nhất, không phải chờ camera.""")
 
 
 def slide_sheet(prs):

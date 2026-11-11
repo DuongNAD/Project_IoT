@@ -444,8 +444,8 @@ def slide_team(prs, n):
         ("hw", ORANGE, "Linh kiện, sơ đồ mạch, lắp ráp cánh tay và camera",
          "Arduino Uno · PCA9685 · MG996R"),
         ("cv", TEAL, "Hệ tọa độ từ tờ A4, nhận diện vật", "vision.py · cameras.py"),
-        ("succ", TEAL, "Điều kiện hoàn thành, giao diện, kiểm thử",
-         "success.py · screen.py · tests/"),
+        ("succ", TEAL, "Điều kiện hoàn thành, giao diện, thử nghiệm",
+         "success.py · screen.py"),
         ("ctrl", TEAL, "Firmware Arduino, động học ngược, lệnh bấm phím, hiệu chỉnh",
          "robot_arm_4dof.ino · control.py"),
     ]
@@ -468,7 +468,7 @@ def slide_team(prs, n):
                                 ("phần cứng  →  computer vision & hỗ trợ gắp  →  điều khiển", {"color": INK, "bold": True})]], 14)
     footer(s, n)
     notes(s, """
-Nhóm có bốn thành viên. {hw} phụ trách linh kiện, sơ đồ mạch và lắp ráp. {cv} phụ trách computer vision: hệ tọa độ từ tờ A4 và nhận diện vật. {succ} phụ trách hỗ trợ gắp: khối success, giao diện và kiểm thử; {cv} và {succ} cùng thực hiện và cùng trình bày phần hai. {ctrl} phụ trách firmware Arduino và code điều khiển trên laptop.
+Nhóm có bốn thành viên. {hw} phụ trách linh kiện, sơ đồ mạch và lắp ráp. {cv} phụ trách computer vision: hệ tọa độ từ tờ A4 và nhận diện vật. {succ} phụ trách hỗ trợ gắp: khối success, giao diện và thử nghiệm; {cv} và {succ} cùng thực hiện và cùng trình bày phần hai. {ctrl} phụ trách firmware Arduino và code điều khiển trên laptop.
 
 Bài trình bày gồm ba phần: phần cứng; computer vision và hỗ trợ gắp; code điều khiển. Mở đầu, {hw} trình bày bài toán, sơ đồ khối và phần linh kiện.
 
@@ -580,7 +580,7 @@ def slide_system(prs, n):
     box(s, M, 5.62, CW, 1.0, fill=BG2)
     code = [("plan   = self.control.update(self.vision.objects)", "# khối điều khiển"),
             ("result = self.success.update(plan)", "# khối success"),
-            ("screen = build_screen(..., plan, result)", "# màn hình (main.py:113-116)")]
+            ("screen = build_screen(..., plan, result)", "# màn hình (main.py:85-88)")]
     text(s, M + 0.25, 5.74, CW - 0.4, 0.85, [[(c.ljust(53), {}), (k, {"color": MUTED})] for c, k in code], 12.5, INK, font=MONO,
          spacing=1.12)
     footer(s, n)
@@ -589,13 +589,13 @@ def slide_system(prs, n):
 
 Hai camera cùng quan sát tờ A4: OBSBOT đặt phía trên để tính vị trí vật, camera MacBook đặt phía trước để quan sát độ cao của tay kẹp. Khối computer vision dò bốn mã ArUco để đổi pixel sang xăng-ti-mét, rồi tách màu để xác định vị trí X, Y của vật.
 
-Khối điều khiển tính góc cần tới của ba servo và lập danh sách phím cần bấm. Khối success kiểm tra ba servo đã tới các góc đó chưa. Hai khối trao đổi qua một đối tượng duy nhất là Plan, nên có thể phát triển và kiểm thử riêng. Ba dòng mã bên dưới là phần chương trình chạy ở mỗi khung hình.
+Khối điều khiển tính góc cần tới của ba servo và lập danh sách phím cần bấm. Khối success kiểm tra ba servo đã tới các góc đó chưa. Hai khối trao đổi qua một đối tượng duy nhất là Plan, nên có thể làm và sửa riêng từng khối. Ba dòng mã bên dưới là phần chương trình chạy ở mỗi khung hình.
 
 Người dùng bấm phím theo gợi ý. Phím được gửi xuống Arduino qua USB ở 9600 baud; Arduino điều khiển bốn servo qua PCA9685 và gửi lại gói JSON chứa bốn góc servo, khoảng 5 gói mỗi giây. Phần cứng này là phần một, em trình bày tiếp theo.
 
 Nếu được hỏi: chương trình có tự gửi phím không? Không, chỉ gửi khi người dùng bấm. Có dùng Bluetooth không? Có: khi điều khiển từ xa, máy Dell xem màn hình Mac qua Wi-Fi và gửi phím qua module HC-05 ở chân D2, D3; Mac vẫn nối cáp USB để nhận góc servo.
 
-Nguồn: README.md (sơ đồ đầu trang, mục 1 và 3); main.py:113-116; robot_arm_4dof.ino:6,8,86,203-207; control.py (ArduinoSerialLink).
+Nguồn: README.md (sơ đồ đầu trang, mục 1 và 3); main.py:85-88; robot_arm_4dof.ino:6,8,86,203-207; control.py (ArduinoSerialLink).
 """)
 
 
@@ -947,7 +947,7 @@ Camera phía trên đặt cao khoảng 46 cm, nên phần trên của vật cao 
 
 Nếu được hỏi: vì sao dùng ArUco? Mã có số định danh, xác định rõ bốn góc, nhận được khi nhìn nghiêng và có sẵn trong OpenCV. Tờ giấy là hệ quy chiếu chung cho cả hai camera, nên khi đổi vị trí camera không cần đo lại bằng thước. Độ cao 46 cm đo thế nào? Ước lượng từ ảnh, chưa đo bằng thước; con số 0,2 cm là kết quả của một phép đo.
 
-Nguồn: generate_aruco_a4.py:2-5,16-22; vision.py:16-23,45-62,77-93; tests/test_vision.py:48,64-71; README.md mục 4.
+Nguồn: vision.py:16-23,45-62,77-93; README.md mục 4.
 """)
 
 
@@ -992,7 +992,7 @@ Tiếp theo, {succ} trình bày nửa sau của phần này: hỗ trợ gắp.
 
 Nếu được hỏi: vì sao không dùng YOLO? Bản trước có YOLO11 nhưng hay nhận nhầm bộ phận robot, nên nhóm bỏ để mã đơn giản; tách màu đủ cho cốc màu đậm. Vật màu trắng hoặc xám thì sao? Chưa nhận được; đây là một hạn chế. Vì sao phải bấm R mà không theo camera liên tục? Khi tay kẹp tiến vào, nó che và đẩy cốc nên vị trí camera thấy bị nhảy; chụp một lần thì đích đứng yên và mã đơn giản hơn.
 
-Nguồn: vision.py:68-95; tests/test_vision.py:74-105; control.py:491-502 (phím R).
+Nguồn: vision.py:68-95; control.py:429-440 (phím R).
 """)
 
 
@@ -1062,7 +1062,7 @@ Bên phải là chương trình Python trên laptop, chạy ở mỗi khung hìn
 
 Nếu được hỏi: vì sao firmware đọc HC-05 trước USB? Để phím từ Bluetooth không bị bỏ qua khi USB cũng có dữ liệu; mỗi vòng chỉ đọc một ký tự. Vì sao không gửi trực tiếp lệnh góc? Để Arduino chỉ cần xử lý từng phím, giống khi điều khiển bằng tay.
 
-Nguồn: robot_arm_4dof.ino:84-208; main.py:110-122,153-173; control.py:528-535 (press); success.py.
+Nguồn: robot_arm_4dof.ino:84-208; main.py:82-89,99-113; control.py:456-463 (press); success.py.
 """)
 
 
@@ -1131,7 +1131,7 @@ def slide_fwcode(prs, n):
 
 Bên phải: hàm setServoAngle đổi góc thành độ rộng xung bằng hàm map, từ 125 đến 575, rồi gửi cho PCA9685. Cứ 200 ms, firmware gửi một gói JSON như dòng ví dụ, gồm thời gian chạy, bốn góc servo và hai cờ báo servo kẹp hoặc cả cánh tay đang nghỉ. Chương trình trên laptop đọc gói này để biết góc hiện tại.
 
-Nếu được hỏi: vì sao dùng JSON? Dễ đọc bằng Python và có thể thêm cờ trạng thái. Thời gian chạy t dùng làm gì? Khi t trở về gần 0 nghĩa là Arduino vừa khởi động lại; chương trình báo ARDUINO VUA RESET. Dòng JSON trên slide là ví dụ đúng định dạng, giá trị t là giả định.
+Nếu được hỏi: vì sao dùng JSON? Dễ đọc bằng Python và có thể thêm cờ trạng thái. Thời gian chạy t dùng làm gì? Khi t trở về gần 0 nghĩa là Arduino vừa khởi động lại. Dòng JSON trên slide là ví dụ đúng định dạng, giá trị t là giả định.
 
 Nguồn: robot_arm_4dof.ino:9-14,41-45,69-83,101-150,203-207.
 """)
@@ -1199,9 +1199,9 @@ Thuật toán có bốn bước: đổi tọa độ trên giấy sang tọa đ�
 
 Ví dụ, cốc ở (20,1; 7,4) cm cho góc gợi ý: đế 74, vai 58, khuỷu 90 độ. Từ tư thế 90/90/90, cần bấm D 8 lần và S 16 lần; khuỷu đã đúng góc. Cánh tay không có servo cổ tay nên không điều chỉnh được hướng tay kẹp.
 
-Nếu được hỏi: công thức được kiểm tra thế nào? Bộ test đưa kết quả động học ngược vào động học thuận trên hơn 100 điểm trong tầm với, sai số dưới 0,1 mm. Vì sao chọn nghiệm khuỷu hướng lên? Tam giác hai khâu có hai nghiệm; chọn một chiều cố định để mỗi điểm chỉ có một bộ góc. Vật ngoài tầm với thì sao? Giao diện báo VAT NGOAI TAM VOI và khoảng cách cần dời vật lại gần.
+Nếu được hỏi: công thức được kiểm tra thế nào? Bằng mắt: chương trình vẽ dấu KEP, là đầu kẹp tính từ góc servo, lên hình camera; khi hai ngón kẹp ôm cốc thật thì dấu KEP phải nằm trên cốc (ảnh ở slide hiệu chỉnh). Vì sao chọn nghiệm khuỷu hướng lên? Tam giác hai khâu có hai nghiệm; chọn một chiều cố định để mỗi điểm chỉ có một bộ góc. Vật ngoài tầm với thì sao? Giao diện báo VAT NGOAI TAM VOI và khoảng cách cần dời vật lại gần.
 
-Nguồn: control.py:32-63,92-155,168-189,214-236; tests/test_control.py:16-35; 05_SO_LIEU_VA_NGUON.md mục 3 và 16 (ví dụ tính lại bằng check_facts.py --deep).
+Nguồn: control.py:31-62,91-154,167-188,213-235; 05_SO_LIEU_VA_NGUON.md mục 3 và 16 (ví dụ tính lại bằng check_facts.py --deep).
 """)
 
 
@@ -1240,7 +1240,7 @@ Chữ không dấu vì OpenCV không hiển thị được dấu tiếng Việt.
 
 Nếu được hỏi: chương trình có tự gửi phím không? Không; chỉ gửi khi người dùng bấm. Vì sao chỉ hiển thị một lệnh chính? Để người điều khiển thực hiện ngay, không cần đọc bảng số. Thứ tự lệnh thế nào? Đế, rồi vai, rồi khuỷu; servo đã đạt được bỏ qua. Ảnh đã lưu thì gợi ý lấy từ đâu? Chương trình đọc khung hình đã lưu như camera đang chạy; cánh tay mô phỏng đặt ở 90/90/90.
 
-Nguồn: screen.py:46-77; main.py:101-122; control.py:205-210; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
+Nguồn: screen.py:46-76; main.py:73-89; control.py:204-209; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
 """)
 
 
@@ -1264,7 +1264,7 @@ def slide_calib(prs, n):
     label(s, M, 4.82, 5.3, "Cách hiệu chỉnh", TEAL, 10.5)
     steps(s, M, 5.18, 5.3, [
         "Đặt kẹp quanh cốc; ghi góc servo và vị trí cốc",
-        "10 mẫu; khớp thông số mô hình (Levenberg–Marquardt)",
+        "10 mẫu; khớp thông số mô hình (bình phương tối thiểu)",
         "Lưu vào calibration.json",
     ], 13.5, d=0.3, gap=0.1)
     iw = W - M - 6.45
@@ -1284,7 +1284,7 @@ Gợi ý trên màn hình được tính từ mô hình cánh tay, không đo tr
 
 Trong buổi thử, người điều khiển đặt hai ngón kẹp quanh cốc, nhóm ghi lại ba góc servo và vị trí cốc. Với ba mẫu đầu, đầu kẹp theo mô hình mặc định cách cốc 5,4 cm, 3,5 cm và 5,9 cm, cùng chiều và cùng độ lớn, tức là sai lệch có hệ thống.
 
-Nhóm hiệu chỉnh bằng 10 mẫu ở các vị trí khác nhau: khớp lại vị trí và hướng đế, góc chuẩn của vai và khuỷu, và độ lệch của càng kẹp, bằng thuật toán Levenberg–Marquardt. Sai số khớp còn 8,5 mm, và 11,6 mm khi kiểm tra bỏ-một-mẫu. Trong ảnh, dấu màu cam là mô hình mặc định, dấu màu xanh là sau hiệu chỉnh; mẫu này thuộc tập khớp nên chỉ dùng để minh họa.
+Nhóm hiệu chỉnh bằng 10 mẫu ở các vị trí khác nhau: khớp lại vị trí và hướng đế, góc chuẩn của vai và khuỷu, và độ lệch của càng kẹp, bằng phương pháp bình phương tối thiểu. Sai số khớp còn 8,5 mm, và 11,6 mm khi kiểm tra bỏ-một-mẫu. Trong ảnh, dấu màu cam là mô hình mặc định, dấu màu xanh là sau hiệu chỉnh; mẫu này thuộc tập khớp nên chỉ dùng để minh họa.
 
 Lưu ý: 8,5 mm là sai số trên chính các mẫu dùng để khớp; gợi ý mới chưa được thử trên cánh tay thật; và kết quả hiệu chỉnh chỉ áp dụng cho vị trí tờ giấy và robot lúc đo.
 
@@ -1292,7 +1292,7 @@ Em xin hết phần code điều khiển. Tiếp theo là phần tổng kết.
 
 Nếu được hỏi: nguyên nhân sai lệch là gì? Có ba: vị trí và hướng đế khác mặc định; góc chuẩn của vai và khuỷu phụ thuộc cách lắp cần servo, thước không đo được; và càng kẹp gắn cứng vào khâu khuỷu nên điểm kẹp quay theo khâu, trong khi mô hình cũ giữ độ lệch cố định. Vì sao không đo lại bằng thước? Thước đo được chiều dài khâu nhưng không đo được góc lắp cần servo; hiệu chỉnh từ các mẫu xử lý được cả hai.
 
-Nguồn: calibration.json (mục arm, claw, arm_fit); calibration.py:16-20,77-105; arm_fit.py:1-45; tests/test_arm_fit.py:80-91; 05_SO_LIEU_VA_NGUON.md mục 8 và 16; ảnh calib_before_after_side.
+Nguồn: calibration.json (mục arm, claw, arm_fit); calibration.py:2-12,35-60; 05_SO_LIEU_VA_NGUON.md mục 8 và 16; ảnh calib_before_after_side.
 """)
 
 
@@ -1311,7 +1311,7 @@ def slide_success(prs, n):
         text(s, M, y + 0.05, 1.85, 0.75, big, 30, TEAL, True, anchor=MIDDLE)
         text(s, M + 1.95, y + 0.05, 3.85, 0.75, desc, 15, INK, anchor=MIDDLE, spacing=1.05)
     rule(s, M, 1.95 + 3 * 0.85, 5.8)
-    chip(s, M, 4.75, "KIỂM THỬ: 7 TEST + ĐẦU–CUỐI", size=10)
+    chip(s, M, 4.75, "KIỂM TRA: NHÌN Ô SUCCESS TRÊN MÀN HÌNH", size=10)
     ih = image(s, "ui_screen_done.png", 6.9, 1.95, W - M - 6.9, None, mode="fit")
     caption(s, 6.9, 1.95 + ih + 0.12, W - M - 6.9, "Mô phỏng trên ảnh đã lưu: đủ phím → XONG" + UI_NOTE,
             10, 0.3)
@@ -1335,7 +1335,7 @@ Lưu ý: trạng thái XONG nghĩa là ba góc đã ra lệnh đạt mục tiêu
 
 Nếu được hỏi: vì sao cần giữ 1 giây? Để trường hợp đi qua mục tiêu không bị tính. Có kiểm tra bằng camera không? Bản trước có, dựa trên hai camera; nhóm đã bỏ để mã đơn giản hơn. Số lần hoàn thành hiển thị ở đâu? Ở dòng Thanh cong: N lan trong ô success; chưa ghi ra file. Khi không thấy vật? Không báo XONG; trạng thái là chưa thấy vật.
 
-Nguồn: success.py:11-12,15-58; tests/test_success.py (7 test); tests/test_end_to_end.py:11-47; robot_arm_4dof.ino:70-83; README.md mục 6; ảnh ui_screen_done (tạo bằng slides/tools/make_screen_images.py).
+Nguồn: success.py:11-12,15-58; robot_arm_4dof.ino:70-83; README.md mục 6; ảnh ui_screen_done (tạo bằng slides/tools/make_screen_images.py).
 """)
 
 
@@ -1400,8 +1400,8 @@ def slide_results(prs, n):
         "Hiệu chỉnh cho tờ giấy mới",
         "Dashboard IoT / MQTT",
     ], 16, after=8, mark="—", mark_color=ORANGE, indent=0.3)
-    stats = [("100 / 100", ["test tự động", "đều đạt"], TEAL),
-             ("13", ["tệp test"], INK),
+    stats = [("02/11", ["thử trên", "cánh tay thật"], TEAL),
+             ("0,2 cm", ["lệch giữa 2 camera", "sau bù thị sai"], INK),
              ("8,5 mm", ["sai số hiệu chỉnh", "trên 10 mẫu"], TEAL)]
     sw = (CW - 0.5) / 3
     for i, (big, desc, col) in enumerate(stats):
@@ -1414,13 +1414,13 @@ def slide_results(prs, n):
     notes(s, """
 Slide này tổng hợp những việc đã thực hiện và chưa thực hiện.
 
-Đã thực hiện: hệ tọa độ chung cho hai camera; kẹp và di chuyển cốc trên cánh tay thật bằng bàn phím; hiệu chỉnh mô hình từ 10 mẫu với sai số 8,5 mm, chi tiết ở phần ba; firmware bảo vệ servo kẹp đã nạp và kiểm tra; giao diện gợi ý phím và kiểm tra góc. 100 test tự động đều đạt, không cần camera hay Arduino.
+Đã thực hiện: hệ tọa độ chung cho hai camera; kẹp và di chuyển cốc trên cánh tay thật bằng bàn phím; hiệu chỉnh mô hình từ 10 mẫu với sai số 8,5 mm, chi tiết ở phần ba; firmware bảo vệ servo kẹp đã nạp và kiểm tra; giao diện gợi ý phím và kiểm tra góc. Nhóm kiểm tra bằng mắt khi chạy chương trình: lưới 5 cm có bám tờ giấy không, vòng xanh có nằm trên cốc không, bấm theo lệnh thì cánh tay có đi đúng hướng không. Sau bù thị sai, hai camera đo cùng một cốc chỉ lệch nhau 0,2 cm (đo ở một vị trí, ngày 2/11).
 
 Chưa thực hiện: đếm số lần XONG trên cánh tay thật với bản mới; kiểm tra gợi ý mới trên phần cứng; kẹp chắc vật thon; đo nhiệt độ servo; hiệu chỉnh cho tờ giấy mới; dashboard IoT qua MQTT và cảm biến lực, vốn có trong kế hoạch ngày 28/10.
 
-Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Mã được đơn giản hóa ngày 2/11; thử nghiệm bản mới trên cánh tay thật là bước tiếp theo. Test gồm những gì? Điều khiển 27, hiệu chỉnh 11, Serial 9, computer vision 8, success 7, chương trình chính 6, độ bền 6, camera 5, khớp mô hình 5, điều khiển từ xa 11, màn hình 3, đầu–cuối 2. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm có thể thêm MQTT từ gói JSON hiện có.
+Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Mã được đơn giản hóa ngày 2/11; thử nghiệm bản mới trên cánh tay thật là bước tiếp theo. Kiểm tra thế nào? Bằng mắt khi chạy chương trình, với hai camera và cánh tay thật; chưa có số liệu tỉ lệ thành công. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm có thể thêm MQTT từ gói JSON hiện có.
 
-Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; lệnh python -m pytest -q (100 test, 11/11/2026; xem 05_SO_LIEU_VA_NGUON.md mục 11).
+Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; 05_SO_LIEU_VA_NGUON.md mục 2 (bù thị sai) và mục 11 (cách kiểm tra).
 """)
 
 
@@ -1453,7 +1453,7 @@ def slide_limits(prs, n):
     rule(s, M, 6.12, CW)
     label(s, M, 6.27, 2.7, "Lỗi tích hợp đã xử lý", TEXT2, 10)
     bullets(s, 3.55, 6.24, W - M - 3.55, 0.6, [
-        "Thứ tự camera trên macOS thay đổi: tìm camera theo tên",
+        "Thứ tự camera macOS thay đổi: chọn lại chỉ số khi chạy",
         "Arduino tự reset khi mở lại cổng USB: giữ một kết nối",
     ], 12, after=1, indent=0.2)
     footer(s, n)
@@ -1462,13 +1462,13 @@ Hệ thống hiện có năm hạn chế. Thứ nhất, điều khiển vòng h�
 
 Hướng phát triển: thử nghiệm bản mới trên cánh tay thật và đếm số lần XONG; cải thiện tay kẹp, ví dụ tăng ma sát hoặc dùng vật thân thẳng, rồi đưa kẹp vào điều kiện success; hiệu chỉnh lại khi đổi tờ giấy; đo vị trí đầu kẹp bằng camera để có phản hồi vòng kín; và thêm dashboard IoT qua MQTT nếu đề bài yêu cầu.
 
-Dòng dưới là hai lỗi tích hợp đã xử lý: thứ tự camera trên macOS thay đổi giữa các lần chạy, nên chương trình tìm camera theo tên; Arduino Uno tự khởi động lại mỗi khi cổng USB được mở lại, nên chương trình giữ một kết nối duy nhất và báo khi Arduino vừa reset.
+Dòng dưới là hai lỗi tích hợp đã xử lý: thứ tự camera trên macOS thay đổi giữa các lần chạy, nên người chạy chọn lại chỉ số camera khi cần; Arduino Uno tự khởi động lại mỗi khi cổng USB được mở lại, nên chương trình giữ một kết nối duy nhất.
 
 Tiếp theo, {ctrl} trình bày phần code điều khiển.
 
-Nếu được hỏi: phát hiện Arduino reset bằng cách nào? Gói JSON có thời gian chạy t; khi t trở về gần 0, giao diện báo ARDUINO VUA RESET. Vì sao camera đổi thứ tự? OpenCV đánh số camera theo uniqueID, còn danh sách của hệ điều hành xếp camera dùng gần nhất lên đầu. Đo đầu kẹp bằng camera thế nào? Ví dụ dán mã ArUco lên càng kẹp và dùng homography của tờ giấy; đây là hướng đề xuất, chưa thực hiện. Có thể chuyển sang tự gửi phím không? Về kỹ thuật là gửi phím theo Plan; nhóm chỉ thực hiện khi đo được độ lệch còn lại.
+Nếu được hỏi: biết Arduino vừa reset bằng cách nào? Nhìn cánh tay: cả 4 servo giật về Home, đế quay hết sang phải. Vì sao camera đổi thứ tự? OpenCV đánh số camera theo uniqueID, còn danh sách của hệ điều hành xếp camera dùng gần nhất lên đầu. Đo đầu kẹp bằng camera thế nào? Ví dụ dán mã ArUco lên càng kẹp và dùng homography của tờ giấy; đây là hướng đề xuất, chưa thực hiện. Có thể chuyển sang tự gửi phím không? Về kỹ thuật là gửi phím theo Plan; nhóm chỉ thực hiện khi đo được độ lệch còn lại.
 
-Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 8, 9, 10, 13; cameras.py:1-6,26-46; control.py (ArduinoSerialLink: mở lại cổng, phát hiện reset); README.md mục 5 và 6.
+Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 8, 9, 10, 13; cameras.py:1-8,35-66; control.py (ArduinoSerialLink: giữ một kết nối); README.md mục 5 và 6.
 """)
 
 
@@ -1480,7 +1480,7 @@ CONCLUSION = (
     "làm hệ tọa độ, đổi pixel sang xăng-ti-mét bằng homography và tách vật theo màu. Nhóm cũng nắm được cách tính góc cho "
     "cánh tay 4 bậc tự do bằng động học ngược, và cách Arduino Uno, mạch PCA9685 và servo MG996R phối hợp với nhau. "
     "Khi ghép các phần lại, nhóm học được cách tìm và sửa lỗi tích hợp như thứ tự camera thay đổi hay Arduino tự khởi động "
-    "lại, cách hiệu chỉnh mô hình từ số đo thật và cách kiểm tra mã bằng test tự động. Đề tài là nền tảng để nhóm phát triển "
+    "lại, cách hiệu chỉnh mô hình từ số đo thật Đề tài là nền tảng để nhóm phát triển "
     "các hệ thống nhúng và IoT phức tạp hơn, như điều khiển vòng kín bằng camera."
 )
 
@@ -1501,7 +1501,7 @@ def slide_conclusion(prs, n):
 
 Về thị giác máy tính, nhóm hiểu cách xác định vị trí vật trong thế giới thật: tờ A4 in bốn mã ArUco làm hệ tọa độ chung, homography đổi pixel sang xăng-ti-mét, và tách vật theo màu. Về điều khiển, nhóm nắm được cách tính góc cho cánh tay bốn bậc tự do bằng động học ngược, và cách Arduino Uno, mạch PCA9685 và servo MG996R phối hợp với nhau.
 
-Khi ghép các phần lại, nhóm gặp những lỗi chỉ xuất hiện khi chạy cả hệ thống: thứ tự camera trên macOS thay đổi giữa các lần chạy, và Arduino tự khởi động lại khi cổng USB được mở lại. Nhóm cũng học cách hiệu chỉnh mô hình cánh tay từ số đo thật, và kiểm tra mã bằng test tự động không cần phần cứng.
+Khi ghép các phần lại, nhóm gặp những lỗi chỉ xuất hiện khi chạy cả hệ thống: thứ tự camera trên macOS thay đổi giữa các lần chạy, và Arduino tự khởi động lại khi cổng USB được mở lại. Nhóm cũng học cách hiệu chỉnh mô hình cánh tay từ số đo thật.
 
 Đề tài là nền tảng để nhóm phát triển các hệ thống nhúng và IoT phức tạp hơn, ví dụ dùng camera đo vị trí đầu kẹp để điều khiển vòng kín.
 

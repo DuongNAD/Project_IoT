@@ -34,7 +34,6 @@ python slides/tools/check_facts.py # sau mỗi lần sửa mã
   (vị trí cốc, `S × 15`, còn 18 lần bấm) theo ảnh mới. Ảnh cũ mô phỏng cánh tay ở 90/90/90; Home giờ là **180/90/90/95** (đế hết bên phải)
   nên ảnh mới sẽ bắt đầu bằng lệnh `D` nhiều lần.
 - [ ] Nạp lại firmware (`./robot_arm_4dof/flash.sh`) trên máy cắm Arduino: Home và góc khởi động của đế đổi từ 90° sang **180°** ngày 11/11.
-- [ ] Chạy `pytest` trên MacBook: 92 test mới chỉ chạy trên máy Windows (xem `05_SO_LIEU_VA_NGUON.md` mục 11).
 - [ ] Tập nói, bấm giờ; thử mở PPTX và PDF trên máy sẽ trình chiếu.
 
 ## Không nói quá (tóm tắt mục 14 của `05`)

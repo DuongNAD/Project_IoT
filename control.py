@@ -12,7 +12,6 @@ Kết quả mỗi khung hình là một Plan, chuyển cho khối success (succe
 Phần nhìn (camera, ArUco, tìm vật) nằm ở vision.py; phần vẽ màn hình ở screen.py; main.py nối các phần lại.
 """
 
-import glob
 import json
 import math
 import os
@@ -37,7 +36,7 @@ ARM_CONFIG = {
     "L4_z_mm": 25.0,    # Độ trễ dọc từ khớp giá kẹp xuống tâm 2 ngón kẹp (mm)
     # Vị trí trục xoay Đế Robot trên hệ tọa độ tờ giấy A4 (xem calibration.py): gốc ở góc ngoài mã ArUco ID 0,
     # X chạy ID 0 -> ID 1 (29.7 cm), Y chạy ID 0 -> ID 3 (21.0 cm). Mặc định: robot đứng NGOÀI mép Y = 0, giữa mép, nhìn vào tờ giấy (+Y).
-    # Bấm phím B trong main.py rồi click vào trục xoay đế để hiệu chỉnh lại (lưu vào calibration.json).
+    # Đo bằng thước rồi ghi vào calibration.json mục "base" (calibration.py).
     "base_x_cm": 14.85,
     "base_y_cm": -7.5,
     "base_heading_deg": 90.0,   # Hướng robot nhìn, đo từ +X quay về +Y (90 = nhìn vào +Y, -90 = nhìn lên -Y)
@@ -239,72 +238,33 @@ def plan_moves(now, goal):
 # ==============================================================================
 # 4. CỔNG USB SERIAL TỚI ARDUINO
 # ==============================================================================
-# Windows / Linux: chỉ xét cổng USB thật (có VID), bỏ cổng Bluetooth ảo và cổng modem của điện thoại cắm USB
-NOT_ARDUINO_PORT_WORDS = ("modem", "mobile", "bluetooth")
-ARDUINO_PORT_HINTS = ("arduino", "ch340", "ch341", "cp210", "ftdi", "usb serial", "usb-serial")
-
-
-def find_arduino_port():
-    """
-    Cổng USB của Arduino, None nếu chưa cắm cáp. macOS: /dev/cu.usbmodem* / /dev/cu.usbserial* (như trước);
-    Windows: COMx, Linux: /dev/ttyACM* ... lấy từ danh sách cổng của pyserial, ưu tiên cổng có tên Arduino / CH340 / CP210x / FTDI.
-    """
-    mac_ports = sorted(glob.glob("/dev/cu.usbmodem*") + glob.glob("/dev/cu.usbserial*"))
-    if mac_ports:
-        return mac_ports[0]
-    if serial is None:
-        return None
-    try:
-        from serial.tools import list_ports
-
-        ports = [
-            p for p in list_ports.comports()
-            if p.vid is not None and not any(w in f"{p.description} {p.manufacturer or ''}".lower() for w in NOT_ARDUINO_PORT_WORDS)
-        ]
-    except Exception:
-        return None
-
-    def rank(p):
-        text = f"{p.description} {p.manufacturer or ''}".lower()
-        return (0 if any(h in text for h in ARDUINO_PORT_HINTS) else 1, p.device)
-
-    return min(ports, key=rank).device if ports else None
-
-
 class ArduinoSerialLink:
     """
     Cổng USB tới Arduino (9600 baud), đọc ở luồng nền.
     - Gửi phím: mỗi lần bấm một ký tự (w a s d i k j l h x z).
     - Nhận gói JSON firmware gửi ngay sau mỗi phím và 5 lần / giây: {"t": ms, "servo": [đế, vai, khuỷu, kẹp], "relax": 0|1, "armrelax": 0|1}.
-    - Chưa cắm cáp (hoặc enabled=False): MÔ PHỎNG, tự cộng / trừ góc như firmware để vẫn chạy được camera + IK + màn hình.
+    - Không ghi cổng (port=None): MÔ PHỎNG, tự cộng / trừ góc như firmware để vẫn chạy được camera + IK + màn hình.
     - Arduino Uno tự reset mỗi khi đường DTR của cổng USB hạ rồi nâng (VD chương trình khác mở / đóng cổng): cả 4 servo giật về Home.
-      Nhận ra bằng thời gian chạy "t" tụt về gần 0; khi phải mở lại cổng thì mở tay cầm MỚI trước rồi mới đóng tay cầm cũ.
+      Vì vậy giữ một kết nối duy nhất; phải mở lại cổng thì mở tay cầm MỚI trước rồi mới đóng tay cầm cũ.
     """
 
     READ_RETRY_S = 0.3             # Lỗi đọc tạm thời: đợi chừng này rồi đọc lại, không đóng cổng
     READ_ERRORS_BEFORE_REOPEN = 5  # Lỗi đọc liên tiếp ngần này lần mà cổng vẫn còn thì mới mở lại cổng
-    PORT_WAIT_S = 1.5              # Chưa thấy / chưa mở được cổng: đợi chừng này rồi thử lại
-    RESET_UPTIME_DROP_MS = 1500    # Thời gian chạy "t" của firmware tụt quá ngần này ms: Arduino vừa reset
+    PORT_WAIT_S = 1.5              # Chưa mở được cổng: đợi chừng này rồi thử lại
 
-    def __init__(self, baud=9600, enabled=True):
+    def __init__(self, port=None, baud=9600):
+        self.port = port  # Cổng ghi tay (--port), None = mô phỏng
         self.baud = baud
-        self.enabled = enabled  # False: không bao giờ mở cổng Serial (test, chạy thử khi đang ngắt cánh tay)
-        self.port = None
         self.ser = None
         self.connected = False
         self.servo = [SERVO_LIMITS[k][2] for k in CHANNEL_KEYS]  # [đế, vai, khuỷu, kẹp] = Home lúc Arduino khởi động
         self.relaxed = False      # Servo kẹp đang nghỉ (firmware đã ngắt xung PWM để nguội)
         self.arm_relaxed = False  # Cả cánh tay đang nghỉ (phím z): góc báo về chỉ là góc lệnh cuối, cánh tay có thể đã sụp xuống
-        self.last_firmware_ms = None
-        self.reset_count = 0
         self.lock = threading.Lock()
         self.running = True
         self.thread = threading.Thread(target=self._loop, daemon=True)
-        if enabled:
+        if port is not None:
             self.thread.start()
-
-    def _find_port(self):
-        return find_arduino_port()
 
     def apply_key_locally(self, cmd):
         """MÔ PHỎNG một phím như firmware: đổi góc trong giới hạn, H về Home, X cho kẹp nghỉ, Z cho cả 4 servo nghỉ."""
@@ -340,15 +300,6 @@ class ArduinoSerialLink:
                 self.connected = False
         self.apply_key_locally(ch)
 
-    def _track_firmware_uptime(self, t_ms):
-        """Gọi khi đang giữ self.lock: thời gian chạy "t" của firmware tụt xuống nghĩa là Arduino vừa reset (kể cả do chương trình khác)."""
-        if not isinstance(t_ms, (int, float)):
-            return
-        last, self.last_firmware_ms = self.last_firmware_ms, float(t_ms)
-        if last is not None and t_ms < last - self.RESET_UPTIME_DROP_MS:
-            self.reset_count += 1
-            print("⚠️ Arduino vừa reset (thời gian chạy của firmware quay về 0): cánh tay giật về Home 180/90/90/95, kiểm tra trước khi bấm tiếp")
-
     def _parse_line(self, line):
         """Đọc gói JSON trạng thái. Dòng khác (banner khởi động, "Phím bấm: x") bỏ qua: gói JSON luôn đến ngay sau đó."""
         line = line.strip()
@@ -365,7 +316,6 @@ class ArduinoSerialLink:
             self.servo = servo[:4]
             self.relaxed = bool(data.get("relax", 0))
             self.arm_relaxed = bool(data.get("armrelax", 0))
-            self._track_firmware_uptime(data.get("t"))
 
     def _port_exists(self):
         if self.port is None:
@@ -385,13 +335,10 @@ class ArduinoSerialLink:
         Mở cổng Serial rồi thay tay cầm cũ (nếu có) bằng tay cầm mới; True nếu mở được. Luôn mở tay cầm MỚI trước rồi mới đóng tay cầm
         cũ: lúc đó đường DTR không bị hạ xuống rồi nâng lên, đúng nhịp làm Arduino Uno tự reset và cả 4 servo giật về Home 180/90/90/95.
         """
-        port = self._find_port()
-        new = None
-        if port:
-            try:
-                new = serial.Serial(port, self.baud, timeout=0.15)
-            except Exception:
-                new = None
+        try:
+            new = serial.Serial(self.port, self.baud, timeout=0.15)
+        except Exception:
+            new = None
         old, self.ser = self.ser, new
         self.connected = new is not None
         if old is not None:
@@ -401,8 +348,7 @@ class ArduinoSerialLink:
                 pass
         if new is None:
             return False
-        self.port = port
-        print(f"🔌 Đã kết nối USB Serial Arduino tại {port} @ {self.baud} baud")
+        print(f"🔌 Đã kết nối USB Serial Arduino tại {self.port} @ {self.baud} baud")
         return True
 
     def _loop(self):
@@ -442,11 +388,6 @@ class ArduinoSerialLink:
         with self.lock:
             return self.arm_relaxed
 
-    def get_reset_count(self):
-        """Số lần Arduino bị reset bất ngờ kể từ khi chạy chương trình (thấy qua thời gian chạy của firmware tụt về 0)."""
-        with self.lock:
-            return self.reset_count
-
     def release(self):
         self.running = False
         if self.ser is not None:
@@ -474,18 +415,15 @@ class Plan:
     usb_ok: bool = False
     port: str = None
     n_objects: int = 0
-    banner: str = ""
 
 
 class Control:
     """Gom cổng USB + đích chụp bằng phím R + so góc servo với góc đích. Gọi update(objects) mỗi khung hình, press(key) khi có phím."""
 
-    def __init__(self, serial_enabled=True):
-        self.link = ArduinoSerialLink(baud=9600, enabled=serial_enabled)
+    def __init__(self, port=None):
+        self.link = ArduinoSerialLink(port)  # port=None: mô phỏng, không gửi phím xuống robot
         self.objects = []    # Các vật camera đang thấy, đã sắp theo khoảng cách tới đế
         self.target = None   # Đích chụp bằng phím R (vị trí vật + góc cần tới tính một lần); None = chưa chụp
-        self.seen_resets = 0
-        self.banner = ""
 
     # --- đích: phím R ----------------------------------------------------------
     def lock_target(self):
@@ -501,23 +439,13 @@ class Control:
                        "goal": joint_to_servo(ik["theta1_deg"], ik["theta2_deg"], ik["theta3_deg"])}
         return "locked"
 
-    def set_base_pose(self, x_cm, y_cm, heading_deg):
-        """Đặt lại vị trí trục xoay đế robot trên tờ giấy (hiệu chỉnh bằng chuột). Góc đích cũ không còn đúng: bỏ, bấm R lại."""
-        ARM_CONFIG["base_x_cm"], ARM_CONFIG["base_y_cm"], ARM_CONFIG["base_heading_deg"] = float(x_cm), float(y_cm), float(heading_deg)
-        self.target = None
-
     # --- kế hoạch ----------------------------------------------------------
     def update(self, objects):
         """Nhận các vật camera thấy (x_cm, y_cm, name) và trả về Plan: góc servo hiện tại so với góc đích đã chụp bằng R."""
         base_xy = (ARM_CONFIG["base_x_cm"], ARM_CONFIG["base_y_cm"])
         self.objects = sorted(objects, key=lambda o: math.hypot(o["x_cm"] - base_xy[0], o["y_cm"] - base_xy[1]))
         servo_now, usb_ok, port = self.link.get_state()
-        resets = self.link.get_reset_count()
-        if resets != self.seen_resets:  # Cánh tay vừa giật về Home 180/90/90/95 mà người dùng không bấm gì: báo để kiểm tra trước khi bấm tiếp
-            self.seen_resets = resets
-            self.banner = "ARDUINO VUA RESET: canh tay giat ve Home 180/90/90, kiem tra truoc khi bam tiep"
-        base = dict(now=list(servo_now), usb_ok=usb_ok, port=port, n_objects=len(self.objects),
-                    relaxed=self.link.get_arm_relaxed(), banner=self.banner)
+        base = dict(now=list(servo_now), usb_ok=usb_ok, port=port, n_objects=len(self.objects), relaxed=self.link.get_arm_relaxed())
         t = self.target
         if t is None:
             return Plan(found=False, target_name="", target_cm=None, reachable=True, move_closer_mm=0.0, goal=list(servo_now[:3]),

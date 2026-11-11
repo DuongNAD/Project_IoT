@@ -106,7 +106,7 @@ def photo_frame_config() -> dict:
 # ==============================================================================
 def make_app(top: Path, side: Path, clock: str, cfg: dict) -> "M.App":
     """App thật (main.App) với hai ảnh tĩnh thay camera, không mở cổng USB; nhãn camera ghi rõ là ảnh đã lưu."""
-    args = M.parse_args(["--top", str(top), "--side", str(side), "--no-serial", "--headless"])
+    args = M.parse_args(["--top", str(top), "--side", str(side)])  # Không ghi --port: mô phỏng, không mở cổng USB
     app = M.App(args)
     C.ARM_CONFIG.update(cfg)  # App nạp calibration.json thô vào ARM_CONFIG; ghi đè bằng bản đã đổi về hệ lúc chụp
     app.cam_top.label = f"anh da luu {clock}"

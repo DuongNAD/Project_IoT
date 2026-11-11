@@ -2,7 +2,7 @@
 """Kiểm các file tài liệu trong slides/ còn khớp mã nguồn hiện tại không (chạy sau MỖI lần mã đổi, và trước khi dán prompt cho Antigravity).
 
 Chạy:  python3 -I slides/tools/check_facts.py            kiểm nhanh, chỉ cần Python chuẩn (không import mã dự án)
-       python3 -I slides/tools/check_facts.py --deep     thêm: đếm test và tính lại các số tính được (cần .venv của dự án, mất ~15 giây)
+       python3 -I slides/tools/check_facts.py --deep     thêm: tính lại các số tính được (cần .venv của dự án, mất ~15 giây)
 
 Làm ba việc:
   1. Hằng số: so khối ```facts``` ở cuối 05_SO_LIEU_VA_NGUON.md (mục 17) với firmware, control.py, success.py, vision.py, calibration.json và số dòng.
@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SLIDES = ROOT / "slides"
 DOCS = sorted(SLIDES.glob("0[0-6]_*.md"))
 INO = ROOT / "robot_arm_4dof" / "robot_arm_4dof.ino"
-PY_MODULES = ("main.py", "control.py", "success.py", "screen.py", "vision.py", "cameras.py", "calibration.py", "arm_fit.py")
+PY_MODULES = ("main.py", "control.py", "success.py", "screen.py", "vision.py", "cameras.py", "calibration.py")
 SKIP_DIRS = {".venv", ".git", "__pycache__", "captures", ".idea", ".pytest_cache", "slides", "node_modules", "build", "out"}
 STALE_NAMES = ("grasp_assist_4dof", "guide_screen", "simple_screen", "test_ik.py")
 STALE_OK_WORDS = ("cũ", "đã bỏ", "đã xóa", "bị xóa", "xóa khỏi", "1 commit", "chưa commit", "bản 5 bước", "lịch sử", "CẤM", "đã bỏ khi")
@@ -176,11 +176,8 @@ print(json.dumps({"hug": err, "goal": goal, "keys": keys}))
 def deep_facts() -> dict[str, str | None]:
     py = ROOT / ".venv" / "bin" / "python"
     if not py.exists():
-        return {k: "SKIP" for k in ("TESTS", "HUG_ERR_CM", "GOAL_CUP_20_1_7_4", "KEYS_FROM_HOME")}
+        return {k: "SKIP" for k in ("HUG_ERR_CM", "GOAL_CUP_20_1_7_4", "KEYS_FROM_HOME")}
     out: dict[str, str | None] = {}
-    r = subprocess.run([str(py), "-B", "-m", "pytest", "--collect-only", "-q"], cwd=ROOT, capture_output=True, text=True, timeout=170)
-    n = sum(1 for line in r.stdout.splitlines() if "::" in line)
-    out["TESTS"] = str(n) if n else None
     r = subprocess.run([str(py), "-B", "-c", DEEP_SNIPPET], cwd=ROOT, capture_output=True, text=True, timeout=120)
     try:
         d = json.loads(r.stdout.strip().splitlines()[-1])
@@ -244,7 +241,7 @@ def check_stale_names() -> list[str]:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--deep", action="store_true", help="đếm test và tính lại các số tính được bằng .venv của dự án")
+    ap.add_argument("--deep", action="store_true", help="tính lại các số tính được bằng .venv của dự án")
     args = ap.parse_args()
 
     problems = 0

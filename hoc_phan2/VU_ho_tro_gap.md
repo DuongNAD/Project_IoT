@@ -1,9 +1,8 @@
 # Vũ · Hỗ trợ gắp
 
-**Việc của bạn:** nhận `Plan` của khối điều khiển rồi trả lời **một câu**: ba servo đế, vai, khuỷu đã tới góc gợi ý chưa (`success.py`).
-Sau đó vẽ kết quả lên màn hình (`screen.py`), giữ bộ test, và trình bày thử nghiệm, kết quả, hạn chế. Bạn **không** cần biết camera, IK hay cổng USB hoạt động thế nào.
-
-Đọc [README.md](README.md) bước 0 (phần chung) trước, nhất là lớp `Plan` và `Move`: đó là toàn bộ đầu vào của bạn.
+**Việc của bạn:** nhận `Plan` của khối điều khiển rồi trả lời **một câu**: ba servo đế, vai, khuỷu đã tới góc gợi ý chưa (`success.py`); vẽ kết quả lên
+màn hình (`screen.py`); trình bày thử nghiệm, kết quả, hạn chế. Học khoảng **85 dòng** dưới đây; phần còn lại chỉ cần một câu.
+Đọc [README.md](README.md) phần "Cả hai phải thuộc" trước.
 
 ## Slide bạn nói
 
@@ -13,74 +12,39 @@ Sau đó vẽ kết quả lên màn hình (`screen.py`), giữ bộ test, và tr
 | | 9 | màn hình · `screen.py` |
 | `slides/Project_IoT_ThuyetTrinh.pptx` (bản đầy đủ 25 slide) | 14 | điều kiện hoàn thành |
 | | 15 | thử nghiệm trên cánh tay thật (02/11) |
-| | 16 | kết quả: đã làm / chưa làm, 100 test |
+| | 16 | kết quả: đã làm / chưa làm, cách kiểm tra bằng mắt |
 | | 17 | hạn chế và hướng phát triển (cuối slide giới thiệu người nói phần 3) |
 
-## Lộ trình đọc (theo thứ tự)
+## Dòng code chính (học kỹ)
 
-Mỗi bước: mở đúng dòng, đọc, rồi tự trả lời câu hỏi ở cột cuối **không nhìn code**.
-
-### Bước 1 · Đầu vào: `Plan` và `Move`
-
-| Đọc | Ý chính | Tự hỏi |
+| Dòng | Ý chính | Tự hỏi |
 |---|---|---|
-| `control.py:462-477` (`Plan`) | các trường bạn dùng: `found` (đã có đích chưa, tức đã bấm `R`), `reachable` (trong tầm với), `relaxed` (tay đang nghỉ), `moves` (3 `Move`), `usb_ok`, `banner` | Trường nào cho biết tay đang ngắt xung? |
-| `control.py:214-225` (`Move`) | mỗi servo một `Move`: `key` (phím), `steps` (số lần bấm), `step` (2° mỗi lần), `degrees` (độ lệch thật), `words` (lời chỉ), `now`, `goal` | `steps` và `degrees` khác nhau thế nào? |
-| `control.py:228-236` (`plan_moves`) | `steps = độ lệch // bước` (làm tròn xuống) | Từ 90° tới 74° thì bấm mấy lần? (16 // 2 = 8) |
+| `success.py:11-12` | lệch **≤ 1 bước (2°)** là tới; giữ **1 giây** mới đếm | Vì sao 2° mà không 0°? (mô hình chỉ chính xác cỡ đó) |
+| `success.py:25-37` (`check`) | so từng servo với góc gợi ý; trạng thái theo ưu tiên `relaxed` → `no_target` → `unreachable` → `moving` / `done` | Chưa bấm R mà góc "khớp" thì có XONG không? (không) |
+| `success.py:48-58` (`Success.update`) | vừa `done` thì bắt đầu tính giờ; đủ 1 giây cộng 1; rời góc thì tính lại | Lướt qua đích có được đếm không? (không) |
+| `screen.py:46-71` (`build_screen`) | 2 camera; ô 1 lệnh to `BAM D x8`; 3 dòng servo (`DA DUNG` màu xanh); ô 2 `XONG!` / `CHUA XONG`, `Thanh cong: N lan` | Vì sao chữ không dấu? (font OpenCV không vẽ được dấu) |
+| `control.py:227-235` (`plan_moves`) | góc hiện tại → góc đích: phím gì, mấy lần (`độ lệch // 2`) | Từ 90° tới 74° bấm mấy lần? (8) |
+| `control.py:429-440` (`lock_target`) | bấm R: vật gần đế nhất thành đích, góc cần tới tính **một lần** | Cốc bị dời thì sao? (bấm R lại) |
+| `control.py:443-454` (`update`) | mỗi khung chỉ so góc servo hiện tại với góc đích, ra `Plan` | Arduino báo góc về bằng gì? (gói JSON qua USB) |
 
-### Bước 2 · `success.py` (58 dòng, đọc hết)
+## Phần còn lại: chỉ cần một câu
 
-Đọc theo 4 số trên slide 8:
-
-| Số | Dòng | Làm gì |
-|---|---|---|
-| 1 | `success.py:11-12` | `TOLERANCE_STEPS = 1`: lệch **≤ 1 bước (2°)** là đã tới. `HOLD_S = 1.0`: giữ **liên tục 1 giây** mới đếm |
-| 2 | `success.py:27-28` | so từng servo với góc gợi ý; `pending` = các servo chưa tới |
-| 3 | `success.py:29-37` | trạng thái theo **ưu tiên**: `relaxed` → `no_target` → `unreachable` → `moving` / `done`. Hàm `check` **không nhớ gì** giữa hai lần gọi |
-| 4 | `success.py:48-58` (`Success.update`) | bắt đầu tính giờ khi vừa `done`; đủ 1 giây thì `count + 1`; giữ thêm không cộng; rời góc thì tính lại |
-
-Đọc thêm `success.py:15-22` (lớp `Result`): `state`, `done`, `joints_ok`, `next_move` (việc đầu tiên, theo thứ tự đế → vai → khuỷu), `remaining` (tổng số lần bấm còn lại), `count`.
-
-Tự hỏi:
-
-- Vì sao dung sai là 2° chứ không phải 0°? (mô hình hình học chỉ chính xác cỡ đó; bắt căn 0° chỉ làm người dùng đuổi theo nhiễu)
-- Vì sao `relaxed` thắng mọi trạng thái khác? (đã ngắt xung thì góc báo về chỉ là góc lệnh cuối, không tin được)
-- Vì sao phải giữ 1 giây? (để lần lướt qua mục tiêu không bị đếm)
-- Chưa bấm `R` (chưa có đích) mà góc "khớp" thì có XONG không? (không)
-
-### Bước 3 · `screen.py` (79 dòng)
-
-`screen.py` **chỉ vẽ, không tính gì**: mọi chữ lấy từ `Plan` và `Result`. Đọc theo 4 số trên slide 9:
-
-| Số | Dòng | Làm gì |
-|---|---|---|
-| 1 | `screen.py:33-48` | thu mỗi camera vào ô 640 × 360, ghép thành hàng trên |
-| 2 | `screen.py:51-57` | ô 1 · điều khiển: trạng thái `moving` thì hiện lệnh lớn (ví dụ `BAM S x15: HA XUONG 30 do`); trạng thái khác hiện câu nhắc trong `MESSAGES` (`screen.py:21-26`) |
-| 3 | `screen.py:58-60` | 3 dòng servo: góc hiện tại → góc đích, phím cần bấm; dòng đã tới ghi `DA DUNG` màu xanh |
-| 4 | `screen.py:62-71` | ô 2 · success: `XONG!` xanh, hoặc `CHUA XONG` + `con N lan bam`; `Thanh cong: N lan` |
-
-Đọc lướt `screen.py:73-76` (chân trang: trạng thái USB, phím tắt, banner `ARDUINO VUA RESET`).
-
-Tự hỏi: vì sao chữ không dấu? (font của OpenCV không vẽ được dấu tiếng Việt) Phím `A` quay đế sang đâu? (sang **phải**, nhìn theo cam NGANG)
-
-### Bước 4 · Bộ test (bạn phụ trách kiểm thử)
-
-| Đọc | Kiểm gì |
+| Phần | Câu cần nói |
 |---|---|
-| `tests/test_success.py` (7 test) | đọc từng test như một **ví dụ có đáp án**: đang đi, bỏ qua servo đã đúng, lệch 2° vẫn tới còn 3° thì chưa, kẹp không tính, ưu tiên trạng thái, đếm sau 1 giây, lướt qua không đếm |
-| `tests/test_screen.py` (3 test) | hai ô đổi theo trạng thái còn ô camera không đổi; trạng thái ngoài tầm, đang nghỉ vẫn vẽ được; số lần thành công và banner hiện lên màn hình |
-| `tests/test_end_to_end.py` (2 test) | cả chuỗi trên cảnh giả lập: bấm đúng theo lệnh trên màn hình thì ra XONG, đếm đúng 1 lần; cùng một `Plan` cho cùng một kết luận |
-| `tests/conftest.py` | vì sao không test nào mở camera thật, cổng Serial hay `calibration.json` thật |
+| IK `control.py:91-134` | Đế quay theo `atan2(y, x)`; vai và khuỷu giải tam giác hai khâu bằng định lý cos, chọn nghiệm khuỷu hướng lên. |
+| `control.py:137-154` (`joint_to_servo`) | Đổi góc khớp sang góc servo, làm tròn về bước 2°. |
+| `control.py:289-301`, `303-318` | Mỗi phím gửi 1 ký tự qua USB; đọc gói JSON góc servo Arduino gửi về; không ghi `--port` thì mô phỏng. |
+| `remote.py` | Dell hiện màn hình Mac, gửi phím qua Bluetooth HC-05; `H` và `Z` phải bấm 2 lần (`KeyGate`, `remote.py:120-139`). |
+| `screen.py:21-26` (`MESSAGES`) | Câu nhắc ở ô 1 cho các trạng thái không phải `moving`. |
+| Cách kiểm tra | Bằng mắt khi chạy chương trình: lưới bám giấy, vòng xanh trên cốc, bấm theo lệnh thì cánh tay đi đúng hướng. |
 
-```bash
-uv run pytest tests/test_success.py tests/test_screen.py tests/test_end_to_end.py -v
-```
+## Bài tập
 
 Bài tập (làm bằng tay trước): góc hiện tại `[90, 90, 90]`, góc gợi ý `[74, 60, 86]`. Trạng thái? Servo nào làm trước, bấm phím gì, mấy lần? Còn tổng bao nhiêu lần bấm?
 
 <details><summary>Đáp án và cách tự kiểm</summary>
 
-`moving`; đế trước, phím `D` × 8 (16°); vai `S` × 15 (30°); khuỷu `K` × 2 (4°); còn 8 + 15 + 2 = **25** lần bấm (`tests/test_success.py:12-15`). Chạy thử:
+`moving`; đế trước, phím `D` × 8 (16°); vai `S` × 15 (30°); khuỷu `K` × 2 (4°); còn 8 + 15 + 2 = **25** lần bấm. Chạy thử:
 
 ```bash
 uv run python -c "import control as C, success as S; p = C.Plan(found=True, target_name='Vat mau', target_cm=(20.0, 12.0), reachable=True, move_closer_mm=0.0, relaxed=False, now=[90, 90, 90, 95], goal=[74, 60, 86], moves=C.plan_moves([90, 90, 90, 95], [74, 60, 86])); r = S.check(p); print(r.state, r.joints_ok, r.next_move.key, r.next_move.steps, r.remaining)"
@@ -89,14 +53,14 @@ uv run python -c "import control as C, success as S; p = C.Plan(found=True, targ
 In ra `moving [False, False, False] d 8 25`.
 </details>
 
-### Bước 5 · Thử nghiệm, kết quả, hạn chế (slide 15-17)
+## Thử nghiệm, kết quả, hạn chế (slide 15-17)
 
 Phần này không có code, chỉ có số liệu. Đọc trong `slides/05_SO_LIEU_VA_NGUON.md`:
 
 | Mục | Để nói slide |
 |---|---|
 | mục 7 · buổi thử 02/11 | slide 15: kẹp bằng bàn phím 20:32-20:36, cốc đỏ được kẹp, chuyển sang trái, đặt xuống; cốc đổ khoảng 3 lần; kẹp chưa giữ chắc cốc thon |
-| mục 11 · kiểm thử | slide 16: **100 test**, 13 tệp; chạy ngày 11/11 trên máy Windows |
+| mục 11 · cách kiểm tra | slide 16: kiểm tra **bằng mắt** khi chạy chương trình (lưới bám giấy, vòng xanh trên cốc, cánh tay đi đúng hướng); bộ test tự động đã bỏ |
 | mục 13 · kế hoạch 28/10 so với thực tế | slide 16: việc chưa làm (MQTT, dashboard, cảm biến lực FSR) |
 | mục 4, 8, 9, 10 | slide 17: điều khiển vòng hở, hiệu chỉnh phụ thuộc tờ giấy và vị trí robot, tay kẹp phi tuyến, hai lỗi tích hợp đã xử lý (thứ tự camera macOS, Arduino tự reset) |
 
@@ -110,7 +74,7 @@ Nguồn: `slides/05_SO_LIEU_VA_NGUON.md` mục 4, 5, 7, 11.
 | 1 giây | phải giữ đúng liên tục mới đếm 1 lần thành công |
 | 5 trạng thái | `done`, `moving`, `no_target`, `unreachable`, `relaxed` |
 | 640 × 360 | mỗi ô camera trên màn hình (cửa sổ rộng 1280 px) |
-| 100 test · 13 tệp | success 7, màn hình 3, đầu-cuối 2, điều khiển từ xa 11 (trong tổng 100) |
+| 0,2 cm | slide 16: hai camera đo cùng một cốc lệch nhau 0,2 cm sau bù thị sai (đo ở **một** vị trí, 02/11) |
 | 02/11/2026, 20:32-20:36 | buổi kẹp cốc bằng bàn phím trên cánh tay thật |
 | 8,5 mm | sai số hiệu chỉnh trên **chính 10 mẫu** dùng để khớp (chi tiết ở phần 3) |
 

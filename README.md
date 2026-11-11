@@ -35,26 +35,21 @@ Kẹp không tính (nó chỉ cần đầu kẹp tới đúng chỗ của vật)
 | 4 servo MG996R | nguồn riêng 5-6 V (nguồn tổ ong) cấp vào cổng xanh của PCA9685, **không** lấy từ cổng USB |
 | Cam TREN | OBSBOT Meet SE treo phía trên tờ giấy, nhìn xuống |
 | Cam NGANG | camera tích hợp của MacBook đặt thấp trước tờ giấy |
-| Tờ giấy | in `aruco_A4_clean.pdf` **đúng 100% kích thước** (đo cạnh 1 mã ArUco phải đúng **2,8 cm**), 4 mã (ID 0-3) sát 4 góc; tạo lại bằng `generate_aruco_a4.py` |
+| Tờ giấy | in `aruco_A4_clean.pdf` **đúng 100% kích thước** (đo cạnh 1 mã ArUco phải đúng **2,8 cm**): 4 mã `DICT_4X4_50` (bộ mã có sẵn của OpenCV), ID 0-3, sát 4 góc |
 
 ## 2. Cài đặt và chạy
 
 ```bash
-uv sync                      # cài OpenCV, pyserial, pytest (Windows thêm pygrabber)
+uv sync                      # cài OpenCV, pyserial
 ./robot_arm_4dof/flash.sh    # biên dịch + nạp firmware (cần Arduino IDE 2, xem mục 6)
-uv run python main.py
+uv run python main.py --port /dev/cu.usbmodem1101    # cổng USB của Arduino (Windows: --port COM3)
 ```
 
-macOS hỏi quyền **Camera** lần đầu cho ứng dụng đang chạy lệnh (Terminal, PyCharm...): bấm OK.
-
-**Windows** (máy Dell): `pygrabber` đọc tên camera theo đúng thứ tự DirectShow; `Integrated Webcam` được nhận là cam NGANG. Cam TREN khác OBSBOT thì
-truyền một phần tên (`--top iriun`) hoặc chỉ số (`--top 0`). Cổng Arduino là `COMx`, tự tìm theo tên CH340 / Arduino.
-
-```bash
-uv run python main.py --list-cameras    # in danh sách camera theo chỉ số OpenCV
-uv run python main.py --no-serial       # chạy mô phỏng, không mở cổng USB Arduino (không gửi phím xuống robot)
-uv run python main.py --top 0 --side 1  # chỉ rõ chỉ số camera (mặc định: --top obsbot --side mac, tìm theo tên)
-```
+- **Cổng Arduino** ghi tay: macOS gõ `ls /dev/cu.usbmodem*`; Windows xem Device Manager → Ports (COM & LPT). Không ghi `--port` thì chương trình **mô phỏng**
+  (không gửi phím xuống robot, góc servo tự cộng / trừ như firmware).
+- **Camera** chọn bằng chỉ số OpenCV: mặc định `--top 0` (cam TREN) và `--side 1` (cam NGANG). Nhìn hai khung hình: thấy đảo thì chạy lại với `--top 1 --side 0`
+  (macOS có thể đổi thứ tự camera giữa các lần chạy).
+- macOS hỏi quyền **Camera** lần đầu cho ứng dụng đang chạy lệnh (Terminal, PyCharm...): bấm OK.
 
 Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)** → **phần 2 (success)**. Bấm phím trên cửa sổ video:
 
@@ -65,9 +60,8 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `I` / `K` | khuỷu lên / xuống, mỗi lần 2° |
 | `J` / `L` | mở / khép kẹp, mỗi lần 5° (không tính vào thành công) |
 | `H` | đưa cả 4 servo về Home (180/90/90/95): đế quay hết sang **phải** để cánh tay không che vật ở cam TREN |
-| `X` / `Z` | cho servo kẹp / cả 4 servo nghỉ (ngắt xung PWM để nguội); `Z` cần firmware có phím Z, hạ đầu kẹp tựa xuống chỗ trống trước |
+| `X` / `Z` | cho servo kẹp / cả 4 servo nghỉ (ngắt xung PWM để nguội); hạ đầu kẹp tựa xuống chỗ trống trước khi bấm `Z` |
 | `R` | **chụp đích**: lấy vật gần đế nhất trong ảnh lúc bấm, tính góc cần tới **một lần** (không theo camera nữa, tay kẹp che hay đẩy lệch vật cũng không đổi đích); vật bị dời thì bấm `R` lại. Chưa bấm `R` thì chưa có lệnh |
-| `B` | hiệu chỉnh đế robot (mục 4), `ESC` để hủy |
 | `U` | quên vị trí 4 mã ArUco đã nhớ (sau khi dời camera hoặc tờ giấy) |
 | `Q` | thoát |
 
@@ -91,27 +85,24 @@ Chuẩn bị:
 1. Dell: ghép đôi HC-05 trong cài đặt Bluetooth (PIN thường là `1234` hoặc `0000`). Số cổng: Settings > Bluetooth & devices > Devices >
    More Bluetooth settings > tab COM Ports, dòng **Outgoing** tên HC-05. Chỉ ghép đôi HC-05 với Dell: HC-05 nhận một kết nối mỗi lúc.
 2. Mac và Dell vào **cùng một Wi-Fi** (mạng trường chặn hai máy thấy nhau thì cả hai bắt điểm phát Wi-Fi của điện thoại).
-3. Mac: cắm USB Arduino, `uv run python main.py` (macOS hỏi cho Python nhận kết nối mạng thì bấm Cho phép), chép dòng
+3. Mac: cắm USB Arduino, `uv run python main.py --port /dev/cu.usbmodem…` (macOS hỏi cho Python nhận kết nối mạng thì bấm Cho phép), chép dòng
    `python remote.py --mac http://<ip Mac>:8000/ --port COMx` nó in ra.
-4. Dell: chạy dòng đó, thay `COMx` bằng cổng ở bước 1.
+4. Dell: chạy dòng đó, thay `COMx` bằng cổng HC-05 ở bước 1.
 
 ## 3. Code chia thế nào
 
 | Tệp | Vai trò |
 |---|---|
-| `main.py` | nối các phần: camera → vision → control → success → màn hình; phím, chuột, tham số dòng lệnh |
-| `control.py` | **Khối điều khiển**: hình học cánh tay (FK / IK), cổng USB Arduino, chọn vật, `Plan` + `Move` |
+| `main.py` | nối các phần: camera → vision → control → success → màn hình; phím, tham số dòng lệnh |
+| `control.py` | **Khối điều khiển**: hình học cánh tay (FK / IK), cổng USB Arduino, phím R chụp đích, `Plan` + `Move` |
 | `success.py` | **Khối success**: `check(plan)` → `Result`; `Success` đếm số lần thành công |
 | `screen.py` | vẽ màn hình: 2 camera + phần 1 + phần 2 nối nhau |
-| `vision.py` | dò tờ A4 qua ArUco (Homography pixel ↔ cm), tìm vật có màu, bù thị sai theo độ cao vật |
-| `cameras.py` | tìm camera theo tên, mỗi camera đọc trên một luồng riêng, mất tín hiệu thì tự mở lại |
-| `calibration.py` | lưu / nạp hiệu chỉnh vào `calibration.json` |
-| `arm_fit.py` | công cụ khớp hình học cánh tay từ các lần "ôm" thật (Levenberg-Marquardt, chỉ dùng numpy) |
+| `vision.py` | dò tờ A4 qua ArUco (hàm có sẵn của OpenCV, homography pixel ↔ cm), tìm vật có màu, bù thị sai theo độ cao vật |
+| `cameras.py` | mở camera theo chỉ số, mỗi camera đọc trên một luồng riêng, mất tín hiệu thì tự mở lại |
+| `calibration.py` | nạp hiệu chỉnh từ `calibration.json` |
 | `share.py` | chia sẻ ảnh màn hình của Mac qua Wi-Fi cho máy Dell (`/screen.jpg`, chỉ cho xem) |
 | `remote.py` | app máy Dell: xem màn hình Mac qua Wi-Fi, gửi phím qua Bluetooth HC-05 (chép riêng tệp này sang Dell cũng chạy) |
-| `generate_aruco_a4.py` | tạo tờ A4 4 mã ArUco để in (`aruco_A4_clean.pdf`) |
 | `robot_arm_4dof/` | firmware Arduino và `flash.sh` |
-| `tests/` | bộ test, mỗi khối một tệp (`test_control.py`, `test_success.py`, `test_screen.py`, ...) |
 | `hoc_phan2/` | hướng dẫn đọc code và slide cho hai người trình bày phần 2 (computer vision, hỗ trợ gắp) |
 
 Mỗi khung hình trong `main.py` chỉ là ba dòng: `plan = control.update(vision.objects)` → `result = success.update(plan)` → `build_screen(..., plan, result)`.
@@ -121,21 +112,19 @@ Mỗi khung hình trong `main.py` chỉ là ba dòng: `plan = control.update(vis
 Hệ tọa độ gắn với **tờ giấy** (không phụ thuộc camera nào nhìn): gốc ở góc ngoài mã **ID 0**, trục **X** chạy ID 0 → ID 1 (29.7 cm), trục **Y**
 chạy ID 0 → ID 3 (21.0 cm). Lưới tự dò từ các mã ArUco thật; cánh tay che mất 1-2 mã thì dùng vị trí đã nhớ.
 
-- **Đế robot**: mặc định (14.85, -7.5) cm, nhìn vào +Y. Đặt khác thì bấm `B` rồi click vào **trục xoay của đế** trên hình cam TREN (đúng điểm ở
-  mặt bàn). **Chỉ bấm `B` khi cam TREN đã thấy đủ 4 mã** (góc dưới trái ghi `Luoi A4: thay 4/4 ma ArUco`), nếu không vị trí đế lưu sai.
-- **Hình học cánh tay thật khác mô hình mặc định**: đo từ 10 lần "ôm" cốc bằng tay (2026-11-02), sai số RMS còn ~0,85 cm (kiểm tra bỏ-một-mẫu ~1,2 cm). Kết quả nằm trong
-  `calibration.json` (không đưa lên git): `base` (vị trí, hướng đế), `arm` (hai góc chuẩn vai / khuỷu khi servo ở 90°), `claw` (càng kẹp gắn cứng vào khâu
-  khuỷu nên độ lệch của điểm kẹp quay theo khâu đó; app gộp nó vào chiều dài khâu 3, xem docstring `calibration.py`). **Hiệu chỉnh này gắn với đúng tờ
-  giấy và cách đặt robot hiện tại**: đổi tờ giấy (kích thước in khác) hoặc dời robot thì phải đo lại. Tờ A4 cũ in nhỏ hơn ~4,5% so với đúng cỡ.
+- **Hiệu chỉnh** nằm trong `calibration.json` (không đưa lên git), sửa tay được:
+  `base` (vị trí trục xoay đế trên tờ giấy, cm, và hướng robot nhìn), `arm` (hai góc chuẩn vai / khuỷu khi servo ở 90°), `claw` (càng kẹp gắn cứng vào khâu
+  khuỷu nên độ lệch của điểm kẹp được dồn vào chiều dài khâu 3). Ví dụ ở docstring `calibration.py`.
+- **Đế robot**: dời robot thì **đo bằng thước** vị trí trục xoay đế theo hệ tọa độ tờ giấy rồi sửa mục `base`. Không có `calibration.json` thì dùng mặc định
+  (14.85, -7.5) cm, nhìn vào +Y.
+- **Hình học cánh tay thật khác mô hình mặc định**: từ 10 lần "ôm" cốc bằng tay (2026-11-02), khớp 5 thông số bằng bình phương tối thiểu, sai số RMS còn
+  ~0,85 cm (kiểm tra bỏ-một-mẫu ~1,2 cm). **Hiệu chỉnh này gắn với đúng tờ giấy và cách đặt robot lúc đo**. Tờ A4 cũ in nhỏ hơn ~4,5% so với đúng cỡ.
 - **Vị trí vật** đo từ cam TREN được **bù thị sai** (`vision.find_objects`): cam treo cao ~46 cm nên nắp cốc cao 5 cm hiện lệch ~1 cm so với đáy.
-- Công cụ khớp lại: `arm_fit.fit_geometry(samples, ARM_CONFIG, control.predict_tip)` với mỗi mẫu `{"servo": (đế, vai, khuỷu), "x_cm", "y_cm", "z_mm"}` (servo
-  khi hai ngón bao quanh vật + vị trí vật đo bằng camera). Cần ≥ 2 mẫu cách nhau ≥ 5 cm, 3 mẫu là đủ.
 
-## 5. Camera: cách nhận đúng OBSBOT và MacBook
+## 5. Camera: nhận đúng OBSBOT và MacBook
 
-Chỉ số `cv2.VideoCapture(i)` trên macOS **không** theo thứ tự của `system_profiler` hay danh sách AVFoundation (hai danh sách đó xếp camera "dùng gần
-nhất" lên đầu nên đổi giữa các lần chạy); OpenCV sắp theo `uniqueID` nên ổn định. `cameras.py` tìm camera theo **tên**, rồi đổi sang chỉ số bằng đúng
-quy tắc sắp theo `uniqueID` của OpenCV, ngay trước mỗi lần mở. Bỏ qua camera ảo (`OBSBOT Virtual Camera`, Desk View).
+Camera mở bằng **chỉ số** OpenCV (`--top`, `--side`). Trên macOS thứ tự này có thể đổi giữa các lần chạy (đã thấy lúc `[OBSBOT, MacBook]`, lúc ngược lại),
+nên mỗi lần chạy nhìn hai khung hình: khung có tiêu đề `CAM TREN` phải là hình nhìn từ trên xuống; sai thì đổi hai số.
 
 ## 6. Firmware và bảo vệ servo
 
@@ -149,22 +138,18 @@ quy tắc sắp theo `uniqueID` của OpenCV, ngay trước mỗi lần mở. B�
 - Nạp firmware: `./robot_arm_4dof/flash.sh` (dùng `arduino-cli` có sẵn trong Arduino IDE 2, board `arduino:avr:uno`). Arduino reset khi nạp nên servo giật về
   Home: cắt nguồn servo hoặc đưa cánh tay ra chỗ trống trước. Nạp xong, đế quay hết sang phải (Home 180°) là firmware mới đã chạy.
 - Arduino Uno **tự reset mỗi khi đường DTR của cổng USB hạ xuống rồi nâng lên**, cả 4 servo giật về Home 180/90/90/95. Thường do một chương trình khác mở rồi đóng
-  cổng `/dev/cu.usbmodem*` lúc `main.py` đang chạy. **Đừng mở cổng bằng chương trình khác khi `main.py` đang chạy.** `main.py` nhận ra reset qua thời gian
-  chạy của firmware quay về 0 và báo `ARDUINO VUA RESET` ở chân màn hình.
+  cổng USB lúc `main.py` đang chạy. **Đừng mở cổng bằng chương trình khác khi `main.py` đang chạy.** `main.py` giữ một kết nối duy nhất.
 
-## 7. Kiểm thử và chạy không cần phần cứng
+## 7. Kiểm tra bằng mắt
 
-```bash
-uv run pytest        # FK / IK, lệnh bấm phím, chọn vật, success, màn hình, nhận diện camera, hiệu chỉnh, điều khiển từ xa, chạy thử cả chương trình
-```
+Chạy chương trình (không ghi `--port` cũng được, khi đó cánh tay mô phỏng) rồi nhìn màn hình:
 
-Không test nào chạm vào camera, cổng Serial hay `calibration.json` thật (cảnh dựng bằng camera giả lập có đáp án chính xác).
-Chạy cả chương trình không cửa sổ, không camera, không robot (dùng 2 ảnh camera đã lưu; không ai bấm `R` nên chương trình tự chụp đích ở khung đầu tiên thấy vật):
+1. Lưới 5 cm bám đúng tờ giấy, góc dưới ghi `Luoi A4: thay 4/4 ma ArUco`.
+2. Đặt cốc: vòng xanh nằm trên cốc, kèm X, Y (cm).
+3. Bấm `R`: ô 1 hiện lệnh to, ví dụ `BAM D x8`.
+4. Bấm đúng phím đó: số lần bấm giảm dần, tới `XONG!`; giữ 1 giây thì `Thanh cong` cộng 1. Trên cánh tay thật: dấu `KEP` nằm trên cốc.
 
-```bash
-uv run python main.py --top captures/tren.jpg --side captures/ngang.jpg --no-serial --headless --seconds 10 --dump-dir out/
-# out/ có dual_view.png (màn hình), ảnh đã chú thích của 2 camera và summary.json (dieu_khien, success)
-```
+Không có camera thì dùng 2 ảnh đã lưu thay camera: `uv run python main.py --top tren.jpg --side ngang.jpg`.
 
 ## 8. Xử lý sự cố
 
@@ -173,14 +158,14 @@ uv run python main.py --top captures/tren.jpg --side captures/ngang.jpg --no-ser
 | `KHONG THAY TO A4` | in đúng kích thước, đủ sáng, 4 mã không bị che / chói; trong khung có ít nhất 2 mã |
 | Mã ArUco không nhận | thêm **viền trắng** quanh mã (ít nhất ~0,5 cm); kiểm tra cạnh mã đúng 2,8 cm |
 | Lưới lệch sau khi dời camera / giấy | bấm `U` |
-| Hai khung hiện cùng một góc nhìn / sai camera | `--list-cameras` rồi chạy lại với `--top N --side M` |
+| Hai khung đảo nhau / sai camera | chạy lại với `--top` / `--side` đổi số (mục 5) |
 | Camera đen, log `not authorized to capture video` | cấp quyền Camera trong Cài đặt hệ thống → Quyền riêng tư; mở lại ứng dụng |
-| `USB Arduino: MO PHONG` | cắm cáp USB, tắt chương trình khác đang giữ cổng |
-| Chữ `CHUA THAY VAT` | đặt vật **có màu** (cốc đỏ) lên giấy, không sát mép (dưới ~1 cm) |
-| Cánh tay tự giật về Home | xem mục 6 (Arduino reset) |
+| `USB Arduino: MO PHONG` | chưa ghi `--port` hoặc ghi sai cổng; cắm cáp USB, tắt chương trình khác đang giữ cổng |
+| `Chua co dich: ... roi bam R` | đặt vật **có màu** (cốc đỏ) lên giấy, không sát mép (dưới ~1 cm), rồi bấm `R` |
+| Cánh tay tự giật về Home | Arduino vừa reset (mục 6) |
 | Dell: `khong thay Mac` | hai máy cùng Wi-Fi chưa, `main.py` đang chạy trên Mac chưa, macOS có hỏi cho Python nhận kết nối mạng (bấm Cho phép) |
 | Dell: `khong noi duoc COMx` | HC-05 có điện (đèn nháy), đã ghép đôi với Dell, đúng cổng **Outgoing**; máy khác đang nối HC-05 thì ngắt ra |
-| Gợi ý đưa kẹp lệch vài cm | đo lại hiệu chỉnh (mục 4); kiểm tra tờ giấy không bị xê dịch |
+| Gợi ý đưa kẹp lệch vài cm | đo lại vị trí đế (mục 4); kiểm tra tờ giấy không bị xê dịch |
 
 ## 9. Đã bỏ khi đơn giản hóa (2026-11-02)
 
@@ -189,5 +174,9 @@ Quy trình gắp 5 bước, kiểm tra thành công bằng S1 / S2 (cam NGANG th
 trước khi đơn giản hóa được sao lưu ở `~/Documents/project/Project_IoT_backup_truoc_don_gian_hoa_2026-11-02.tgz` (không nằm trong repo).
 
 Lần rút gọn phần 2 (2026-11-10): bỏ YOLO (`--yolo`), điện thoại qua `adb` / IP Webcam, xoay hình (`--rotate-*`), ước lượng tờ giấy khi không thấy mã,
-vật dán mã ArUco, cảnh báo và phím tráo camera (`T`, `0`-`3`). Vẫn giữ: nhớ mã bị che, bù thị sai, lọc tay người / thân robot, tìm camera theo tên.
+vật dán mã ArUco, cảnh báo và phím tráo camera (`T`, `0`-`3`). Vẫn giữ: nhớ mã bị che, bù thị sai, lọc tay người / thân robot.
 Điều khiển từ xa bằng máy Dell được đưa lại ngày 11/11 ở dạng gọn (`share.py`, `remote.py`): chỉ xem màn hình và gửi phím, `R` bấm trên Mac.
+
+Ngày 11/11, những việc làm tay được thì bỏ code (còn trong lịch sử git): bộ test tự động (kiểm tra bằng mắt, mục 7), tạo tờ ArUco (`generate_aruco_a4.py`),
+công cụ khớp hiệu chỉnh (`arm_fit.py`), hiệu chỉnh đế bằng chuột (phím `B`), chạy không cửa sổ (`--headless`), tự tìm cổng Arduino (giờ ghi `--port`),
+cảnh báo Arduino reset, tìm camera theo tên (giờ chọn chỉ số).

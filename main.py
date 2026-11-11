@@ -2,28 +2,23 @@
 """
 Hỗ trợ điều khiển cánh tay robot 4 servo bằng 2 camera: chỉ cho biết BẤM PHÍM GÌ, MẤY LẦN, TRÁI / PHẢI BAO NHIÊU ĐỘ để đầu kẹp tới vật.
 
-  uv run python main.py            cam TREN = OBSBOT, cam NGANG = camera MacBook
-  uv run python main.py --help     đổi nguồn camera, chạy không cần robot / camera...
+  uv run python main.py --port /dev/cu.usbmodem1101    cam TREN = camera 0, cam NGANG = camera 1, Arduino ở cổng đã ghi
+  uv run python main.py                                 không ghi --port: chạy mô phỏng, không gửi phím xuống robot
 
 Các phần nối nhau:  camera -> vision.py (vật nằm ở đâu) -> control.py (khối điều khiển: bấm phím gì) -> success.py (khối success: đã tới chưa) -> screen.py (hiện lên màn hình)
 """
 
 import argparse
-import json
-import os
 import sys
-import time
 
 import cv2
 
-from calibration import apply_calibration, heading_toward, store_base_pose
-from cameras import Camera, list_camera_names
+from calibration import apply_calibration
+from cameras import Camera
 from control import ARM_CONFIG, Control, predict_tip
-from screen import CAM_H, CAM_W, SCREEN_WINDOW, build_screen
+from screen import SCREEN_WINDOW, build_screen
 from success import Success
-from vision import Vision, draw_target, px_to_cm
-
-CAPTURE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")  # Kết quả --headless (mặc định captures/headless), cạnh main.py
+from vision import Vision, draw_target
 
 HELP_TEXT = """💡 Làm theo lệnh to ở giữa màn hình (bấm phím trên cửa sổ video):
    A / D                 : xoay đế sang PHẢI / TRÁI (nhìn theo cam NGANG), mỗi lần 2°
@@ -31,56 +26,35 @@ HELP_TEXT = """💡 Làm theo lệnh to ở giữa màn hình (bấm phím trên
    H                     : về Home (180/90/90)                 X / Z : cho servo kẹp / cả 4 servo nghỉ (ngắt xung)
    J / L                 : mở / khép kẹp, mỗi lần 5° (kẹp không tính vào thành công)
    R                     : chụp vị trí vật làm đích, tính góc cần tới một lần (vật bị dời thì bấm R lại)
-   B                     : hiệu chỉnh đế robot (click vào trục xoay đế trên hình cam TREN)      U : dò lại 4 mã ArUco
-   Q                     : thoát"""
+   U                     : dò lại 4 mã ArUco (sau khi dời camera / tờ giấy)                       Q : thoát"""
 
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Điều khiển cánh tay robot 4 servo bằng 2 camera: lệnh bấm phím + kết luận đã tới chưa")
-    source_help = "obsbot | mac | 0,1,2... (chỉ số OpenCV) | một phần tên camera | ảnh .png / .jpg để chạy thử"
-    p.add_argument("--top", default="obsbot", metavar="NGUON", help=f"Cam TREN (nhìn từ trên xuống): {source_help}")
-    p.add_argument("--side", default="mac", metavar="NGUON", help=f"Cam NGANG: {source_help}")
-    p.add_argument("--no-serial", action="store_true", help="Không mở cổng USB Arduino (chạy mô phỏng, không gửi phím xuống robot)")
-    p.add_argument("--list-cameras", action="store_true", help="In danh sách camera theo chỉ số OpenCV rồi thoát")
-    p.add_argument("--headless", action="store_true", help="Không mở cửa sổ: chạy --seconds giây rồi lưu ảnh + summary.json vào --dump-dir")
-    p.add_argument("--seconds", type=float, default=12.0, help="Thời gian chạy của --headless (giây)")
-    p.add_argument("--dump-dir", default=None, help="Thư mục lưu kết quả --headless (mặc định captures/headless)")
+    source_help = "chỉ số camera OpenCV (0, 1, 2...) hoặc ảnh .png / .jpg để chạy thử"
+    p.add_argument("--top", default="0", metavar="NGUON", help=f"Cam TREN (nhìn từ trên xuống): {source_help}")
+    p.add_argument("--side", default="1", metavar="NGUON", help=f"Cam NGANG: {source_help}")
+    p.add_argument("--port", default=None, help="Cổng USB của Arduino, VD /dev/cu.usbmodem1101 (macOS) hoặc COM3 (Windows); bỏ trống = mô phỏng")
     return p.parse_args(argv)
-
-
-def report_cameras():
-    """In danh sách camera theo thứ tự chỉ số của OpenCV (số dùng được cho --top / --side)."""
-    listing = ", ".join(f"[{i}] {n}" for i, n in enumerate(list_camera_names())) or "(không thấy camera nào)"
-    print(f"📷 Camera theo thứ tự chỉ số OpenCV: {listing}")
-
-
-def screen_to_frame(x, y, frame_shape):
-    """Điểm click (x, y) trong ô camera 640 x 360 của màn hình -> pixel trên khung gốc, None nếu rơi vào viền đen."""
-    h, w = frame_shape[:2]
-    k = min(CAM_W / w, CAM_H / h)
-    fx, fy = (x - (CAM_W - round(w * k)) // 2) / k, (y - (CAM_H - round(h * k)) // 2) / k
-    return (fx, fy) if 0 <= fx < w and 0 <= fy < h else None
 
 
 class App:
     """Vòng lặp chính: 2 camera -> vision (vật ở đâu) -> control (bấm phím gì) -> success (đã tới chưa) -> màn hình."""
 
     def __init__(self, args):
-        self.args = args
         if apply_calibration(ARM_CONFIG):
             print(
                 f"📐 Đã nạp hiệu chỉnh từ calibration.json: đế ({ARM_CONFIG['base_x_cm']:.1f}, {ARM_CONFIG['base_y_cm']:.1f}) cm, "
                 f"hướng {ARM_CONFIG['base_heading_deg']:.0f}°, góc chuẩn vai {ARM_CONFIG['theta2_at_90_deg']:.1f}°, khuỷu {ARM_CONFIG['theta3_at_90_deg']:.1f}°"
             )
-        report_cameras()
+        if args.port is None:
+            print("ℹ️ Chưa ghi --port: chạy mô phỏng, phím không xuống robot")
         self.cam_side = Camera(args.side, "NGANG")
         self.cam_top = Camera(args.top, "TREN")
-        self.vision = Vision()                                     # Vision: tờ giấy + vật nằm ở đâu
-        self.control = Control(serial_enabled=not args.no_serial)  # Khối điều khiển: bấm phím gì
-        self.success = Success()                                   # Khối success: đã tới chưa
-        self.calib_base = False   # Đang chờ click vào trục xoay đế robot (phím B)
-        self.cache = {}           # Khung đã xử lý gần nhất của mỗi góc nhìn, dùng lại khi camera chưa có khung mới
-        self.top_shape = None     # Kích thước khung gốc cam TREN, để đổi vị trí click chuột thành pixel ảnh gốc
+        self.vision = Vision()                  # Vision: tờ giấy + vật nằm ở đâu
+        self.control = Control(port=args.port)  # Khối điều khiển: bấm phím gì
+        self.success = Success()                # Khối success: đã tới chưa
+        self.cache = {}  # Khung đã xử lý gần nhất của mỗi góc nhìn, dùng lại khi camera chưa có khung mới
 
     # ------------------------------------------------------------------ hiển thị
     def _frame(self, cam, mode):
@@ -91,11 +65,9 @@ class App:
             if raw is None:  # Chưa có hình hoặc mất tín hiệu: hiện "Dang cho tin hieu" thay vì ảnh đứng hình, quên vật cũ
                 self.cache.pop(mode, None)
                 if mode == "topdown":
-                    self.top_shape, self.vision.objects = None, []
+                    self.vision.objects = []
                 return cam.waiting_image()
             cached = self.cache[mode] = {"id": frame_id, "annotated": self.vision.process_frame(raw, mode=mode)}
-        if mode == "topdown":
-            self.top_shape = cached["annotated"].shape
         return cached["annotated"]
 
     def _with_target(self, annotated, mode, plan):
@@ -114,33 +86,7 @@ class App:
         result = self.success.update(plan)                # Khối success: đã tới chưa
         titles = (f"CAM NGANG: {self.cam_side.label}", f"CAM TREN: {self.cam_top.label} (nhin tu tren)")
         screen = build_screen(self._with_target(left, "side", plan), self._with_target(right, "topdown", plan), plan, result, titles=titles)
-        if self.calib_base:
-            y = CAM_H - 8
-            cv2.rectangle(screen, (0, y - 26), (screen.shape[1], y + 6), (0, 0, 0), -1)
-            cv2.putText(screen, "HIEU CHINH DE: CLICK VAO TRUC XOAY DE ROBOT TREN HINH CAM TREN (ESC = huy)",
-                        (12, y - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.62, (0, 255, 255), 2, cv2.LINE_AA)
         return screen, plan, result
-
-    # ------------------------------------------------------------------ chuột: hiệu chỉnh đế robot
-    def on_mouse(self, event, x, y, flags, window):
-        if event != cv2.EVENT_LBUTTONDOWN or not self.calib_base:
-            return
-        px = None
-        if self.top_shape is not None and x >= CAM_W and y < CAM_H:
-            px = screen_to_frame(x - CAM_W, y, self.top_shape)  # Nửa phải của ô camera là cam TREN
-        if px is None:
-            print("⚠️ Hãy click vào hình cam TREN (nửa bên phải)")
-            return
-        H_px2cm = self.vision.sheets["topdown"].H_px2cm
-        if H_px2cm is None:
-            print("⚠️ Cam TREN chưa thấy ≥ 2 mã ArUco 0-3 nên chưa tính được vị trí trên tờ giấy, chưa hiệu chỉnh được")
-            return
-        bx, by = px_to_cm(H_px2cm, *px)
-        heading = heading_toward(bx, by)
-        self.control.set_base_pose(bx, by, heading)
-        store_base_pose(bx, by, heading)
-        self.calib_base = False
-        print(f"📐 Đã hiệu chỉnh đế robot: ({bx:.1f}, {by:.1f}) cm trên tờ giấy, hướng {heading:.0f}° (đã lưu calibration.json)")
 
     # ------------------------------------------------------------------ phím
     def lock_target(self):
@@ -154,18 +100,12 @@ class App:
         """Xử lý phím; trả về False khi cần thoát."""
         if key in (ord("q"), ord("Q")):
             return False
-        if key == 27 and self.calib_base:  # ESC
-            self.calib_base = False
-            print("↩️ Đã hủy hiệu chỉnh đế robot")
-        elif key < 0 or key == 255:
+        if key < 0 or key == 255:
             return True
-        elif self.control.press(chr(key & 0xFF)):
+        if self.control.press(chr(key & 0xFF)):
             pass  # Phím điều khiển servo
         elif key in (ord("r"), ord("R")):
             self.lock_target()
-        elif key in (ord("b"), ord("B")):
-            self.calib_base = not self.calib_base
-            print("📐 Click vào trục xoay đế robot trên hình cam TREN..." if self.calib_base else "↩️ Đã hủy hiệu chỉnh đế robot")
         elif key in (ord("u"), ord("U")):
             self.vision.reset_sheet()
             self.cache.clear()
@@ -176,10 +116,9 @@ class App:
     def run(self):
         print("✅ Đang mở màn hình: 2 camera + lệnh bấm phím (phần 1) + kết luận đã tới chưa (phần 2)...")
         print(HELP_TEXT)
-        from share import start as start_share  # Chỉ khi mở cửa sổ: --headless và test không chia sẻ màn hình
+        from share import start as start_share  # Chia sẻ màn hình chỉ khi mở cửa sổ
         share = start_share()  # Máy Dell xem màn hình này qua Wi-Fi (remote.py), phím đi qua Bluetooth HC-05; R bấm trên Mac
         cv2.namedWindow(SCREEN_WINDOW)
-        cv2.setMouseCallback(SCREEN_WINDOW, self.on_mouse, SCREEN_WINDOW)
         try:
             while True:
                 screen, _, _ = self.render()
@@ -191,59 +130,6 @@ class App:
         finally:
             if share is not None:
                 share.close()
-
-    def summary(self, plan, result):
-        """Tóm tắt trạng thái hệ thống (dùng cho --headless và khi cần gỡ lỗi)."""
-        def sheet_info(mode):
-            sheet = self.vision.sheets[mode]
-            return {"co_luoi": sheet.H_px2cm is not None, "so_ma_thay": sheet.n_seen, "so_ma_da_nho": len(sheet.markers)}
-
-        return {
-            "camera": {
-                "TREN": {"nhan": self.cam_top.label, "nguon": str(self.cam_top.source), "kich_thuoc": self.top_shape[:2][::-1] if self.top_shape else None},
-                "NGANG": {"nhan": self.cam_side.label, "nguon": str(self.cam_side.source)},
-            },
-            "to_giay": {"cam_tren": sheet_info("topdown"), "cam_ngang": sheet_info("side")},
-            "de_robot": {k: ARM_CONFIG[k] for k in ("base_x_cm", "base_y_cm", "base_heading_deg")},
-            "vat_the": [{"ten": o["name"], "x_cm": round(o["x_cm"], 1), "y_cm": round(o["y_cm"], 1)} for o in self.control.objects],
-            "dieu_khien": {
-                "vat_muc_tieu": plan.target_name,
-                "vi_tri_cm": [round(v, 1) for v in plan.target_cm] if plan.target_cm else None,
-                "trong_tam_voi": bool(plan.reachable),
-                "servo_hien_tai": plan.now,
-                "servo_can_toi": plan.goal,
-                "lenh": [{"servo": m.label, "phim": m.key, "so_lan": m.steps, "huong": m.words, "do": m.degrees} for m in plan.moves],
-            },
-            "success": {"trang_thai": result.state, "xong": bool(result.done), "con_lai_lan_bam": result.remaining, "servo_dung": result.joints_ok},
-        }
-
-    def run_headless(self):
-        """Không mở cửa sổ: chạy args.seconds giây rồi lưu ảnh màn hình và summary.json."""
-        print(f"🧪 Chạy không cửa sổ {self.args.seconds:.0f} giây...")
-        end = time.time() + self.args.seconds
-        screen = plan = result = None
-        loops = 0
-        while time.time() < end:
-            screen, plan, result = self.render()
-            if not plan.found and self.control.objects:  # Không ai bấm R: tự chụp đích ở khung đầu tiên thấy vật
-                self.lock_target()
-            loops += 1
-            time.sleep(0.04)
-        out = self.args.dump_dir or os.path.join(CAPTURE_DIR, "headless")
-        os.makedirs(out, exist_ok=True)
-        cv2.imwrite(os.path.join(out, "dual_view.png"), screen)
-        for mode, tag in (("side", "cam_ngang"), ("topdown", "cam_tren")):
-            cached = self.cache.get(mode)
-            if cached is not None:
-                cv2.imwrite(os.path.join(out, f"{tag}_annotated.jpg"), cached["annotated"])
-        summary = self.summary(plan, result)
-        summary["khung_xu_ly_moi_giay"] = {"cam_tren": round(self.cam_top.frame_id / self.args.seconds, 1),
-                                          "cam_ngang": round(self.cam_side.frame_id / self.args.seconds, 1),
-                                          "vong_lap": round(loops / self.args.seconds, 1)}
-        with open(os.path.join(out, "summary.json"), "w", encoding="utf-8") as f:
-            json.dump(summary, f, indent=2, ensure_ascii=False)
-        print(json.dumps(summary, indent=2, ensure_ascii=False))
-        print(f"💾 Đã lưu kết quả vào {out}")
 
     def close(self):
         """Giải phóng cả 2 camera, cổng Serial và đóng cửa sổ."""
@@ -261,12 +147,9 @@ def main(argv=None):
         sys.stdout.reconfigure(line_buffering=True, errors="replace")
     except (AttributeError, ValueError):
         pass
-    if args.list_cameras:
-        report_cameras()
-        return
     app = App(args)
     try:
-        app.run_headless() if args.headless else app.run()
+        app.run()
     finally:
         app.close()
 

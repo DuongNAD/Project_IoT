@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
 CAMERA: mỗi camera đọc trên một luồng riêng để luôn có khung hình mới nhất.
-  Cam TREN  = OBSBOT treo phía trên tờ A4.      Cam NGANG = camera MacBook đặt trước robot.
-macOS đổi thứ tự camera giữa các lần chạy, nên mỗi lần mở đều tìm camera theo TÊN.
-Mất tín hiệu quá RETRY_SECONDS (rút cáp...) thì tự mở lại. Chạy thử không cần camera: --top anh.png --side anh.png
+  Cam TREN  = OBSBOT treo phía trên tờ A4 (--top).      Cam NGANG = camera MacBook đặt trước robot (--side).
+Chọn camera bằng CHỈ SỐ OpenCV (0, 1, 2...). macOS có thể đổi thứ tự camera giữa các lần chạy: nhìn hai khung hình,
+thấy đảo thì chạy lại với --top / --side đổi chỗ. Chạy thử không cần camera: --top anh.png --side anh.png
+Mất tín hiệu quá RETRY_SECONDS (rút cáp...) thì tự mở lại.
 """
 
-import json
 import os
-import subprocess
 import sys
 import threading
 import time
@@ -17,42 +16,14 @@ import cv2
 import numpy as np
 
 RETRY_SECONDS = 4
-CAMERAS = {  # Tên dùng ở --top / --side -> (nhãn, từ khóa tìm trong tên camera)
-    "obsbot": ("OBSBOT", ("obsbot",)),
-    "mac": ("MacBook", ("macbook", "facetime", "built-in", "integrated")),  # "integrated": webcam laptop Windows
-}
-
-
-def list_camera_names():
-    """Tên các camera theo đúng thứ tự chỉ số của cv2.VideoCapture."""
-    try:
-        if sys.platform == "win32":  # Thứ tự DirectShow, khớp với cv2.CAP_DSHOW
-            from pygrabber.dshow_graph import FilterGraph
-
-            return FilterGraph().get_input_devices()
-        out = subprocess.run(["system_profiler", "SPCameraDataType", "-json"], capture_output=True, text=True, timeout=15).stdout
-        cams = sorted(json.loads(out)["SPCameraDataType"], key=lambda c: c.get("spcamera_unique-id", ""))  # OpenCV trên macOS đánh số theo uniqueID
-        return [c["_name"] for c in cams]
-    except Exception:
-        return []
-
-
-def find_camera(keywords):
-    """Chỉ số camera đầu tiên có tên chứa một từ khóa, bỏ camera ảo (OBSBOT Virtual Camera, Desk View); None nếu không thấy."""
-    for i, name in enumerate(list_camera_names()):
-        name = name.lower()
-        if any(k in name for k in keywords) and "virtual" not in name and "desk view" not in name:
-            return i
-    return None
 
 
 class Camera:
-    """source: "obsbot" | "mac" (tìm theo tên) | "0", "1"... (chỉ số OpenCV) | đường dẫn ảnh. role: "TREN" | "NGANG"."""
+    """source: "0", "1"... (chỉ số OpenCV) | đường dẫn ảnh. role: "TREN" | "NGANG"."""
 
     def __init__(self, source, role):
         self.arg, self.role = source, role
-        self.label = CAMERAS[source][0] if source in CAMERAS else os.path.basename(source)
-        self.source = None  # Chỉ số / tệp đang mở, None nếu chưa thấy camera
+        self.label = f"camera {source}" if source.isdigit() else os.path.basename(source)
         self.cap = self.image = self.frame = None
         self.frame_id = 0   # Tăng mỗi khi có khung mới: main.py chỉ xử lý lại khi khung đã đổi
         self.last_time = self.opened_time = time.time()  # Lúc có khung cuối cùng / lúc mở camera gần nhất
@@ -68,14 +39,9 @@ class Camera:
         self.opened_time = time.time()
         if self.arg.lower().endswith((".png", ".jpg", ".jpeg")):  # Ảnh tĩnh: lặp lại mãi một khung
             self.image = cv2.imread(self.arg)
-            self.source = self.arg if self.image is not None else None
-            return
-        if self.arg.isdigit():
-            self.source = int(self.arg)
-        else:  # obsbot / mac, hoặc một phần tên camera (VD: logitech)
-            self.source = find_camera(CAMERAS.get(self.arg, ("", (self.arg.lower(),)))[1])
-        if self.source is not None:
-            self.cap = cv2.VideoCapture(self.source, cv2.CAP_DSHOW) if sys.platform == "win32" else cv2.VideoCapture(self.source)
+        elif self.arg.isdigit():
+            index = int(self.arg)
+            self.cap = cv2.VideoCapture(index, cv2.CAP_DSHOW) if sys.platform == "win32" else cv2.VideoCapture(index)
 
     def _read(self):
         """Một khung mới, hoặc None (chưa thấy camera / mất tín hiệu)."""
