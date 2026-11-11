@@ -87,6 +87,7 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `generate_aruco_a4.py` | tạo tờ A4 4 mã ArUco để in (`aruco_A4_clean.pdf`) |
 | `robot_arm_4dof/` | firmware Arduino và `flash.sh` |
 | `tests/` | bộ test, mỗi nhóm một tệp (`test_control.py`, `test_success.py`, `test_screen.py`, ...) |
+| `hoc_phan2/` | hướng dẫn đọc code và slide cho hai người trình bày phần 2 (computer vision, hỗ trợ gắp) |
 | `_luu_tru/` | file không còn dùng (kịch bản slide cũ, tờ A4 có lưới, script thử servo bằng tay), giữ lại để tra cứu |
 
 Mỗi khung hình trong `main.py` chỉ là ba dòng: `plan = control.update(vision.objects)` → `result = success.update(plan)` → `build_screen(..., plan, result)`.
