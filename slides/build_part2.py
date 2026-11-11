@@ -7,7 +7,7 @@ Code trên slide đọc thẳng từ các tệp .py của dự án (tìm theo t�
 Dòng code dài được ngắt xuống dòng ngay trên slide (nội dung giữ nguyên); số tròn cạnh dòng code ứng với các bước ở trên khung code.
 
     python slides/build_part2.py      ->  slides/Phan2_LuongDuLieu_Code.pptx (+ .pdf, ảnh preview_phan2/slide_XX.png)
-                                          slides/KetLuan.pptx (+ .pdf, ảnh preview_ketluan/): slide kết luận của bộ slide chính
+                                          slides/KetLuan.pptx (+ .pdf, ảnh preview_ketluan/): Kết luận + Tóm tắt và hỏi đáp (hai slide cuối)
 """
 
 import os
@@ -454,5 +454,5 @@ if __name__ == "__main__":
     build(OUT, (slide_divider, slide_dataflow, slide_main, slide_cameras, slide_sheet, slide_objects_overview, slide_objects, slide_success,
                 slide_screen), "Phần 2: Computer vision & Hỗ trợ gắp (sơ đồ luồng dữ liệu, code)")
     export_previews(OUT, PREVIEW_DIR)
-    build(CONCLUSION_OUT, (lambda prs: B.slide_summary(prs, ""),), "Kết luận")  # Cùng slide cuối của bộ slide chính
+    build(CONCLUSION_OUT, (lambda prs: B.slide_conclusion(prs, ""), lambda prs: B.slide_summary(prs, "")), "Kết luận")  # Hai slide cuối của bộ slide chính
     export_previews(CONCLUSION_OUT, CONCLUSION_PREVIEW_DIR)

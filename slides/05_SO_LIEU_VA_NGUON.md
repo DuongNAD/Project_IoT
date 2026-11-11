@@ -2,7 +2,7 @@
 
 Mọi con số, tên linh kiện và nhận định trên slide **chỉ được lấy từ file này**. Kiểm tra lần cuối: **10/11/2026**, sau khi rút gọn mã phần 2
 (`vision.py`, `cameras.py`, `screen.py`, `success.py`, `generate_aruco_a4.py`; bỏ YOLO, điện thoại, xoay hình, tráo camera; gỡ điều khiển từ xa phone.py / remote.py). 93 test, chạy trên máy Windows
-(xem mục 11). Bộ slide đã dựng: `Project_IoT_ThuyetTrinh.pptx` (24 slide, 3 phần cho 4 người, `build_slides.py`).
+(xem mục 11). Bộ slide đã dựng: `Project_IoT_ThuyetTrinh.pptx` (25 slide, 3 phần cho 4 người, `build_slides.py`).
 
 Kiểm lại bằng máy sau mỗi lần sửa mã: `.venv/bin/python -B slides/tools/check_facts.py` (so các hằng số ở mục 17 và mọi dẫn `file:dòng` trong các file `.md` với mã hiện tại).
 

@@ -1,6 +1,6 @@
 # 00 · Đọc trước
 
-Bộ slide thuyết trình đề tài: `Project_IoT_ThuyetTrinh.pptx` (+ `.pdf`), **24 slide**, 3 phần cho 4 người:
+Bộ slide thuyết trình đề tài: `Project_IoT_ThuyetTrinh.pptx` (+ `.pdf`), **25 slide**, 3 phần cho 4 người:
 01 linh kiện → 02 computer vision & hỗ trợ gắp (Nguyễn Anh Dương, Phạm Trương Vũ) → 03 code điều khiển. Chữ trên slide ngắn; lời nói,
 "Nếu được hỏi" và "Nguồn" nằm trong ghi chú của từng slide.
 

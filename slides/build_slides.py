@@ -1473,11 +1473,50 @@ Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 8, 9, 10, 13; cameras.py:1-6,26-46; 
 
 
 # ==============================================================================
-# Kết luận + hỏi đáp
+# Kết luận (đoạn văn: nhóm học được gì)
+# ==============================================================================
+CONCLUSION = (
+    "Qua đề tài này, nhóm hiểu rõ hơn cách thị giác máy tính xác định vị trí vật trong thế giới thật: dùng tờ A4 in mã ArUco "
+    "làm hệ tọa độ, đổi pixel sang xăng-ti-mét bằng homography và tách vật theo màu. Nhóm cũng nắm được cách tính góc cho "
+    "cánh tay 4 bậc tự do bằng động học ngược, và cách Arduino Uno, mạch PCA9685 và servo MG996R phối hợp với nhau. "
+    "Khi ghép các phần lại, nhóm học được cách tìm và sửa lỗi tích hợp như thứ tự camera thay đổi hay Arduino tự khởi động "
+    "lại, cách hiệu chỉnh mô hình từ số đo thật và cách kiểm tra mã bằng test tự động. Đề tài là nền tảng để nhóm phát triển "
+    "các hệ thống nhúng và IoT phức tạp hơn, như điều khiển vòng kín bằng camera."
+)
+
+
+def slide_conclusion(prs, n):
+    s = new_slide(prs)
+    header(s, "Đồ án IoT · Nhóm 3", "Kết luận")
+    box(s, M, 1.95, CW, 4.55, fill=CARD, edge=LINE)
+    box(s, M, 1.95, 0.08, 4.55, fill=TEAL)
+    size = 21
+    while size > 16 and n_lines(CONCLUSION, size, CW - 0.9) * size * 1.32 / 72 > 4.0:
+        size -= 0.5
+    text(s, M + 0.5, 2.2, CW - 0.9, 4.1, CONCLUSION, size, INK, spacing=1.32, anchor=MIDDLE)
+    text(s, M, 6.68, CW, 0.3, "Hệ thống hỗ trợ gắp vật cho cánh tay robot bằng computer vision", 11, MUTED, align=CENTER)
+    footer(s, n)
+    notes(s, """
+Để kết luận, em xin nói về những gì nhóm học được qua đề tài.
+
+Về thị giác máy tính, nhóm hiểu cách xác định vị trí vật trong thế giới thật: tờ A4 in bốn mã ArUco làm hệ tọa độ chung, homography đổi pixel sang xăng-ti-mét, và tách vật theo màu. Về điều khiển, nhóm nắm được cách tính góc cho cánh tay bốn bậc tự do bằng động học ngược, và cách Arduino Uno, mạch PCA9685 và servo MG996R phối hợp với nhau.
+
+Khi ghép các phần lại, nhóm gặp những lỗi chỉ xuất hiện khi chạy cả hệ thống: thứ tự camera trên macOS thay đổi giữa các lần chạy, và Arduino tự khởi động lại khi cổng USB được mở lại. Nhóm cũng học cách hiệu chỉnh mô hình cánh tay từ số đo thật, và kiểm tra mã bằng test tự động không cần phần cứng.
+
+Đề tài là nền tảng để nhóm phát triển các hệ thống nhúng và IoT phức tạp hơn, ví dụ dùng camera đo vị trí đầu kẹp để điều khiển vòng kín.
+
+Nếu được hỏi: phần khó nhất là gì? Làm cho mô hình hình học khớp với cánh tay thật: mô hình mặc định lệch 3,5 đến 5,9 cm, sau hiệu chỉnh từ 10 mẫu còn sai số khớp 8,5 mm.
+
+Nguồn: 05_SO_LIEU_VA_NGUON.md mục 2, 8, 10, 11; README.md.
+""")
+
+
+# ==============================================================================
+# Tóm tắt + cảm ơn + hỏi đáp (slide cuối)
 # ==============================================================================
 def slide_summary(prs, n):
     s = new_slide(prs)
-    header(s, "Đồ án IoT · Nhóm 3", "Kết luận")
+    header(s, "Đồ án IoT · Nhóm 3", "Tóm tắt và hỏi đáp")
     lw = 6.95
     rows = [("Vị trí vật theo cm", "Tờ A4 in 4 mã ArUco là hệ tọa độ chung cho hai camera; tách màu tìm vật, bù thị sai"),
             ("Bấm phím nào, mấy lần", "Động học ngược tính góc 3 servo; mô hình hiệu chỉnh từ 10 mẫu, sai số khớp 8,5 mm"),
@@ -1503,7 +1542,7 @@ def slide_summary(prs, n):
     text(s, M, 6.42, CW, 0.28, "github.com/DuongNAD/Project_IoT", 11, TEAL, font=MONO, align=CENTER)
     footer(s, n)
     notes(s, """
-Để kết luận, hệ thống của nhóm trả lời ba câu hỏi khi điều khiển cánh tay bằng bàn phím.
+Tóm tắt lại, hệ thống của nhóm trả lời ba câu hỏi khi điều khiển cánh tay bằng bàn phím.
 
 Một: vật ở đâu. Tờ A4 in bốn mã ArUco là hệ tọa độ chung cho hai camera; chương trình tách màu để tìm vật và bù thị sai, cho vị trí theo xăng-ti-mét. Hai: bấm phím nào, mấy lần. Động học ngược tính góc ba servo; mô hình cánh tay được hiệu chỉnh từ 10 mẫu, sai số khớp 8,5 mm. Ba: đã tới đúng góc chưa. Ba servo lệch không quá 2 độ và giữ 1 giây thì báo XONG; XONG nghĩa là góc đã ra lệnh tới góc gợi ý, không có nghĩa là đã gắp được vật.
 
@@ -1541,6 +1580,7 @@ ORDER = [  # (khóa, hàm dựng, người nói: None = cả nhóm)
     ("ik", slide_ik, "ctrl"),
     ("screen", slide_screen, "ctrl"),
     ("calib", slide_calib, "ctrl"),
+    ("conclusion", slide_conclusion, None),
     ("summary", slide_summary, None),
 ]
 TOTAL = len(ORDER)
