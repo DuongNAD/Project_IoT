@@ -18,6 +18,8 @@ def test_following_the_on_screen_commands_ends_with_done_and_one_counted_success
     app = make_app((top_path, side_path, None))
     try:
         assert wait_until(app, lambda: app.control.objects)
+        assert not app.render()[1].found        # Thấy vật nhưng chưa bấm R: chưa có lệnh
+        assert app.handle_key(ord("r"))          # Bấm R: chụp vị trí vật làm đích
         _, plan, result = app.render()
         assert plan.found and plan.reachable and result.state == "moving" and not result.done
         total = result.remaining
@@ -52,5 +54,9 @@ def test_following_the_on_screen_commands_ends_with_done_and_one_counted_success
 def test_the_two_parts_hand_over_the_same_plan(tmp_path):
     """Phần 2 chỉ đọc Plan của phần 1: cùng một Plan cho cùng một kết luận, không cần camera hay cổng USB."""
     import control as C
-    plan = C.Control(serial_enabled=False).update([{"name": "Vat mau", "x_cm": 20.0, "y_cm": 12.0, "w_mm": 35.0, "h_mm": 40.0, "px": (0, 0), "source": "color"}])
+    cup = [{"name": "Vat mau", "x_cm": 20.0, "y_cm": 12.0, "w_mm": 35.0, "h_mm": 40.0, "px": (0, 0), "source": "color"}]
+    ctl = C.Control(serial_enabled=False)
+    ctl.update(cup)
+    ctl.lock_target()  # Phím R
+    plan = ctl.update(cup)
     assert S.check(plan).state == S.check(plan).state == "moving" and S.check(plan).remaining == sum(m.steps for m in plan.moves if m.degrees > m.step)

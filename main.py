@@ -32,7 +32,7 @@ HELP_TEXT = """💡 Làm theo lệnh to ở giữa màn hình (bấm phím trên
    W / S                 : nâng / hạ vai, mỗi lần 2°          I / K : khuỷu lên / xuống, mỗi lần 2°
    H                     : về Home (180/90/90)                 X / Z : cho servo kẹp / cả 4 servo nghỉ (ngắt xung)
    J / L                 : mở / khép kẹp, mỗi lần 5° (kẹp không tính vào thành công)
-   R                     : chốt đích theo ảnh lúc bấm / bấm lần nữa để theo camera lại
+   R                     : chụp vị trí vật làm đích, tính góc cần tới một lần (vật bị dời thì bấm R lại)
    B                     : hiệu chỉnh đế robot (click vào trục xoay đế trên hình cam TREN)      U : dò lại 4 mã ArUco
    C                     : chụp ảnh gốc 2 camera vào captures/                                  Q : thoát"""
 
@@ -165,12 +165,12 @@ class App:
         print(f"📐 Đã hiệu chỉnh đế robot: ({bx:.1f}, {by:.1f}) cm trên tờ giấy, hướng {heading:.0f}° (đã lưu calibration.json)")
 
     # ------------------------------------------------------------------ phím
-    def toggle_lock(self):
-        """Phím R: chốt đích theo ảnh lúc bấm / bấm lần nữa để theo camera lại."""
-        state = self.control.toggle_lock()
-        print({"locked": "📌 Đã chốt đích theo ảnh lúc này: camera vẫn chạy nhưng góc cần tới không đổi (R lần nữa để bỏ chốt)",
-               "unlocked": "🎥 Bỏ chốt: góc cần tới lại theo camera liên tục",
-               "no_target": "⚠️ Chưa thấy vật nên chưa chốt được: đặt vật có màu lên tờ giấy rồi bấm R"}[state])
+    def lock_target(self):
+        """Phím R: chụp vị trí vật gần đế nhất làm đích, tính góc cần tới một lần (vật bị dời thì bấm R lại)."""
+        state = self.control.lock_target()
+        print({"locked": "📌 Đã chụp đích: góc cần tới tính một lần theo vị trí vật lúc này, không theo camera nữa",
+               "no_target": "⚠️ Camera chưa thấy vật nên chưa chụp được đích: đặt vật có màu lên tờ giấy rồi bấm R"}[state])
+        return state
 
     def handle_key(self, key):
         """Xử lý phím; trả về False khi cần thoát."""
@@ -184,7 +184,7 @@ class App:
         elif self.control.press(chr(key & 0xFF)):
             pass  # Phím điều khiển servo
         elif key in (ord("r"), ord("R")):
-            self.toggle_lock()
+            self.lock_target()
         elif key in (ord("b"), ord("B")):
             self.calib_base = not self.calib_base
             print("📐 Click vào trục xoay đế robot trên hình cam TREN..." if self.calib_base else "↩️ Đã hủy hiệu chỉnh đế robot")
@@ -200,13 +200,21 @@ class App:
     def run(self):
         print("✅ Đang mở màn hình: 2 camera + lệnh bấm phím (phần 1) + kết luận đã tới chưa (phần 2)...")
         print(HELP_TEXT)
+        from share import start as start_share  # Chỉ khi mở cửa sổ: --headless và test không chia sẻ màn hình
+        share = start_share()  # Máy Dell xem màn hình này qua Wi-Fi (remote.py), phím đi qua Bluetooth HC-05; R bấm trên Mac
         cv2.namedWindow(SCREEN_WINDOW)
         cv2.setMouseCallback(SCREEN_WINDOW, self.on_mouse, SCREEN_WINDOW)
-        while True:
-            screen, _, _ = self.render()
-            cv2.imshow(SCREEN_WINDOW, screen)
-            if not self.handle_key(cv2.waitKey(5) & 0xFF):
-                break
+        try:
+            while True:
+                screen, _, _ = self.render()
+                cv2.imshow(SCREEN_WINDOW, screen)
+                if share is not None:
+                    share.update(screen)
+                if not self.handle_key(cv2.waitKey(5) & 0xFF):
+                    break
+        finally:
+            if share is not None:
+                share.close()
 
     def summary(self, plan, result):
         """Tóm tắt trạng thái hệ thống (dùng cho --headless và khi cần gỡ lỗi)."""
@@ -241,6 +249,8 @@ class App:
         loops = 0
         while time.time() < end:
             screen, plan, result = self.render()
+            if not plan.found and self.control.objects:  # Không ai bấm R: tự chụp đích ở khung đầu tiên thấy vật
+                self.lock_target()
             loops += 1
             time.sleep(0.04)
         out = self.args.dump_dir or os.path.join(CAPTURE_DIR, "headless")

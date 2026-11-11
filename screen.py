@@ -20,7 +20,7 @@ WHITE, GRAY, GREEN, ORANGE = (255, 255, 255), (170, 170, 170), (80, 220, 80), (0
 
 MESSAGES = {  # Trạng thái của success.py -> lời nhắn ở ô 1 (trạng thái "moving" thì hiện lệnh bấm phím)
     "done": "Khong can bam them",
-    "no_target": "Chua thay vat: dat vat co mau len to A4",
+    "no_target": "Chua co dich: dat vat co mau len to A4 roi bam R",
     "unreachable": "Vat ngoai tam voi: dat vat gan de robot hon",
     "relaxed": "Tay dang nghi: bam W A S D I K H de cap xung lai",
 }
@@ -69,11 +69,9 @@ def build_screen(view_left, view_right, plan, result, titles=("CAM NGANG", "CAM 
         if result.state == "moving":
             put(img, f"con {result.remaining} lan bam", x, y + 100)
     put(img, f"Thanh cong: {result.count} lan", x, y + 150)
-    put(img, "DICH: DA CHOT (R = bo chot)" if plan.locked else "DICH: THEO CAMERA (R = chot)", x, y + 185, 0.6,
-        ORANGE if plan.locked else GRAY, 2 if plan.locked else 1)
 
     # Chân trang: USB, phím tắt, cảnh báo (VD: Arduino vừa reset)
     usb = "USB Arduino: DA KET NOI" if plan.usb_ok else "USB Arduino: MO PHONG (chua ket noi)"
-    put(img, f"{usb}    [R] chot dich  [H] ve Home  [U] do lai ma  [C] chup anh  [Q] thoat", 20, SCREEN_H - 40, 0.55, GRAY, 1)
+    put(img, f"{usb}    [R] chup dich  [H] ve Home  [U] do lai ma  [C] chup anh  [Q] thoat", 20, SCREEN_H - 40, 0.55, GRAY, 1)
     put(img, plan.banner, 20, SCREEN_H - 14, 0.6, ORANGE)
     return img

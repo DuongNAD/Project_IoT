@@ -69,6 +69,7 @@ Tự hỏi: vì sao nắp cốc nhìn từ trên bị lệch ra xa tâm ảnh? V
 |---|---|
 | `vision.py:130-163` (`Vision.process_frame`) | ghép bước 3 + 4 cho từng camera; chỉ cam TRÊN mới tìm vật; vẽ mã, lưới 5 cm, vòng xanh quanh vật, dòng `Luoi A4: thay n/4 ma ArUco` hoặc `KHONG THAY TO A4` |
 | `vision.py:112-127` | lưới 5 cm (nhìn là biết lưới có bám tờ giấy không), dấu `DICH` và `KEP` |
+| `control.py:539-550` (`lock_target`, phím `R`) | ô "Chọn mục tiêu" trên slide 13: bấm `R` thì vật gần đế nhất trong ảnh lúc đó thành đích, góc cần tới tính **một lần**, không theo camera nữa; vật bị dời thì bấm `R` lại |
 
 ## Test của phần bạn
 

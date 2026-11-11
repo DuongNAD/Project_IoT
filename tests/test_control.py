@@ -1,8 +1,7 @@
-"""NHÓM 1 - ĐIỀU KHIỂN: hình học cánh tay (FK / IK), góc servo bấm tới được, lệnh bấm phím, chọn vật mục tiêu, phím và cổng USB giả lập."""
+"""NHÓM 1 - ĐIỀU KHIỂN: hình học cánh tay (FK / IK), góc servo bấm tới được, lệnh bấm phím, phím R chụp đích, phím và cổng USB giả lập."""
 
 import math
 
-import numpy as np
 import pytest
 
 import control as C
@@ -115,15 +114,28 @@ def test_x_and_z_keys_relax_the_gripper_and_the_whole_arm_in_simulation():
     assert not link.get_arm_relaxed()
 
 
-# ----------------------------------------------------------------------------- chọn vật + lập kế hoạch
-def test_no_object_means_no_target_and_no_moves(ctl):
-    plan = ctl.update([])
-    assert not plan.found and plan.target_cm is None and plan.goal == plan.now[:3]
-    assert all(m.steps == 0 for m in plan.moves)
+# ----------------------------------------------------------------------------- phím R chụp đích + lập kế hoạch
+def aim(ctl, *objects):
+    """Camera thấy các vật rồi người bấm R: đích là vật gần đế nhất lúc bấm."""
+    ctl.update(list(objects))
+    assert ctl.lock_target() == "locked"
+    return ctl.update(list(objects))
+
+
+def test_no_target_and_no_moves_until_r_is_pressed(ctl):
+    for objects in ([], [obj(20.0, 12.0)]):  # Thấy vật mà chưa bấm R thì cũng chưa có lệnh
+        plan = ctl.update(objects)
+        assert not plan.found and plan.target_cm is None and plan.goal == plan.now[:3]
+        assert all(m.steps == 0 for m in plan.moves)
+
+
+def test_r_without_any_object_in_view_gives_no_target(ctl):
+    ctl.update([])
+    assert ctl.lock_target() == "no_target" and not ctl.update([]).found
 
 
 def test_plan_for_a_cup_gives_angles_that_point_at_it(ctl):
-    plan = ctl.update([obj(20.0, 12.0)])
+    plan = aim(ctl, obj(20.0, 12.0))
     assert plan.found and plan.reachable and plan.target_cm == pytest.approx((20.0, 12.0))
     # FK của góc cần tới phải trùng vật (sai số do làm tròn về bước 2° còn dưới 2 cm)
     x_cm, y_cm, z_mm = C.predict_tip(plan.goal)
@@ -132,12 +144,13 @@ def test_plan_for_a_cup_gives_angles_that_point_at_it(ctl):
 
 
 def test_an_object_too_far_is_reported_as_out_of_reach(ctl):
-    plan = ctl.update([obj(14.85, 28.0)])  # Cách đế ~35 cm
+    plan = aim(ctl, obj(14.85, 28.0))  # Cách đế ~35 cm
     assert plan.found and not plan.reachable and plan.move_closer_mm > 30
 
 
 def test_following_the_moves_with_the_keys_reaches_the_goal(ctl):
-    plan = ctl.update([obj(20.0, 12.0)])
+    plan = aim(ctl, obj(20.0, 12.0))
+    assert sum(m.steps for m in plan.moves) > 0
     for m in plan.moves:
         for _ in range(m.steps):
             assert ctl.press(m.key)
@@ -146,60 +159,37 @@ def test_following_the_moves_with_the_keys_reaches_the_goal(ctl):
     assert all(m.degrees == 0 for m in after.moves)
 
 
-def test_nearest_object_to_the_base_is_chosen(ctl):
+def test_r_takes_the_object_nearest_to_the_base(ctl):
     near, far = obj(15.0, 5.0, "gan"), obj(25.0, 15.0, "xa")
-    plan = ctl.update([far, near])
+    plan = aim(ctl, far, near)
     assert plan.target_name == "gan" and plan.n_objects == 2
-    for _ in range(3):  # Chọn xong thì vật đó được giữ qua các khung sau, không nhảy sang vật kia
-        assert ctl.update([far, near]).target_name == "gan"
 
 
-def test_selected_object_does_not_flip_between_two_at_similar_distance(ctl):
-    a, b = obj(18.0, 6.0, "a"), obj(12.0, 6.2, "b")
-    first = ctl.update([a, b]).target_name
-    for jitter in (0.1, -0.1, 0.2, -0.2, 0.15):
-        a2, b2 = obj(18.0 + jitter, 6.0 - jitter, "a"), obj(12.0 - jitter, 6.2 + jitter, "b")
-        assert ctl.update([a2, b2]).target_name == first
+def test_the_target_stays_where_r_was_pressed_until_r_is_pressed_again(ctl):
+    first = aim(ctl, obj(20.0, 12.0))
+    moved = ctl.update([obj(10.0, 6.0)])  # Vật bị dời: đích vẫn là chỗ lúc bấm R
+    hidden = ctl.update([])               # Càng kẹp che mất vật: đích vẫn còn
+    for plan in (moved, hidden):
+        assert plan.found and plan.target_cm == pytest.approx((20.0, 12.0)) and plan.goal == first.goal
+    again = aim(ctl, obj(10.0, 6.0))      # Bấm R lại: chụp vị trí mới
+    assert again.target_cm == pytest.approx((10.0, 6.0)) and again.goal != first.goal
 
 
-def test_position_is_averaged_over_recent_frames(ctl):
-    xs = [20.0, 20.4, 19.6, 20.2, 19.8]
-    for x in xs:
-        plan = ctl.update([obj(x, 12.0)])
-    assert plan.target_cm[0] == pytest.approx(np.mean(xs))
+def test_the_goal_is_computed_once_when_r_is_pressed(ctl, monkeypatch):
+    calls = []
+    real_ik = C.ik_4dof_joint
+    monkeypatch.setattr(C, "ik_4dof_joint", lambda *a, **k: calls.append(1) or real_ik(*a, **k))
+    aim(ctl, obj(20.0, 12.0))
+    for _ in range(5):
+        ctl.update([obj(20.0, 12.0)])
+    assert len(calls) == 1  # Mỗi khung chỉ so góc servo với góc đích, không tính lại IK
 
 
-def test_target_is_remembered_when_the_arm_hides_the_object_then_forgotten(ctl):
-    ctl.update([obj(20.0, 12.0)], now=100.0)
-    hidden = ctl.update([], now=130.0)  # Càng kẹp che mất vật: vẫn nhớ vị trí cũ
-    assert hidden.found and hidden.target_cm == pytest.approx((20.0, 12.0))
-    gone = ctl.update([], now=100.0 + C.TARGET_MEMORY_S + 1)
-    assert not gone.found
-
-
-def test_an_object_that_was_moved_replaces_the_old_target_at_once(ctl):
-    ctl.update([obj(20.0, 12.0)], now=0.0)
-    moved = ctl.update([obj(10.0, 6.0)], now=1.0)  # Dời hơn SELECT_TRACK_CM: không giữ vị trí cũ
-    assert moved.target_cm == pytest.approx((10.0, 6.0))
-
-
-def test_r_locks_the_target_until_pressed_again(ctl):
-    assert ctl.toggle_lock(now=0.0) == "no_target"  # Chưa thấy vật: không chốt được
-    ctl.update([obj(20.0, 12.0)], now=0.0)
-    assert ctl.toggle_lock(now=0.0) == "locked"
-    held = ctl.update([obj(10.0, 6.0)], now=1.0)  # Vật dời đi nhưng đích vẫn là chỗ lúc bấm R
-    assert held.locked and held.target_cm == pytest.approx((20.0, 12.0))
-    still = ctl.update([], now=C.TARGET_MEMORY_S + 10)  # Chốt thì không quên theo thời gian
-    assert still.found and still.target_cm == pytest.approx((20.0, 12.0))
-    assert ctl.toggle_lock() == "unlocked"
-    live = ctl.update([obj(10.0, 6.0)])
-    assert not live.locked and live.target_cm == pytest.approx((10.0, 6.0))
-
-
-def test_base_pose_changes_what_the_robot_must_do(ctl):
-    before = ctl.update([obj(20.0, 12.0)])
-    ctl.set_base_pose(20.0, -7.5, 90.0)  # Đế dịch sang phải 5 cm: vật nằm lệch về một bên khác
-    after = ctl.update([obj(20.0, 12.0)])
+def test_moving_the_base_drops_the_old_target(ctl):
+    before = aim(ctl, obj(20.0, 12.0))
+    ctl.set_base_pose(20.0, -7.5, 90.0)  # Đế dịch sang phải 5 cm: góc đích cũ không còn đúng
+    assert not ctl.update([obj(20.0, 12.0)]).found  # Phải bấm R lại
+    after = aim(ctl, obj(20.0, 12.0))
     assert after.goal[0] != before.goal[0]
 
 
@@ -210,7 +200,7 @@ def test_press_sends_only_control_keys(ctl):
 
 
 def test_the_gripper_keys_do_not_change_the_arm_plan(ctl):
-    base = ctl.update([obj(20.0, 12.0)])
+    base = aim(ctl, obj(20.0, 12.0))
     ctl.press("l")
     after = ctl.update([obj(20.0, 12.0)])
     assert after.now[3] == 100 and [m.steps for m in after.moves] == [m.steps for m in base.moves]

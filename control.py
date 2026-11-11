@@ -7,7 +7,7 @@ NHÓM 1 - ĐIỀU KHIỂN: vật ở đâu -> servo phải quay tới góc nào 
 Phần này lo toàn bộ việc ĐIỀU KHIỂN cánh tay:
   1. Hình học cánh tay: động học thuận / ngược (FK / IK), đổi góc khớp <-> góc servo Arduino, đổi tọa độ tờ giấy <-> hệ robot.
   2. Cổng USB tới Arduino: gửi phím (W A S D I K J L H X Z), đọc góc servo thật mà firmware báo về.
-  3. Chọn vật mục tiêu trong các vật camera thấy và tính ra danh sách lệnh bấm phím (Move).
+  3. Phím R chụp vị trí vật gần đế nhất làm đích và tính góc cần tới MỘT lần; mỗi khung so góc servo hiện tại với góc đó ra lệnh bấm phím (Move).
 Kết quả mỗi khung hình là một Plan, chuyển cho NHÓM 2 (success.py) để kết luận "đã tới chưa".
 Phần nhìn (camera, ArUco, tìm vật) nằm ở vision.py; phần vẽ màn hình ở screen.py; main.py nối các phần lại.
 """
@@ -19,10 +19,7 @@ import os
 import re
 import threading
 import time
-from collections import deque
 from dataclasses import dataclass, field
-
-import numpy as np
 
 try:
     import serial
@@ -65,8 +62,6 @@ SERVO_ANCHORS = {"base": 90, "shoulder": 90, "elbow": 90, "grip": 95}  # Neo lư
 GRIP_OPEN_DEG = 95
 
 GRASP_Z_MM = 25.0        # Độ cao điểm kẹp mục tiêu (mm): nửa thân cốc, đúng độ cao dùng khi hiệu chỉnh hình học bằng các lần ôm
-TARGET_MEMORY_S = 120.0  # Càng kẹp che mất vật (không còn thấy) thì nhớ vị trí vật vừa thấy trong ngần này giây
-SELECT_TRACK_CM = 4.0    # Vật đang chọn được nhận lại ở khung sau nếu tâm dời không quá ngần này (cm)
 
 
 # ==============================================================================
@@ -510,14 +505,14 @@ class ArduinoSerialLink:
 
 
 # ==============================================================================
-# 5. ĐIỀU KHIỂN: chọn vật mục tiêu rồi lập kế hoạch bấm phím
+# 5. ĐIỀU KHIỂN: phím R chụp đích rồi lập kế hoạch bấm phím
 # ==============================================================================
 @dataclass
 class Plan:
     """Kết quả của NHÓM 1 mỗi khung hình, chuyển sang NHÓM 2 (success.py)."""
-    found: bool                 # Có vật mục tiêu không
-    target_name: str            # Tên vật mục tiêu
-    target_cm: tuple            # (x, y) vật trên tờ giấy (cm), None khi chưa thấy vật
+    found: bool                 # Đã có đích chưa (bấm R lúc camera thấy vật)
+    target_name: str            # Tên vật làm đích
+    target_cm: tuple            # (x, y) vật trên tờ giấy (cm) lúc bấm R, None khi chưa có đích
     reachable: bool             # Vật nằm trong tầm với của cánh tay
     move_closer_mm: float       # Nếu ngoài tầm: cần dời vật lại gần đế thêm bao nhiêu mm
     relaxed: bool               # Cánh tay đang nghỉ (đã ngắt xung bằng phím Z)
@@ -528,86 +523,55 @@ class Plan:
     port: str = None
     n_objects: int = 0
     banner: str = ""
-    locked: bool = False        # Đích đã chốt bằng phím R (không theo camera nữa cho tới khi bấm R lần nữa)
 
 
 class Control:
-    """Gom cổng USB + chọn vật + tính góc cần tới. Gọi update(objects) mỗi khung hình, press(key) khi có phím."""
+    """Gom cổng USB + đích chụp bằng phím R + so góc servo với góc đích. Gọi update(objects) mỗi khung hình, press(key) khi có phím."""
 
     def __init__(self, serial_enabled=True):
         self.link = ArduinoSerialLink(baud=9600, enabled=serial_enabled)
-        self.objects = []            # Các vật camera đang thấy, đã sắp theo khoảng cách tới đế
-        self.selected = None         # Vật đang chọn lần cuối thấy rõ: {"x_cm", "y_cm", "name", "ts"}
-        self.history = deque(maxlen=10)  # Trung bình trượt 10 khung vị trí vật cho khỏi nhảy theo nhiễu
-        self.locked = None           # Vị trí vật chốt bằng phím R; None = theo dõi liên tục theo camera
+        self.objects = []    # Các vật camera đang thấy, đã sắp theo khoảng cách tới đế
+        self.target = None   # Đích chụp bằng phím R (vị trí vật + góc cần tới tính một lần); None = chưa chụp
         self.seen_resets = 0
         self.banner = ""
 
-    # --- chọn vật mục tiêu -------------------------------------------------
-    def _pick(self, objects):
-        """Chỉ số vật cần chọn: vật gần vị trí vật chọn trước đó nhất (trong SELECT_TRACK_CM), không có thì vật gần đế nhất."""
-        if self.selected is not None:
-            dists = [math.hypot(o["x_cm"] - self.selected["x_cm"], o["y_cm"] - self.selected["y_cm"]) for o in objects]
-            best = int(np.argmin(dists))
-            if dists[best] <= SELECT_TRACK_CM:
-                return best
-        return 0
-
-    def _track(self, objects, now):
-        """Cập nhật vật đang chọn từ các vật mới thấy. Không thấy vật nào (càng kẹp che mất) thì giữ vật cũ TARGET_MEMORY_S giây."""
-        base = (ARM_CONFIG["base_x_cm"], ARM_CONFIG["base_y_cm"])
-        self.objects = sorted(objects, key=lambda o: math.hypot(o["x_cm"] - base[0], o["y_cm"] - base[1]))
+    # --- đích: phím R ----------------------------------------------------------
+    def lock_target(self):
+        """Phím R: lấy vật gần đế nhất trong ảnh lúc bấm làm đích và tính góc cần tới MỘT lần (không theo camera nữa).
+        Vật bị dời thì bấm R lại. Trả về "locked" hoặc "no_target" (camera chưa thấy vật nào)."""
         if not self.objects:
-            return
-        idx = self._pick(self.objects)
-        obj = self.objects[idx]
-        moved = self.selected is None or math.hypot(obj["x_cm"] - self.selected["x_cm"], obj["y_cm"] - self.selected["y_cm"]) > SELECT_TRACK_CM
-        if moved:
-            self.history.clear()  # Đổi sang vật khác / vật bị dời đi: bỏ trung bình của vị trí cũ
-        self.history.append((obj["x_cm"], obj["y_cm"]))
-        mean = np.mean(self.history, axis=0)
-        self.selected = {"x_cm": float(mean[0]), "y_cm": float(mean[1]), "name": obj["name"], "ts": now}
-
-    def toggle_lock(self, now=None):
-        """Phím R: chốt vị trí vật đang thấy làm đích cố định / bỏ chốt để theo camera lại.
-        Trả về "locked", "unlocked" hoặc "no_target" (chưa thấy vật nên chưa chốt được)."""
-        now = time.time() if now is None else now
-        if self.locked is not None:
-            self.locked = None
-            return "unlocked"
-        if self.selected is None or now - self.selected["ts"] > TARGET_MEMORY_S:
             return "no_target"
-        self.locked = dict(self.selected)
+        obj = self.objects[0]
+        rx, ry = table_cm_to_robot_mm(obj["x_cm"], obj["y_cm"])
+        ik = ik_4dof_joint(rx, ry, GRASP_Z_MM)
+        self.target = {"name": obj["name"], "cm": (obj["x_cm"], obj["y_cm"]), "reachable": bool(ik["reachable"]),
+                       "move_closer_mm": float(ik["move_closer_mm"]),
+                       "goal": joint_to_servo(ik["theta1_deg"], ik["theta2_deg"], ik["theta3_deg"])}
         return "locked"
 
     def set_base_pose(self, x_cm, y_cm, heading_deg):
-        """Đặt lại vị trí trục xoay đế robot trên tờ giấy (từ hiệu chỉnh bằng chuột hoặc file calibration.json)."""
+        """Đặt lại vị trí trục xoay đế robot trên tờ giấy (hiệu chỉnh bằng chuột). Góc đích cũ không còn đúng: bỏ, bấm R lại."""
         ARM_CONFIG["base_x_cm"], ARM_CONFIG["base_y_cm"], ARM_CONFIG["base_heading_deg"] = float(x_cm), float(y_cm), float(heading_deg)
+        self.target = None
 
     # --- kế hoạch ----------------------------------------------------------
-    def update(self, objects, now=None):
-        """Nhận các vật camera thấy (x_cm, y_cm, name) và trả về Plan: góc cần tới và việc cần bấm."""
-        now = time.time() if now is None else now
-        self._track(objects, now)
+    def update(self, objects):
+        """Nhận các vật camera thấy (x_cm, y_cm, name) và trả về Plan: góc servo hiện tại so với góc đích đã chụp bằng R."""
+        base_xy = (ARM_CONFIG["base_x_cm"], ARM_CONFIG["base_y_cm"])
+        self.objects = sorted(objects, key=lambda o: math.hypot(o["x_cm"] - base_xy[0], o["y_cm"] - base_xy[1]))
         servo_now, usb_ok, port, _ = self.link.get_state()
         resets = self.link.get_reset_count()
         if resets != self.seen_resets:  # Cánh tay vừa giật về Home 180/90/90/95 mà người dùng không bấm gì: báo để kiểm tra trước khi bấm tiếp
             self.seen_resets = resets
-            self.banner = "ARDUINO VUA RESET: canh tay giat ve 90/90/90, kiem tra truoc khi bam tiep"
-        if self.locked is not None:
-            target = self.locked  # Đích đã chốt bằng R: camera vẫn chạy nhưng không đổi đích
-        else:
-            target = self.selected if self.selected is not None and now - self.selected["ts"] <= TARGET_MEMORY_S else None
+            self.banner = "ARDUINO VUA RESET: canh tay giat ve Home 180/90/90, kiem tra truoc khi bam tiep"
         base = dict(now=list(servo_now), usb_ok=usb_ok, port=port, n_objects=len(self.objects),
-                    relaxed=self.link.get_arm_relaxed(), banner=self.banner, locked=self.locked is not None)
-        if target is None:
+                    relaxed=self.link.get_arm_relaxed(), banner=self.banner)
+        t = self.target
+        if t is None:
             return Plan(found=False, target_name="", target_cm=None, reachable=True, move_closer_mm=0.0, goal=list(servo_now[:3]),
                         moves=plan_moves(servo_now, servo_now), **base)
-        rx, ry = table_cm_to_robot_mm(target["x_cm"], target["y_cm"])
-        ik = ik_4dof_joint(rx, ry, GRASP_Z_MM)
-        goal = joint_to_servo(ik["theta1_deg"], ik["theta2_deg"], ik["theta3_deg"])
-        return Plan(found=True, target_name=target["name"], target_cm=(target["x_cm"], target["y_cm"]), reachable=bool(ik["reachable"]),
-                    move_closer_mm=float(ik["move_closer_mm"]), goal=goal, moves=plan_moves(servo_now, goal), **base)
+        return Plan(found=True, target_name=t["name"], target_cm=t["cm"], reachable=t["reachable"], move_closer_mm=t["move_closer_mm"],
+                    goal=list(t["goal"]), moves=plan_moves(servo_now, t["goal"]), **base)
 
     def press(self, key):
         """Gửi một phím điều khiển xuống Arduino (hoặc cập nhật mô phỏng nếu chưa nối USB). Trả về True nếu là phím điều khiển."""

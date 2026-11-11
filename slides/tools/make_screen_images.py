@@ -124,11 +124,11 @@ def settle(app, seconds: float):
 
 
 def wait_for_target(app, timeout: float = 30.0):
-    """Chạy tới khi app thấy cốc, rồi thêm SETTLE_S giây cho trung bình trượt vị trí vật (control.py) ổn định."""
+    """Chạy tới khi app thấy cốc, MÔ PHỎNG người bấm R (chụp đích), rồi chạy thêm SETTLE_S giây."""
     end = time.time() + timeout
     while time.time() < end:
         screen, plan, result = app.render()
-        if plan.found and app.control.objects:
+        if app.control.objects and app.lock_target() == "locked":
             return settle(app, SETTLE_S)
         time.sleep(0.04)
     raise SystemExit("App không thấy cốc trong ảnh: kiểm tra ảnh đầu vào và lưới ArUco.")

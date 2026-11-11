@@ -17,8 +17,9 @@ Phân công lấy từ bảng `TEAM` và slide "Thành viên và phân công" tr
 |---|---|---|
 | 1 | `README.md` đầu trang + mục 3 "Code chia thế nào" | cả hệ thống làm gì; vì sao chia thành nhóm 1 (điều khiển) và nhóm 2 (success) |
 | 2 | `main.py:132-144` (hàm `render`) | **mỗi khung hình chỉ có ba dòng**: `plan = control.update(...)` → `result = success.update(plan)` → `build_screen(...)` |
-| 3 | `control.py:515-531` (lớp `Plan`) và `control.py:221-233` (lớp `Move`) | "hợp đồng" giữa hai nhóm: vision đưa vật cho control, control đưa `Plan` cho success. Chỉ cần đọc các trường, **không** cần hiểu IK |
+| 3 | `control.py:510-525` (lớp `Plan`) và `control.py:216-228` (lớp `Move`) | "hợp đồng" giữa hai nhóm: vision đưa vật cho control, control đưa `Plan` cho success. Chỉ cần đọc các trường, **không** cần hiểu IK |
 | 4 | `slides/05_SO_LIEU_VA_NGUON.md` mục 14 "CẤM NÓI" | những câu không được nói khi thuyết trình (ví dụ "robot tự động gắp", "gắp thành công") |
+| 4b | `README.md` mục 2, đoạn "Điều khiển từ xa" | buổi demo: Mac làm hết phần tính và cắm USB Arduino; máy Dell chỉ xem màn hình qua Wi-Fi và gửi phím qua Bluetooth HC-05; `R` bấm trên Mac |
 | 5 | Lướt `slides/Phan2_LuongDuLieu_Code.pdf` (9 trang; ảnh từng trang ở `slides/preview_phan2/`) | 9 slide phần 2 đưa lên Canva: trang 1 mở phần, trang 2-7 của Dương, trang 8-9 của Vũ |
 
 Sơ đồ phải nhớ (vẽ lại được bằng tay là hiểu):

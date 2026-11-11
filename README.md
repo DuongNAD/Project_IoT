@@ -31,7 +31,7 @@ Kẹp không tính (nó chỉ cần đầu kẹp tới đúng chỗ của vật)
 
 | Thành phần | Ghi chú |
 |---|---|
-| Arduino Uno + PCA9685 (I2C 0x40) | kênh 0 = đế, 1 = vai, 2 = khuỷu, 3 = kẹp; HC-05 Bluetooth ở D2 / D3 (tùy chọn) |
+| Arduino Uno + PCA9685 (I2C 0x40) | kênh 0 = đế, 1 = vai, 2 = khuỷu, 3 = kẹp; HC-05 Bluetooth ở D2 / D3: nhận phím từ máy Dell (điều khiển từ xa, mục 2) |
 | 4 servo MG996R | nguồn riêng 5-6 V (nguồn tổ ong) cấp vào cổng xanh của PCA9685, **không** lấy từ cổng USB |
 | Cam TREN | OBSBOT Meet SE treo phía trên tờ giấy, nhìn xuống |
 | Cam NGANG | camera tích hợp của MacBook đặt thấp trước tờ giấy |
@@ -66,11 +66,35 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `J` / `L` | mở / khép kẹp, mỗi lần 5° (không tính vào thành công) |
 | `H` | đưa cả 4 servo về Home (180/90/90/95): đế quay hết sang **phải** để cánh tay không che vật ở cam TREN |
 | `X` / `Z` | cho servo kẹp / cả 4 servo nghỉ (ngắt xung PWM để nguội); `Z` cần firmware có phím Z, hạ đầu kẹp tựa xuống chỗ trống trước |
-| `R` | **chốt đích** theo ảnh lúc bấm (camera vẫn chạy, góc cần tới không đổi dù vật bị che hay xê dịch); bấm lần nữa để góc cần tới lại theo camera liên tục |
+| `R` | **chụp đích**: lấy vật gần đế nhất trong ảnh lúc bấm, tính góc cần tới **một lần** (không theo camera nữa, tay kẹp che hay đẩy lệch vật cũng không đổi đích); vật bị dời thì bấm `R` lại. Chưa bấm `R` thì chưa có lệnh |
 | `B` | hiệu chỉnh đế robot (mục 4), `ESC` để hủy |
 | `U` | quên vị trí 4 mã ArUco đã nhớ (sau khi dời camera hoặc tờ giấy) |
 | `C` | chụp ảnh gốc cả 2 camera vào `captures/` |
 | `Q` | thoát |
+
+### Điều khiển từ xa: máy Dell cách ~2 m (xem qua Wi-Fi, bấm phím qua Bluetooth)
+
+```
+                 USB: góc servo + nguồn
+   MAC (main.py) ─────────────────────── UNO ── HC-05
+   2 camera, vision, control, success              ▲
+     │                                             │ Bluetooth: phím a d w s i k j l h x z
+     └── Wi-Fi: ảnh màn hình (2 cam + lệnh + XONG) ──►  DELL (remote.py)
+```
+
+- **Mac** đặt cạnh cánh tay, **cắm USB vào Arduino** và làm toàn bộ phần tính: camera, vision, control, success. Sau mỗi phím Arduino báo góc servo
+  về Mac qua USB. Khi mở cửa sổ, `main.py` tự chia sẻ ảnh màn hình qua Wi-Fi (`share.py`, chỉ cho xem, không nhận lệnh) và in ra lệnh cho máy Dell.
+  Phím `R` (chụp đích) bấm trên bàn phím Mac.
+- **Dell** chạy `remote.py`: cửa sổ hiện màn hình của Mac; gõ `A D W S I K J L H X Z` thì phím đi qua Bluetooth tới HC-05 rồi Arduino.
+  `H` (Home) và `Z` (nghỉ hết) phải bấm 2 lần trong 2 giây. Thanh trên cùng báo Mac (Wi-Fi) và Bluetooth đã nối chưa; `Q` thoát.
+
+Chuẩn bị:
+1. Dell: ghép đôi HC-05 trong cài đặt Bluetooth (PIN thường là `1234` hoặc `0000`). Số cổng: Settings > Bluetooth & devices > Devices >
+   More Bluetooth settings > tab COM Ports, dòng **Outgoing** tên HC-05. Chỉ ghép đôi HC-05 với Dell: HC-05 nhận một kết nối mỗi lúc.
+2. Mac và Dell vào **cùng một Wi-Fi** (mạng trường chặn hai máy thấy nhau thì cả hai bắt điểm phát Wi-Fi của điện thoại).
+3. Mac: cắm USB Arduino, `uv run python main.py` (macOS hỏi cho Python nhận kết nối mạng thì bấm Cho phép), chép dòng
+   `python remote.py --mac http://<ip Mac>:8000/ --port COMx` nó in ra.
+4. Dell: chạy dòng đó, thay `COMx` bằng cổng ở bước 1.
 
 ## 3. Code chia thế nào
 
@@ -84,6 +108,8 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `cameras.py` | tìm camera theo tên, mỗi camera đọc trên một luồng riêng, mất tín hiệu thì tự mở lại |
 | `calibration.py` | lưu / nạp hiệu chỉnh vào `calibration.json` |
 | `arm_fit.py` | công cụ khớp hình học cánh tay từ các lần "ôm" thật (Levenberg-Marquardt, chỉ dùng numpy) |
+| `share.py` | chia sẻ ảnh màn hình của Mac qua Wi-Fi cho máy Dell (`/screen.jpg`, chỉ cho xem) |
+| `remote.py` | app máy Dell: xem màn hình Mac qua Wi-Fi, gửi phím qua Bluetooth HC-05 (chép riêng tệp này sang Dell cũng chạy) |
 | `generate_aruco_a4.py` | tạo tờ A4 4 mã ArUco để in (`aruco_A4_clean.pdf`) |
 | `robot_arm_4dof/` | firmware Arduino và `flash.sh` |
 | `tests/` | bộ test, mỗi nhóm một tệp (`test_control.py`, `test_success.py`, `test_screen.py`, ...) |
@@ -130,11 +156,11 @@ quy tắc sắp theo `uniqueID` của OpenCV, ngay trước mỗi lần mở. B�
 ## 7. Kiểm thử và chạy không cần phần cứng
 
 ```bash
-uv run pytest        # FK / IK, lệnh bấm phím, chọn vật, success, màn hình, nhận diện camera, hiệu chỉnh, chạy thử cả chương trình
+uv run pytest        # FK / IK, lệnh bấm phím, chọn vật, success, màn hình, nhận diện camera, hiệu chỉnh, điều khiển từ xa, chạy thử cả chương trình
 ```
 
 Không test nào chạm vào camera, cổng Serial hay `calibration.json` thật (cảnh dựng bằng camera giả lập có đáp án chính xác).
-Chạy cả chương trình không cửa sổ, không camera, không robot (dùng ảnh chụp bằng phím `C`):
+Chạy cả chương trình không cửa sổ, không camera, không robot (dùng ảnh chụp bằng phím `C`; không ai bấm `R` nên chương trình tự chụp đích ở khung đầu tiên thấy vật):
 
 ```bash
 uv run python main.py --top captures/tren.jpg --side captures/ngang.jpg --no-serial --headless --seconds 10 --dump-dir out/
@@ -153,6 +179,8 @@ uv run python main.py --top captures/tren.jpg --side captures/ngang.jpg --no-ser
 | `USB Arduino: MO PHONG` | cắm cáp USB, tắt chương trình khác đang giữ cổng |
 | Chữ `CHUA THAY VAT` | đặt vật **có màu** (cốc đỏ) lên giấy, không sát mép (dưới ~1 cm) |
 | Cánh tay tự giật về Home | xem mục 6 (Arduino reset) |
+| Dell: `khong thay Mac` | hai máy cùng Wi-Fi chưa, `main.py` đang chạy trên Mac chưa, macOS có hỏi cho Python nhận kết nối mạng (bấm Cho phép) |
+| Dell: `khong noi duoc COMx` | HC-05 có điện (đèn nháy), đã ghép đôi với Dell, đúng cổng **Outgoing**; máy khác đang nối HC-05 thì ngắt ra |
 | Gợi ý đưa kẹp lệch vài cm | đo lại hiệu chỉnh (mục 4); kiểm tra tờ giấy không bị xê dịch |
 
 ## 9. Đã bỏ khi đơn giản hóa (2026-11-02)
@@ -162,4 +190,5 @@ Quy trình gắp 5 bước, kiểm tra thành công bằng S1 / S2 (cam NGANG th
 trước khi đơn giản hóa được sao lưu ở `~/Documents/project/Project_IoT_backup_truoc_don_gian_hoa_2026-11-02.tgz` (không nằm trong repo).
 
 Lần rút gọn phần 2 (2026-11-10): bỏ YOLO (`--yolo`), điện thoại qua `adb` / IP Webcam, xoay hình (`--rotate-*`), ước lượng tờ giấy khi không thấy mã,
-vật dán mã ArUco, cảnh báo và phím tráo camera (`T`, `0`-`3`), điều khiển từ xa qua Wi-Fi (`phone.py`, `remote.py`). Vẫn giữ: nhớ mã bị che, bù thị sai, lọc tay người / thân robot, tìm camera theo tên.
+vật dán mã ArUco, cảnh báo và phím tráo camera (`T`, `0`-`3`). Vẫn giữ: nhớ mã bị che, bù thị sai, lọc tay người / thân robot, tìm camera theo tên.
+Điều khiển từ xa bằng máy Dell được đưa lại ngày 11/11 ở dạng gọn (`share.py`, `remote.py`): chỉ xem màn hình và gửi phím, `R` bấm trên Mac.

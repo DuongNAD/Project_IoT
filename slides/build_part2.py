@@ -301,7 +301,7 @@ def slide_dataflow(prs):
 
 Hai camera cho ảnh. vision.py dò bốn mã ArUco để có lưới tọa độ, rồi tìm vật có màu trên ảnh cam TRÊN; kết quả là vision.objects, danh sách vật với tọa độ X, Y theo xăng-ti-mét trên tờ A4. control.py, phần ba, tính góc servo cần tới và phím cần bấm, đóng gói thành một đối tượng Plan. success.py chỉ đọc Plan và trả về Result: đã tới chưa, còn bao nhiêu lần bấm, đã thành công mấy lần. screen.py vẽ hai camera và hai ô chữ từ Plan và Result.
 
-Bên phải: người dùng bấm phím, phím được gửi xuống Arduino qua USB 9600 baud; Arduino gửi lại góc servo dạng JSON năm lần mỗi giây, khối điều khiển dùng góc này làm góc hiện tại.
+Bên phải: người dùng bấm phím, phím được gửi xuống Arduino qua USB 9600 baud; Arduino gửi lại góc servo dạng JSON năm lần mỗi giây, khối điều khiển dùng góc này làm góc hiện tại. Khi điều khiển từ xa, máy Dell xem đúng màn hình này qua Wi-Fi (share.py) và gửi phím thẳng tới Arduino qua Bluetooth HC-05; phím R vẫn bấm trên Mac.
 
 Nếu được hỏi: vì sao chia thành các khối như vậy? Mỗi khối chỉ nhận một loại dữ liệu và trả một loại dữ liệu, nên kiểm thử riêng được từng khối; ví dụ success.py được kiểm bằng Plan tự tạo, không cần camera hay Arduino. Dữ liệu có được lưu lại không? Không; mỗi khung hình tính lại từ đầu, chỉ có vị trí mã ArUco và vị trí vật đang chọn được nhớ.
 
@@ -411,7 +411,7 @@ def slide_screen(prs):
                """
 screen.py chỉ vẽ, không tính gì; mọi chữ trên màn hình lấy từ Plan và Result.
 
-Số 1: ghép hai ảnh camera thành hàng trên, mỗi ô 640 × 360. Số 2: ô một, điều khiển: nếu còn phải bấm thì hiện lệnh lớn, ví dụ "BAM S x15: HA XUONG 30 do"; các trạng thái khác hiện một câu nhắc. Số 3: ba dòng servo đế, vai, khuỷu với góc hiện tại, góc đích, và phím cần bấm; dòng đã tới ghi DA DUNG màu xanh. Số 4: ô hai, success: XONG màu xanh khi cả ba servo đã tới, không thì CHUA XONG kèm số lần bấm còn lại, và số lần thành công. Dòng cuối cho biết đích đang chốt hay đang theo camera.
+Số 1: ghép hai ảnh camera thành hàng trên, mỗi ô 640 × 360. Số 2: ô một, điều khiển: nếu còn phải bấm thì hiện lệnh lớn, ví dụ "BAM S x15: HA XUONG 30 do"; các trạng thái khác hiện một câu nhắc. Số 3: ba dòng servo đế, vai, khuỷu với góc hiện tại, góc đích, và phím cần bấm; dòng đã tới ghi DA DUNG màu xanh. Số 4: ô hai, success: XONG màu xanh khi cả ba servo đã tới, không thì CHUA XONG kèm số lần bấm còn lại, và số lần thành công.
 
 Nếu được hỏi: vì sao chữ không dấu? Phông chữ của OpenCV không vẽ được dấu tiếng Việt. Trái, phải theo hướng nào? Theo cam NGANG đặt trước robot: phím A sang phải, D sang trái.""")
 

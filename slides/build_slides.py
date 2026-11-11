@@ -60,7 +60,7 @@ MEMBERS = ("Nguyễn Anh Dương", "Nguyễn Minh Hiển", "Trần Trọng Nghĩ
 
 # ==============================================================================
 # Màu: bảng màu slide Gamota. Teal = code tất định / bằng chứng đã có; đất nung = phần cứng, rủi ro, chưa kiểm chứng;
-# chàm = HC-05 (tùy chọn); xám ấm = trung tính
+# chàm = HC-05 (phím từ máy Dell); xám ấm = trung tính
 # ==============================================================================
 BG = RGBColor(0xFB, 0xF8, 0xF1)        # nền
 BG2 = RGBColor(0xF3, 0xED, 0xE1)       # nền xen kẽ, panel trung tính
@@ -593,7 +593,7 @@ Khối điều khiển tính góc cần tới của ba servo và lập danh sác
 
 Người dùng bấm phím theo gợi ý. Phím được gửi xuống Arduino qua USB ở 9600 baud; Arduino điều khiển bốn servo qua PCA9685 và gửi lại gói JSON chứa bốn góc servo, khoảng 5 gói mỗi giây. Phần cứng này là phần một, em trình bày tiếp theo.
 
-Nếu được hỏi: chương trình có tự gửi phím không? Không, chỉ gửi khi người dùng bấm. Vì sao trong code gọi là nhóm 1, nhóm 2? Đó là tên hai khối trong mã nguồn (control.py, success.py). Có dùng Bluetooth không? Firmware hỗ trợ nhận phím từ module HC-05 ở chân D2, D3, nhưng chương trình trên laptop dùng cáp USB.
+Nếu được hỏi: chương trình có tự gửi phím không? Không, chỉ gửi khi người dùng bấm. Vì sao trong code gọi là nhóm 1, nhóm 2? Đó là tên hai khối trong mã nguồn (control.py, success.py). Có dùng Bluetooth không? Có: khi điều khiển từ xa, máy Dell xem màn hình Mac qua Wi-Fi và gửi phím qua module HC-05 ở chân D2, D3; Mac vẫn nối cáp USB để nhận góc servo.
 
 Nguồn: README.md (sơ đồ đầu trang, mục 1 và 3); main.py:135-138; robot_arm_4dof.ino:6,8,86,203-207; control.py (ArduinoSerialLink).
 """)
@@ -655,7 +655,7 @@ def slide_parts(prs, n):
         ("Mạch PCA9685 (16 kênh PWM)", "1", "Tạo xung PWM cho servo"),
         ("Servo MG996R", "4", "Đế, vai, khuỷu, kẹp"),
         ("Nguồn tổ ong 5–6 V", "1", "Cấp nguồn cho servo"),
-        ("Module Bluetooth HC-05", "1", "Bluetooth (tùy chọn)"),
+        ("Module Bluetooth HC-05", "1", "Nhận phím từ máy Dell"),
         ("Khung cánh tay 4 bậc tự do, tay kẹp", "1", "Cơ khí"),
         ("Camera OBSBOT Meet SE", "1", "Camera phía trên"),
         ("Camera MacBook (có sẵn)", "1", "Camera phía trước"),
@@ -725,7 +725,7 @@ def slide_comp1(prs, n):
     notes(s, """
 Ảnh bên trái là mạch của nhóm, các linh kiện được đánh số: (1) Arduino Uno R3, (2) PCA9685, (3) HC-05, (4) nguồn tổ ong, (5) servo MG996R ở đế.
 
-Arduino Uno R3 dùng vi điều khiển ATmega328P, 16 MHz, 14 chân số và 6 chân analog, cấp nguồn 5 V qua USB. Trong hệ thống, Arduino nhận phím từ laptop qua USB ở 9600 baud hoặc từ HC-05, giới hạn góc servo, gửi lệnh cho PCA9685 qua I²C, và gửi gói JSON chứa bốn góc servo mỗi 200 ms.
+Arduino Uno R3 dùng vi điều khiển ATmega328P, 16 MHz, 14 chân số và 6 chân analog, cấp nguồn 5 V qua USB. Trong hệ thống, Arduino nhận phím từ Mac qua USB ở 9600 baud hoặc từ máy Dell qua HC-05, giới hạn góc servo, gửi lệnh cho PCA9685 qua I²C, và gửi gói JSON chứa bốn góc servo mỗi 200 ms.
 
 PCA9685 là mạch 16 kênh PWM 12 bit, giao tiếp I²C ở địa chỉ 0x40, đặt tần số 50 Hz cho servo. Kênh 0 đến 3 nối với đế, vai, khuỷu và kẹp; góc 0–180 độ được đổi thành độ rộng xung 125–575 trên thang 4096. Nguồn servo cấp vào cổng V+ của mạch.
 
@@ -747,7 +747,7 @@ def slide_comp2(prs, n):
         ("Nguồn tổ ong 5–6 V", "Nguồn xung 5–6 V",
          "Cấp riêng cho servo qua PCA9685 · chung GND", False),
         ("Module Bluetooth HC-05", "Bluetooth SPP · UART 9600 baud",
-         "Nối D2, D3 của Arduino · tùy chọn", False),
+         "Nối D2, D3 · nhận phím từ máy Dell", False),
         ("Hai camera 1920 × 1080", "OBSBOT Meet SE (trên) · camera MacBook (ngang)",
          "Cùng quan sát tờ A4 có 4 mã ArUco", False),
     ]
@@ -772,7 +772,7 @@ Tiếp theo là các linh kiện còn lại. Bốn servo MG996R dùng bánh răn
 
 Nguồn tổ ong 5–6 V cấp riêng cho servo qua cổng V+ của PCA9685, vì servo tiêu thụ dòng lớn; GND được nối chung.
 
-HC-05 là module Bluetooth nối chân D2, D3 của Arduino. Firmware nhận phím từ HC-05 giống như từ USB; chương trình trên laptop dùng USB nên module này là tùy chọn.
+HC-05 là module Bluetooth nối chân D2, D3 của Arduino. Firmware nhận phím từ HC-05 giống như từ USB. Khi điều khiển từ xa, máy Dell cách khoảng 2 m gửi phím qua HC-05; Mac vẫn nối USB để nhận góc servo và tính lệnh.
 
 Hai camera có độ phân giải 1920 × 1080: OBSBOT Meet SE đặt phía trên để tính vị trí vật, camera MacBook đặt phía trước để quan sát độ cao tay kẹp.
 
@@ -842,14 +842,14 @@ def slide_circuit(prs, n):
     line(s, px + pw_ / 2, 4.75, px + pw_ / 2, 4.08, ORANGE, 3.0, head=True)
     text(s, px + pw_ / 2 + 0.12, 4.25, 2.0, 0.3, "V+ / GND · cổng xanh", 10, ORANGE, True)
     # HC-05
-    block(px, 5.85, pw_, 0.75, "HC-05 (tùy chọn)", "TXD → D2 · RXD ← D3", fill=CARD, edge=INDIGO)
+    block(px, 5.85, pw_, 0.75, "HC-05 (máy Dell)", "TXD → D2 · RXD ← D3", fill=CARD, edge=INDIGO)
     for y_pin, x_turn, y_end, lab in ((4.45, 6.3, 6.07, "TXD → D2"), (4.85, 6.6, 6.38, "RXD ← D3")):
         line(s, ax + aw + 0.05, y_pin, x_turn, y_pin, INDIGO, 1.75)
         line(s, x_turn, y_pin, x_turn, y_end, INDIGO, 1.75)
         line(s, x_turn, y_end, px - 0.05, y_end, INDIGO, 1.75)
     # Chú giải
     legend = [(TEAL, "tín hiệu: I²C, xung servo"), (ORANGE, "nguồn servo 5–6 V"), (INK, "USB, 5 V logic"),
-              (MUTED, "GND (nối chung)"), (INDIGO, "HC-05 (tùy chọn)")]
+              (MUTED, "GND (nối chung)"), (INDIGO, "HC-05 (máy Dell)")]
     for i, (col, lab) in enumerate(legend):
         y = 5.48 + i * 0.26
         box(s, M, y + 0.1, 0.3, 0.06, fill=col)
@@ -976,9 +976,9 @@ def slide_objects(prs, n):
     label(s, bx + 0.25, 4.38, 3.6, "Chọn mục tiêu", TEAL, 10.5)
     bullets(s, bx + 0.25, 4.78, W - M - bx - 0.45, 1.75, [
         "Ưu tiên vật gần đế nhất",
-        [("R", {"bold": True}), " chốt đích"],
-        "Trung bình 10 khung hình",
-        "Lưu vị trí 120 s khi bị che",
+        [("R", {"bold": True}), " chụp vị trí làm đích"],
+        "Góc cần tới tính một lần",
+        ["Vật bị dời: bấm ", ("R", {"bold": True}), " lại"],
     ], 15, after=9)
     footer(s, n)
     notes(s, """
@@ -986,13 +986,13 @@ Sau khi có hệ tọa độ, chương trình tìm vật bằng cách tách màu
 
 Tâm của khối màu đổi ra xăng-ti-mét, rồi được bù thị sai như slide trước. Ảnh bên dưới là khung camera trên: vòng xanh quanh cốc kèm tọa độ X, Y.
 
-Khi có nhiều vật, vật gần đế nhất được chọn. Vị trí được lấy trung bình 10 khung hình để giảm nhiễu, và được lưu trong 120 giây khi tay kẹp che vật. Phím R chốt đích theo vị trí lúc bấm: camera vẫn chạy nhưng góc cần tới không đổi, kể cả khi tay kẹp che hoặc đẩy lệch vật; bấm R lần nữa để đích lại theo camera.
+Khi có nhiều vật, vật gần đế nhất được chọn. Người điều khiển bấm phím R để chụp vị trí vật lúc đó làm đích; góc cần tới được tính một lần và không theo camera nữa, nên khi tay kẹp che hoặc đẩy lệch vật, đích không đổi. Vật bị dời thì bấm R lại.
 
 Tiếp theo, {succ} trình bày nửa sau của phần này: hỗ trợ gắp.
 
-Nếu được hỏi: vì sao không dùng YOLO? Bản trước có YOLO11 nhưng hay nhận nhầm bộ phận robot, nên nhóm bỏ để mã đơn giản; tách màu đủ cho cốc màu đậm. Vật màu trắng hoặc xám thì sao? Chưa nhận được; đây là một hạn chế.
+Nếu được hỏi: vì sao không dùng YOLO? Bản trước có YOLO11 nhưng hay nhận nhầm bộ phận robot, nên nhóm bỏ để mã đơn giản; tách màu đủ cho cốc màu đậm. Vật màu trắng hoặc xám thì sao? Chưa nhận được; đây là một hạn chế. Vì sao phải bấm R mà không theo camera liên tục? Khi tay kẹp tiến vào, nó che và đẩy cốc nên vị trí camera thấy bị nhảy; chụp một lần thì đích đứng yên và mã đơn giản hơn.
 
-Nguồn: vision.py:68-95; tests/test_vision.py:74-105; control.py:68-69,547-581 (chọn vật, R).
+Nguồn: vision.py:68-95; tests/test_vision.py:74-105; control.py:539-550 (phím R).
 """)
 
 
@@ -1062,7 +1062,7 @@ Bên phải là chương trình Python trên laptop, chạy ở mỗi khung hìn
 
 Nếu được hỏi: vì sao firmware đọc HC-05 trước USB? Để phím từ Bluetooth không bị bỏ qua khi USB cũng có dữ liệu; mỗi vòng chỉ đọc một ký tự. Vì sao không gửi trực tiếp lệnh góc? Để Arduino chỉ cần xử lý từng phím, giống khi điều khiển bằng tay.
 
-Nguồn: robot_arm_4dof.ino:84-208; main.py:132-144,175-197; control.py:612-624 (press); success.py.
+Nguồn: robot_arm_4dof.ino:84-208; main.py:132-144,175-197; control.py:576-588 (press); success.py.
 """)
 
 
@@ -1201,7 +1201,7 @@ Ví dụ, cốc ở (20,1; 7,4) cm cho góc gợi ý: đế 74, vai 58, khuỷu 
 
 Nếu được hỏi: công thức được kiểm tra thế nào? Bộ test đưa kết quả động học ngược vào động học thuận trên hơn 100 điểm trong tầm với, sai số dưới 0,1 mm. Vì sao chọn nghiệm khuỷu hướng lên? Tam giác hai khâu có hai nghiệm; chọn một chiều cố định để mỗi điểm chỉ có một bộ góc. Vật ngoài tầm với thì sao? Giao diện báo VAT NGOAI TAM VOI và khoảng cách cần dời vật lại gần.
 
-Nguồn: control.py:36-67,98-161,174-195,221-245; tests/test_control.py:16-35; 05_SO_LIEU_VA_NGUON.md mục 3 và 16 (ví dụ tính lại bằng check_facts.py --deep).
+Nguồn: control.py:33-64,93-156,169-190,216-240; tests/test_control.py:16-35; 05_SO_LIEU_VA_NGUON.md mục 3 và 16 (ví dụ tính lại bằng check_facts.py --deep).
 """)
 
 
@@ -1240,7 +1240,7 @@ Chữ không dấu vì OpenCV không hiển thị được dấu tiếng Việt.
 
 Nếu được hỏi: chương trình có tự gửi phím không? Không; chỉ gửi khi người dùng bấm. Vì sao chỉ hiển thị một lệnh chính? Để người điều khiển thực hiện ngay, không cần đọc bảng số. Thứ tự lệnh thế nào? Đế, rồi vai, rồi khuỷu; servo đã đạt được bỏ qua. Ảnh đã lưu thì gợi ý lấy từ đâu? Chương trình đọc khung hình đã lưu như camera đang chạy; cánh tay mô phỏng đặt ở 90/90/90.
 
-Nguồn: screen.py:46-77; main.py:123-144; control.py:211-217; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
+Nguồn: screen.py:46-77; main.py:123-144; control.py:206-212; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
 """)
 
 
@@ -1400,8 +1400,8 @@ def slide_results(prs, n):
         "Hiệu chỉnh cho tờ giấy mới",
         "Dashboard IoT / MQTT",
     ], 16, after=8, mark="—", mark_color=ORANGE, indent=0.3)
-    stats = [("93 / 93", ["test tự động", "đều đạt"], TEAL),
-             ("11", ["tệp test"], INK),
+    stats = [("102 / 102", ["test tự động", "đều đạt"], TEAL),
+             ("13", ["tệp test"], INK),
              ("8,5 mm", ["sai số hiệu chỉnh", "trên 10 mẫu"], TEAL)]
     sw = (CW - 0.5) / 3
     for i, (big, desc, col) in enumerate(stats):
@@ -1414,13 +1414,13 @@ def slide_results(prs, n):
     notes(s, """
 Slide này tổng hợp những việc đã thực hiện và chưa thực hiện.
 
-Đã thực hiện: hệ tọa độ chung cho hai camera; kẹp và di chuyển cốc trên cánh tay thật bằng bàn phím; hiệu chỉnh mô hình từ 10 mẫu với sai số 8,5 mm, chi tiết ở phần ba; firmware bảo vệ servo kẹp đã nạp và kiểm tra; giao diện gợi ý phím và kiểm tra góc. 93 test tự động đều đạt, chạy khoảng 9 giây, không cần camera hay Arduino.
+Đã thực hiện: hệ tọa độ chung cho hai camera; kẹp và di chuyển cốc trên cánh tay thật bằng bàn phím; hiệu chỉnh mô hình từ 10 mẫu với sai số 8,5 mm, chi tiết ở phần ba; firmware bảo vệ servo kẹp đã nạp và kiểm tra; giao diện gợi ý phím và kiểm tra góc. 102 test tự động đều đạt, không cần camera hay Arduino.
 
 Chưa thực hiện: đếm số lần XONG trên cánh tay thật với bản mới; kiểm tra gợi ý mới trên phần cứng; kẹp chắc vật thon; đo nhiệt độ servo; hiệu chỉnh cho tờ giấy mới; dashboard IoT qua MQTT và cảm biến lực, vốn có trong kế hoạch ngày 28/10.
 
-Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Mã được đơn giản hóa ngày 2/11; thử nghiệm bản mới trên cánh tay thật là bước tiếp theo. Test gồm những gì? Điều khiển 30, hiệu chỉnh 11, Serial 9, computer vision 8, success 7, chương trình chính 7, độ bền 6, camera 5, khớp mô hình 5, màn hình 3, đầu–cuối 2. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm có thể thêm MQTT từ gói JSON hiện có.
+Nếu được hỏi: vì sao chưa chạy bản mới trên cánh tay thật? Mã được đơn giản hóa ngày 2/11; thử nghiệm bản mới trên cánh tay thật là bước tiếp theo. Test gồm những gì? Điều khiển 28, hiệu chỉnh 11, Serial 9, computer vision 8, success 7, chương trình chính 7, độ bền 6, camera 5, khớp mô hình 5, điều khiển từ xa 11, màn hình 3, đầu–cuối 2. Có bắt buộc dashboard IoT không? [...điền theo yêu cầu đề bài]; nếu có, nhóm có thể thêm MQTT từ gói JSON hiện có.
 
-Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; lệnh python -m pytest -q (93 test, 10/11/2026; xem 05_SO_LIEU_VA_NGUON.md mục 11).
+Nguồn: 05_SO_LIEU_VA_NGUON.md mục 4, 6, 7, 8, 11, 13; lệnh python -m pytest -q (102 test, 11/11/2026; xem 05_SO_LIEU_VA_NGUON.md mục 11).
 """)
 
 
