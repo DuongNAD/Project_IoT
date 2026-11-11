@@ -15,6 +15,6 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-# Chỉ chạy tests/ (_luu_tru/test_base_servo.py là script điều khiển robot thật, không chạy tự động)
+# Chỉ chạy tests/
 pythonpath = ["."]
 testpaths = ["tests"]

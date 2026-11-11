@@ -91,7 +91,7 @@ def test_simulated_keys_move_arm_servos_2_degrees_and_the_gripper_5():
     link = C.ArduinoSerialLink(enabled=False)
     for key in "ddwwwik":
         link.apply_key_locally(key)
-    assert link.get_state()[0][:3] == [90 - 4, 90 + 6, 90 + 2 - 2]
+    assert link.get_state()[0][:3] == [180 - 4, 90 + 6, 90 + 2 - 2]  # Đế khởi động ở 180° (hết bên phải)
     link.apply_key_locally("l")
     link.apply_key_locally("l")
     assert link.get_state()[0][3] == 95 + 10
@@ -102,7 +102,7 @@ def test_simulated_keys_move_arm_servos_2_degrees_and_the_gripper_5():
         link.apply_key_locally("w")
     assert link.get_state()[0][1] == 155  # Vai bị chặn ở giới hạn
     link.apply_key_locally("h")
-    assert link.get_state()[0] == [90, 90, 90, 95]
+    assert link.get_state()[0] == [180, 90, 90, 95]  # Home: đế quay hết sang phải để không che vật ở cam TRÊN
 
 
 def test_x_and_z_keys_relax_the_gripper_and_the_whole_arm_in_simulation():

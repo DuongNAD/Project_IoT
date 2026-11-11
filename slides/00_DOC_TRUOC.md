@@ -14,8 +14,6 @@ Bộ slide thuyết trình đề tài: `Project_IoT_ThuyetTrinh.pptx` (+ `.pdf`)
 | `tools/prepare_real_assets.py` | cắt và làm mờ ảnh thật vào `assets/real/` |
 | `preview/` | ảnh xem trước từng slide |
 
-Kịch bản, prompt và hướng dẫn cũ cho Antigravity nằm ở `../_luu_tru/slides_cu/`.
-
 ## Dựng lại
 
 ```bash
@@ -33,7 +31,9 @@ python slides/tools/check_facts.py # sau mỗi lần sửa mã
 - [ ] Điền `[Tên A]` (linh kiện), `[Tên C]` (code điều khiển) ở bảng `TEAM`; `[Môn học]`, `[Ngày báo cáo]`, giảng viên, lớp ở bìa.
 - [ ] Ảnh ở slide 12, 13, 14, 22 chụp bằng **giao diện trước khi rút gọn mã ngày 10/11** (chú thích trên slide ghi "giao diện bản trước").
   Trên MacBook chạy `python slides/tools/make_screen_images.py`, đặt `UI_OLD = False` trong `build_slides.py`, dựng lại; kiểm lại các số trong ghi chú slide 22
-  (vị trí cốc, `S × 15`, còn 18 lần bấm) theo ảnh mới.
+  (vị trí cốc, `S × 15`, còn 18 lần bấm) theo ảnh mới. Ảnh cũ mô phỏng cánh tay ở 90/90/90; Home giờ là **180/90/90/95** (đế hết bên phải)
+  nên ảnh mới sẽ bắt đầu bằng lệnh `D` nhiều lần.
+- [ ] Nạp lại firmware (`./robot_arm_4dof/flash.sh`) trên máy cắm Arduino: Home và góc khởi động của đế đổi từ 90° sang **180°** ngày 11/11.
 - [ ] Chạy `pytest` trên MacBook: 92 test mới chỉ chạy trên máy Windows (xem `05_SO_LIEU_VA_NGUON.md` mục 11).
 - [ ] Tập nói, bấm giờ; thử mở PPTX và PDF trên máy sẽ trình chiếu.
 

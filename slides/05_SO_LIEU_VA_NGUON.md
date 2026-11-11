@@ -27,7 +27,7 @@ Nhãn trạng thái:
 | Servo | 4 × MG996R: kênh 0 đế, 1 vai, 2 khuỷu, 3 kẹp | CODE | `README.md` mục 1; `robot_arm_4dof.ino:26-29`; `control.py:56` |
 | Bước mỗi phím | đế, vai, khuỷu **2°**; kẹp **5°** | CODE | `robot_arm_4dof.ino:13-14`; `control.py:63` |
 | Giới hạn góc | đế 0–180°, vai 25–155°, khuỷu 25–155°, kẹp 95–**160°** | CODE | `control.py:57-62`; `robot_arm_4dof.ino:19-21,121-152` |
-| Góc khởi động / Home | 90 / 90 / 90 / 95° (phím `H` đưa về) | CODE | `robot_arm_4dof.ino:26-29,154-158`; `control.py:64` |
+| Góc khởi động / Home | **180** / 90 / 90 / 95° (phím `H` đưa về): đế quay hết sang phải (nhìn theo cam NGANG) để cánh tay không che vật ở cam TRÊN; trước 11/11 là 90 / 90 / 90 / 95° | CODE | `robot_arm_4dof.ino:26-29,154-158`; `control.py:57-62` |
 | Nguồn servo | nguồn tổ ong riêng 5–6 V vào cổng xanh PCA9685, **không** lấy từ cổng USB | CODE (tài liệu) | `README.md` mục 1 |
 | Bluetooth | HC-05 qua `SoftwareSerial` chân D2/D3, 9600 baud, tùy chọn | CODE | `robot_arm_4dof.ino:6,87` |
 | Cổng USB tới laptop | Serial 9600 baud | CODE | `robot_arm_4dof.ino:86`; `control.py:267` |
@@ -69,8 +69,8 @@ Nhãn trạng thái:
 | Kế hoạch bấm (`Plan`, `Move`) | mỗi servo một `Move` gồm phím, số lần (= độ lệch ÷ bước, làm tròn xuống), hướng, số độ; **kẹp không bao giờ nằm trong Plan** | CODE | `control.py:221-245,474-490`; `tests/test_control.py:64-90` |
 | Kiểm IK ↔ FK | trên lưới > 100 điểm trong tầm với, FK(IK(p)) trùng p với sai số **< 0,1 mm**; mọi góc servo ra đều bấm tới được | MÔ PHỎNG | `tests/test_control.py:16-32` |
 | Ngoài tầm với | IK báo `reachable = False` và dời vật thêm bao nhiêu mm; màn hình ghi `Vat ngoai tam voi` | CODE | `control.py:98-141`; `screen.py:21-26`; `tests/test_control.py:35` |
-| **Ví dụ tính được** | với `calibration.json` hiện tại, cốc ở **(20,1; 7,4) cm** → robot x = 240 mm, y = −73 mm → gợi ý **đế 74°, vai 58°, khuỷu 90°**. Từ Home 90/90/90: đế −16° = phím **D × 8**, vai −32° = phím **S × 16**, khuỷu 0 (đã đúng) | CODE (tính lại 02/11 23:07) | mục 16; `main.py` chạy `--headless` 22:46 cho cùng kế hoạch (ghi chú phiên) |
-| Ví dụ trên ảnh màn hình (slide 8) | khung camera thật 20:27: cốc ở **(16,5; 13,8) cm** → gợi ý **[đế 88°, vai 60°, khuỷu 84°]**; từ Home: **S × 15** (hạ vai 30°), **K × 3** (khuỷu xuống 6°), đế lệch 2° nên `DA DUNG`; còn **18 lần bấm** | MÔ PHỎNG (chương trình chạy trên ảnh đã lưu; đế đổi sang hệ lúc chụp, xem mục 5) | ảnh `ui_screen_before.png`; `slides/tools/make_screen_images.py` |
+| **Ví dụ tính được** | với `calibration.json` hiện tại, cốc ở **(20,1; 7,4) cm** → robot x = 240 mm, y = −73 mm → gợi ý **đế 74°, vai 58°, khuỷu 90°**. Từ tư thế 90/90/90: đế −16° = phím **D × 8**, vai −32° = phím **S × 16**, khuỷu 0 (đã đúng) | CODE (tính lại 02/11 23:07) | mục 16; `main.py` chạy `--headless` 22:46 cho cùng kế hoạch (ghi chú phiên) |
+| Ví dụ trên ảnh màn hình (slide 8) | khung camera thật 20:27: cốc ở **(16,5; 13,8) cm** → gợi ý **[đế 88°, vai 60°, khuỷu 84°]**; từ 90/90/90 (Home của bản trước 11/11): **S × 15** (hạ vai 30°), **K × 3** (khuỷu xuống 6°), đế lệch 2° nên `DA DUNG`; còn **18 lần bấm** | MÔ PHỎNG (chương trình chạy trên ảnh đã lưu; đế đổi sang hệ lúc chụp, xem mục 5) | ảnh `ui_screen_before.png`; `slides/tools/make_screen_images.py` |
 | Cổng USB | 9600 baud, đọc nền, **mở tay cầm mới trước khi đóng tay cầm cũ** (để DTR không hạ), không đóng cổng vì một lỗi đọc thoáng qua, tự nhận ra Arduino reset khi thời gian chạy `t` quay về 0 | CODE | `control.py:251-468`; `tests/test_serial_link.py:96-150` |
 | Gửi phím | app chỉ gửi phím khi **người bấm**; không còn chế độ tự gửi (Auto-Step đã bỏ) | CODE | `control.py:612-624`; `main.py:175-197` |
 
@@ -163,13 +163,13 @@ Nhãn trạng thái:
 | Mục | Giá trị | Nhãn | Nguồn |
 |---|---|---|---|
 | Chỉ số camera trên macOS | `cv2.VideoCapture(i)` sắp camera theo `uniqueID`; danh sách của AVFoundation / `system_profiler` xếp camera "dùng gần nhất" lên đầu nên đổi thứ tự giữa các lần chạy (đã thấy: lúc `[OBSBOT, MacBook]`, lúc `[MacBook, OBSBOT]`; có lúc hai khung cùng là OBSBOT). Cách xử lý: tìm camera theo **tên**, đổi sang chỉ số theo đúng quy tắc sắp `uniqueID` ngay trước mỗi lần mở | ĐO + CODE | `cameras.py:1-6,26-46`; `README.md` mục 5; `tests/test_cameras.py:21` |
-| Arduino Uno tự reset | mở rồi đóng cổng USB làm đường DTR hạ xuống rồi nâng lên → Uno reset → 4 servo giật về 90/90/90/95. Thường do **một chương trình thứ hai** mở cổng khi `main.py` đang chạy. Cách xử lý: không đóng cổng khi đọc lỗi thoáng qua; mở tay cầm mới **trước** khi đóng tay cầm cũ; nhận ra reset khi thời gian chạy `t` quay về 0 và báo `ARDUINO VUA RESET` | ĐO + CODE | `control.py:345-352,396-446`; `README.md` mục 6; `tests/test_serial_link.py:96-140` |
+| Arduino Uno tự reset | mở rồi đóng cổng USB làm đường DTR hạ xuống rồi nâng lên → Uno reset → 4 servo giật về Home 180/90/90/95. Thường do **một chương trình thứ hai** mở cổng khi `main.py` đang chạy. Cách xử lý: không đóng cổng khi đọc lỗi thoáng qua; mở tay cầm mới **trước** khi đóng tay cầm cũ; nhận ra reset khi thời gian chạy `t` quay về 0 và báo `ARDUINO VUA RESET` | ĐO + CODE | `control.py:345-352,396-446`; `README.md` mục 6; `tests/test_serial_link.py:96-140` |
 
 ## 11. Mã nguồn và kiểm thử
 
 | Mục | Giá trị | Nhãn | Nguồn |
 |---|---|---|---|
-| Kiểm thử | **93 test**: `test_control` 30, `test_calibration` 11, `test_serial_link` 9, `test_vision` 8, `test_success` 7, `test_main` 7, `test_robustness` 6, `test_cameras` 5, `test_arm_fit` 5, `test_screen` 3, `test_end_to_end` 2 (11 tệp test). Chạy ngày 10/11 trên máy Windows: 85 đạt; 8 test mở cửa sổ OpenCV lỗi vì bản OpenCV ở máy này không có phần cửa sổ, thay các hàm cửa sổ bằng hàm rỗng thì đạt cả 93. **Chưa chạy lại trên Mac** | ĐO | `pytest -q`, 10/11/2026 |
+| Kiểm thử | **93 test**: `test_control` 30, `test_calibration` 11, `test_serial_link` 9, `test_vision` 8, `test_success` 7, `test_main` 7, `test_robustness` 6, `test_cameras` 5, `test_arm_fit` 5, `test_screen` 3, `test_end_to_end` 2 (11 tệp test). Chạy ngày 10/11 trên máy Windows: 85 đạt; 8 test mở cửa sổ OpenCV lỗi vì bản OpenCV ở máy này không có phần cửa sổ, thay các hàm cửa sổ bằng hàm rỗng thì đạt cả 93. Chạy lại 11/11 trên máy Windows (môi trường `uv sync` mới, sau khi đổi Home đế sang 180°): **93/93 đạt**. **Chưa chạy lại trên Mac** | ĐO | `pytest -q`, 10/11/2026 |
 | Không chạm phần cứng | không test nào đụng camera, cổng Serial hay `calibration.json` thật; cảnh dựng bằng camera giả lập có đáp án chính xác | CODE | `README.md` mục 7 |
 | Quy mô | 8 module Python ≈ **1 615 dòng** (`main.py` 289 · `control.py` 626 · `success.py` 58 · `screen.py` 79 · `vision.py` 163 · `cameras.py` 118 · `calibration.py` 140 · `arm_fit.py` 141) + firmware 208 dòng + `generate_aruco_a4.py` 29 dòng + 11 file test ≈ 1 520 dòng. Phần 2 (vision, cameras, screen, success, generate_aruco_a4) từ 1 677 còn 447 dòng | CODE | `wc -l` (10/11) |
 | Chạy không cần phần cứng | `main.py --top a.jpg --side b.jpg --no-serial --headless --seconds 10 --dump-dir out/` → `dual_view.png`, ảnh chú thích của 2 camera, `summary.json` (có `nhom_1_dieu_khien` và `nhom_2_success`) | CODE | `README.md` mục 7; `main.py:236-260` |

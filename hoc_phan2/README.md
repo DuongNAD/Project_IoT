@@ -47,7 +47,6 @@ Hai bạn **không** phải học các phần này (của người khác hoặc 
 
 - `control.py` ngoài `Plan` / `Move` (IK, cổng USB): phần 3, code điều khiển.
 - `calibration.py`, `arm_fit.py`, `robot_arm_4dof/`: phần 3.
-- `_luu_tru/`: file cũ, chỉ để tra cứu.
 - `slides/build_slides.py`, `slides/build_part2.py`, `slides/tools/`: chỉ cần khi sửa slide.
 
 ## Tự kiểm tra cả phần 2

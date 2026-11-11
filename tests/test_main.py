@@ -123,7 +123,7 @@ def test_servo_keys_move_the_simulated_arm(scene_files):
         assert wait_until(app, lambda: app.control.objects)
         for key in "ddw":
             assert app.handle_key(ord(key))
-        assert app.control.link.get_state()[0][:3] == [86, 92, 90]  # Mô phỏng: mỗi lần bấm 2°
+        assert app.control.link.get_state()[0][:3] == [176, 92, 90]  # Mô phỏng: mỗi lần bấm 2°, đế bắt đầu ở 180°
         assert app.handle_key(255)  # Không có phím nào (waitKey hết giờ) thì bỏ qua
     finally:
         app.close()

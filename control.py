@@ -55,13 +55,13 @@ ARM_CONFIG_DEFAULTS = dict(ARM_CONFIG)
 # Servo: giới hạn an toàn và bước mỗi lần bấm phím, khớp robot_arm_4dof.ino (STEP_ARM = 2, STEP_GRIP = 5, GRIP_CLOSE_LIMIT = 160)
 CHANNEL_KEYS = ("base", "shoulder", "elbow", "grip")  # Thứ tự kênh 0..3 của Arduino
 SERVO_LIMITS = {
-    "base": (0, 180, 90),       # Kênh 0: Đế (a: +2° , d: -2°)
+    "base": (0, 180, 180),      # Kênh 0: Đế (a: +2° , d: -2°); Home 180° = quay hết sang phải, không che vật ở cam TRÊN
     "shoulder": (25, 155, 90),  # Kênh 1: Vai (w: +2° nâng lên, s: -2° hạ xuống)
     "elbow": (25, 155, 90),     # Kênh 2: Khuỷu (i: +2° lên, k: -2° xuống)
     "grip": (95, 160, 95),      # Kênh 3: Kẹp (j: -5° mở ra, l: +5° kẹp vào)
 }
 SERVO_STEPS = {"base": 2, "shoulder": 2, "elbow": 2, "grip": 5}
-SERVO_ANCHORS = {"base": 90, "shoulder": 90, "elbow": 90, "grip": 95}  # Góc lúc khởi động: mọi góc bấm tới được = neo + k * bước
+SERVO_ANCHORS = {"base": 90, "shoulder": 90, "elbow": 90, "grip": 95}  # Neo lưới góc: mọi góc bấm tới được = neo + k * bước (Home ở cột 3 của SERVO_LIMITS)
 GRIP_OPEN_DEG = 95
 
 GRASP_Z_MM = 25.0        # Độ cao điểm kẹp mục tiêu (mm): nửa thân cốc, đúng độ cao dùng khi hiệu chỉnh hình học bằng các lần ôm
@@ -302,14 +302,14 @@ class ArduinoSerialLink:
         self.port = None
         self.ser = None
         self.connected = False
-        self.servo = [90, 90, 90, 95]  # [angleBase, angleShoulder, angleElbow, angleGrip]
+        self.servo = [SERVO_LIMITS[k][2] for k in CHANNEL_KEYS]  # [angleBase, angleShoulder, angleElbow, angleGrip] = Home lúc Arduino khởi động
         self.last_cmd = ""
         self.last_rx_time = 0.0
         self.relaxed = False  # Servo kẹp đang nghỉ (firmware đã ngắt xung PWM để nguội)
         self.arm_relaxed = False  # Firmware đã ngắt xung 3 servo đế / vai / khuỷu (phím z): góc báo về chỉ là góc lệnh cuối, cánh tay có thể đã sụp xuống
         self.firmware_has_arm_relax = False  # Đã thấy trường "armrelax" trong JSON: firmware đang chạy có phím z (firmware cũ bỏ qua phím z)
         # Arduino Uno tự reset mỗi khi đường DTR của cổng USB bị hạ rồi nâng lên (VD chương trình khác mở / đóng cổng): cả 4 servo giật về
-        # 90/90/90/95. Nhận ra bằng thời gian chạy "t" (millis) trong gói JSON bất ngờ tụt về gần 0.
+        # Home 180/90/90/95. Nhận ra bằng thời gian chạy "t" (millis) trong gói JSON bất ngờ tụt về gần 0.
         self.last_firmware_ms = None
         self.reset_count = 0
         self.lock = threading.Lock()
@@ -348,7 +348,7 @@ class ArduinoSerialLink:
                 g = min(lim["grip"][1], max(lim["grip"][0], g + SERVO_STEPS["grip"]))
                 self.relaxed = False
             elif c == "h":
-                b, s, e, g = 90, 90, 90, GRIP_OPEN_DEG
+                b, s, e, g = (SERVO_LIMITS[k][2] for k in CHANNEL_KEYS)  # Home, khớp phím h của firmware
                 self.relaxed = False
             elif c == "x":
                 self.relaxed = True
@@ -380,7 +380,7 @@ class ArduinoSerialLink:
         last, self.last_firmware_ms = self.last_firmware_ms, float(t_ms)
         if last is not None and t_ms < last - self.RESET_UPTIME_DROP_MS:
             self.reset_count += 1
-            print("⚠️ Arduino vừa reset (thời gian chạy của firmware quay về 0): cánh tay giật về 90/90/90/95, kiểm tra trước khi bấm tiếp")
+            print("⚠️ Arduino vừa reset (thời gian chạy của firmware quay về 0): cánh tay giật về Home 180/90/90/95, kiểm tra trước khi bấm tiếp")
 
     def _parse_line(self, line):
         line = line.strip()
@@ -407,7 +407,7 @@ class ArduinoSerialLink:
         if "Robot Arm Ready" in line:
             print(f"🤖 Arduino báo: {line}")  # Banner cho biết đang chạy bản firmware nào (có phím X / Z hay chưa)
             with self.lock:
-                self.servo = [90, 90, 90, 95]
+                self.servo = [SERVO_LIMITS[k][2] for k in CHANNEL_KEYS]
                 self.relaxed = False
                 self.arm_relaxed = False
                 self.last_rx_time = time.time()
@@ -437,7 +437,7 @@ class ArduinoSerialLink:
     def _open_port(self):
         """
         Mở cổng Serial rồi thay tay cầm cũ (nếu có) bằng tay cầm mới; True nếu mở được. Luôn mở tay cầm MỚI trước rồi mới đóng tay cầm
-        cũ: lúc đó đường DTR không bị hạ xuống rồi nâng lên, đúng nhịp làm Arduino Uno tự reset và cả 4 servo giật về 90/90/90/95.
+        cũ: lúc đó đường DTR không bị hạ xuống rồi nâng lên, đúng nhịp làm Arduino Uno tự reset và cả 4 servo giật về Home 180/90/90/95.
         """
         port = self._find_port()
         new = None
@@ -591,7 +591,7 @@ class Control:
         self._track(objects, now)
         servo_now, usb_ok, port, _ = self.link.get_state()
         resets = self.link.get_reset_count()
-        if resets != self.seen_resets:  # Cánh tay vừa giật về 90/90/90/95 mà người dùng không bấm gì: báo để kiểm tra trước khi bấm tiếp
+        if resets != self.seen_resets:  # Cánh tay vừa giật về Home 180/90/90/95 mà người dùng không bấm gì: báo để kiểm tra trước khi bấm tiếp
             self.seen_resets = resets
             self.banner = "ARDUINO VUA RESET: canh tay giat ve 90/90/90, kiem tra truoc khi bam tiep"
         if self.locked is not None:

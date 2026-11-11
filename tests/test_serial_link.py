@@ -142,7 +142,7 @@ def test_firmware_banner_is_echoed_so_the_log_shows_which_sketch_is_running(caps
     link.servo = [100, 80, 70, 120]
     link._parse_line("Robot Arm Ready! WASD + IK + JL + X (nghi kep) + Z (nghi het)\r\n")
     assert "Z (nghi het)" in capsys.readouterr().out
-    assert link.get_state()[0] == [90, 90, 90, 95]  # Arduino vừa khởi động nên về góc mặc định
+    assert link.get_state()[0] == [180, 90, 90, 95]  # Arduino vừa khởi động nên về Home (đế hết bên phải)
     link._parse_line("Phím bấm: w")  # Dòng khác không được in lại
     assert capsys.readouterr().out == ""
 

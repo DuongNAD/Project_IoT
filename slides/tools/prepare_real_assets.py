@@ -197,7 +197,7 @@ def main() -> None:
             group="hw", source=str(p), blurred="màn hình laptop ở đáy ảnh",
             desc_vi="Toàn cảnh từ camera TRÊN (OBSBOT): mạch điều khiển bên trái, cánh tay robot, tờ A4 với 4 mã ArUco, cốc đỏ số 3. Ảnh thô, không lớp phủ.",
             alt_vi="Ảnh chụp từ camera trên: cánh tay robot đen đặt cạnh tờ giấy A4 có bốn mã ArUco ở bốn góc, một cốc đỏ trên giấy",
-            slides=[4], note_vi="Cánh tay ở tư thế gốc 90/90/90/95."))
+            slides=[4], note_vi="Cánh tay ở tư thế 90/90/90/95 (Home của bản trước 11/11)."))
     p = DRIVE / "02_tong_quan_cam_ngang.jpg"
     if need(p):
         save(blur_regions(load(p), BLUR["side"]), "hw_overview_side.jpg", dict(
@@ -330,7 +330,7 @@ def main() -> None:
                 slides=slides, note_vi=DEMO_NOTE))
 
     print("== Ảnh gốc trong repo ==")
-    for name, nid in (("aruco_A4_clean.png", "repo_aruco_a4_clean.png"), ("_luu_tru/aruco_A4_grid.png", "repo_aruco_a4_grid.png")):
+    for name, nid in (("aruco_A4_clean.png", "repo_aruco_a4_clean.png"),):
         p = PROJECT / name
         if need(p):
             save(load(p), nid, dict(

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Dựng bộ slide thuyết trình (tiếng Việt, 16:9) cho mã hiện tại, theo phong cách slide Gamota (_luu_tru/slides_cu/06_PHONG_CACH.md):
+Dựng bộ slide thuyết trình (tiếng Việt, 16:9) cho mã hiện tại, theo phong cách slide Gamota:
 nền trắng sữa ấm, chữ nâu than, nhấn xanh teal (code, bằng chứng) và đất nung (phần cứng, điều chưa kiểm chứng), thẻ phẳng.
 camera -> vision.py -> control.py (khối điều khiển: bấm phím gì) -> success.py (khối success: đã tới chưa) -> screen.py.
 Nhóm 4 người, 3 phần theo đường đi của dữ liệu, mỗi phần mở bằng một slide ngăn:
@@ -1011,7 +1011,7 @@ def slide_flow(prs, n):
     label(s, M, 1.88, 5.6, "Firmware Arduino · robot_arm_4dof.ino", ORANGE, 10)
     cx = 2.55
     node(s, cx - 0.65, 2.25, 1.3, 0.38, "Bắt đầu", "term", fill=ORANGE_SOFT, edge=ORANGE, size=11, bold=True)
-    node(s, 0.85, 2.85, 3.4, 0.64, ["setup(): USB, HC-05 9600 baud", "PCA9685 50 Hz · servo 90/90/90/95"], size=10.5)
+    node(s, 0.85, 2.85, 3.4, 0.64, ["setup(): USB, HC-05 9600 baud", "PCA9685 50 Hz · servo 180/90/90/95"], size=10.5)
     decs = [(3.72, "Có phím?", ["Đổi góc (có giới hạn)", "xuất xung · gửi JSON"]),
             (4.72, "Kẹp quá hạn?", ["mở 5 s / khép 60 s", "→ ngắt xung kẹp"]),
             (5.72, "Đủ 200 ms?", "Gửi JSON trạng thái")]
@@ -1056,7 +1056,7 @@ def slide_flow(prs, n):
          11, INK, anchor=MIDDLE, spacing=1.05)
     footer(s, n)
     notes(s, """
-Bên trái là lưu đồ firmware trên Arduino. Hàm setup mở cổng USB và HC-05 ở 9600 baud, đặt PCA9685 ở 50 Hz và đưa bốn servo về 90, 90, 90, 95 độ. Vòng lặp loop thực hiện ba việc: khi có phím thì đổi góc trong giới hạn, xuất xung và gửi trạng thái; khi kẹp giữ quá thời gian thì ngắt xung; và cứ 200 ms gửi một gói JSON.
+Bên trái là lưu đồ firmware trên Arduino. Hàm setup mở cổng USB và HC-05 ở 9600 baud, đặt PCA9685 ở 50 Hz và đưa bốn servo về 180, 90, 90, 95 độ; đế quay hết sang phải để cánh tay không che vật ở camera phía trên. Vòng lặp loop thực hiện ba việc: khi có phím thì đổi góc trong giới hạn, xuất xung và gửi trạng thái; khi kẹp giữ quá thời gian thì ngắt xung; và cứ 200 ms gửi một gói JSON.
 
 Bên phải là chương trình Python trên laptop, chạy ở mỗi khung hình: đọc hai camera, tìm tờ giấy và vật, tính góc và lệnh bấm phím, kiểm tra điều kiện hoàn thành, rồi hiển thị. Khi người dùng bấm phím, main.py gọi hàm press của khối điều khiển để gửi ký tự xuống Arduino qua USB; nếu chưa kết nối Arduino, chương trình chạy ở chế độ mô phỏng.
 
@@ -1182,7 +1182,7 @@ def slide_ik(prs, n):
     box(s, 6.9, 4.98, W - M - 6.9, 1.82, fill=TEAL_SOFT)
     label(s, 7.15, 5.1, 5.3, "Ví dụ · cốc ở (20,1; 7,4) cm", TEAL, 10.5)
     text(s, 7.15, 5.42, 5.4, 0.45, "đế 74° · vai 58° · khuỷu 90°", 23, INK, True)
-    text(s, 7.15, 5.98, 1.75, 0.42, "Từ Home 90/90/90:", 12.5, TEXT2, anchor=MIDDLE)
+    text(s, 7.15, 5.98, 1.75, 0.42, "Từ 90/90/90:", 12.5, TEXT2, anchor=MIDDLE)
     keycap(s, 8.92, 5.98, "D", 0.42, 0.4, 15)
     text(s, 9.4, 5.98, 0.6, 0.42, "× 8", 16, INK, True, anchor=MIDDLE)
     keycap(s, 10.02, 5.98, "S", 0.42, 0.4, 15)
@@ -1197,7 +1197,7 @@ Hình bên trái là cánh tay nhìn ngang: trục vai cao 70 mm so với mặt 
 
 Thuật toán có bốn bước: đổi tọa độ trên giấy sang tọa độ robot; tính góc đế bằng atan2(y, x); giải tam giác hai khâu cho vai và khuỷu, chọn nghiệm khuỷu hướng lên, với điểm kẹp cao 25 mm; cuối cùng đổi sang góc servo, làm tròn theo bước 2 độ, và số lần bấm bằng độ lệch chia 2.
 
-Ví dụ, cốc ở (20,1; 7,4) cm cho góc gợi ý: đế 74, vai 58, khuỷu 90 độ. Từ vị trí Home 90/90/90, cần bấm D 8 lần và S 16 lần; khuỷu đã đúng góc. Cánh tay không có servo cổ tay nên không điều chỉnh được hướng tay kẹp.
+Ví dụ, cốc ở (20,1; 7,4) cm cho góc gợi ý: đế 74, vai 58, khuỷu 90 độ. Từ tư thế 90/90/90, cần bấm D 8 lần và S 16 lần; khuỷu đã đúng góc. Cánh tay không có servo cổ tay nên không điều chỉnh được hướng tay kẹp.
 
 Nếu được hỏi: công thức được kiểm tra thế nào? Bộ test đưa kết quả động học ngược vào động học thuận trên hơn 100 điểm trong tầm với, sai số dưới 0,1 mm. Vì sao chọn nghiệm khuỷu hướng lên? Tam giác hai khâu có hai nghiệm; chọn một chiều cố định để mỗi điểm chỉ có một bộ góc. Vật ngoài tầm với thì sao? Giao diện báo VAT NGOAI TAM VOI và khoảng cách cần dời vật lại gần.
 
@@ -1238,7 +1238,7 @@ Bên dưới là hai ô nối nhau. Ô một lấy từ Plan của khối điề
 
 Chữ không dấu vì OpenCV không hiển thị được dấu tiếng Việt. Trái, phải tính theo camera MacBook đặt trước robot: phím A quay đế sang phải, phím D sang trái.
 
-Nếu được hỏi: chương trình có tự gửi phím không? Không; chỉ gửi khi người dùng bấm. Vì sao chỉ hiển thị một lệnh chính? Để người điều khiển thực hiện ngay, không cần đọc bảng số. Thứ tự lệnh thế nào? Đế, rồi vai, rồi khuỷu; servo đã đạt được bỏ qua. Ảnh đã lưu thì gợi ý lấy từ đâu? Chương trình đọc khung hình đã lưu như camera đang chạy; cánh tay mô phỏng đặt ở Home.
+Nếu được hỏi: chương trình có tự gửi phím không? Không; chỉ gửi khi người dùng bấm. Vì sao chỉ hiển thị một lệnh chính? Để người điều khiển thực hiện ngay, không cần đọc bảng số. Thứ tự lệnh thế nào? Đế, rồi vai, rồi khuỷu; servo đã đạt được bỏ qua. Ảnh đã lưu thì gợi ý lấy từ đâu? Chương trình đọc khung hình đã lưu như camera đang chạy; cánh tay mô phỏng đặt ở 90/90/90.
 
 Nguồn: screen.py:46-77; main.py:123-144; control.py:211-217; ảnh ui_screen_before (tạo bằng slides/tools/make_screen_images.py).
 """)

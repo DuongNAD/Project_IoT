@@ -64,7 +64,7 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `W` / `S` | nâng / hạ vai, mỗi lần 2° |
 | `I` / `K` | khuỷu lên / xuống, mỗi lần 2° |
 | `J` / `L` | mở / khép kẹp, mỗi lần 5° (không tính vào thành công) |
-| `H` | đưa cả 4 servo về Home (90/90/90/95) |
+| `H` | đưa cả 4 servo về Home (180/90/90/95): đế quay hết sang **phải** để cánh tay không che vật ở cam TREN |
 | `X` / `Z` | cho servo kẹp / cả 4 servo nghỉ (ngắt xung PWM để nguội); `Z` cần firmware có phím Z, hạ đầu kẹp tựa xuống chỗ trống trước |
 | `R` | **chốt đích** theo ảnh lúc bấm (camera vẫn chạy, góc cần tới không đổi dù vật bị che hay xê dịch); bấm lần nữa để góc cần tới lại theo camera liên tục |
 | `B` | hiệu chỉnh đế robot (mục 4), `ESC` để hủy |
@@ -88,7 +88,6 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `robot_arm_4dof/` | firmware Arduino và `flash.sh` |
 | `tests/` | bộ test, mỗi nhóm một tệp (`test_control.py`, `test_success.py`, `test_screen.py`, ...) |
 | `hoc_phan2/` | hướng dẫn đọc code và slide cho hai người trình bày phần 2 (computer vision, hỗ trợ gắp) |
-| `_luu_tru/` | file không còn dùng (kịch bản slide cũ, tờ A4 có lưới, script thử servo bằng tay), giữ lại để tra cứu |
 
 Mỗi khung hình trong `main.py` chỉ là ba dòng: `plan = control.update(vision.objects)` → `result = success.update(plan)` → `build_screen(..., plan, result)`.
 
@@ -124,7 +123,7 @@ quy tắc sắp theo `uniqueID` của OpenCV, ngay trước mỗi lần mở. B�
   đáy nên hai mặt kẹp đẩy nó ra như hạt dưa: nên dán ma sát (băng keo hai mặt / xốp mỏng) lên mặt trong hai ngón hoặc dùng vật có thân thẳng.
 - Nạp firmware: `./robot_arm_4dof/flash.sh` (dùng `arduino-cli` có sẵn trong Arduino IDE 2, board `arduino:avr:uno`). Arduino reset khi nạp nên servo giật về
   Home: cắt nguồn servo hoặc đưa cánh tay ra chỗ trống trước. Banner `Robot Arm Ready! ... + Z (nghi het)` là firmware mới đã chạy.
-- Arduino Uno **tự reset mỗi khi đường DTR của cổng USB hạ xuống rồi nâng lên**, cả 4 servo giật về 90/90/90/95. Thường do một chương trình khác mở rồi đóng
+- Arduino Uno **tự reset mỗi khi đường DTR của cổng USB hạ xuống rồi nâng lên**, cả 4 servo giật về Home 180/90/90/95. Thường do một chương trình khác mở rồi đóng
   cổng `/dev/cu.usbmodem*` lúc `main.py` đang chạy. **Đừng mở cổng bằng chương trình khác khi `main.py` đang chạy.** `main.py` nhận ra reset qua thời gian
   chạy của firmware quay về 0 và báo `ARDUINO VUA RESET` ở chân màn hình.
 
@@ -134,8 +133,8 @@ quy tắc sắp theo `uniqueID` của OpenCV, ngay trước mỗi lần mở. B�
 uv run pytest        # FK / IK, lệnh bấm phím, chọn vật, success, màn hình, nhận diện camera, hiệu chỉnh, chạy thử cả chương trình
 ```
 
-Không test nào chạm vào camera, cổng Serial hay `calibration.json` thật (cảnh dựng bằng camera giả lập có đáp án chính xác). `_luu_tru/test_base_servo.py` là script
-điều khiển robot thật nên không nằm trong bộ test tự động. Chạy cả chương trình không cửa sổ, không camera, không robot (dùng ảnh chụp bằng phím `C`):
+Không test nào chạm vào camera, cổng Serial hay `calibration.json` thật (cảnh dựng bằng camera giả lập có đáp án chính xác).
+Chạy cả chương trình không cửa sổ, không camera, không robot (dùng ảnh chụp bằng phím `C`):
 
 ```bash
 uv run python main.py --top captures/tren.jpg --side captures/ngang.jpg --no-serial --headless --seconds 10 --dump-dir out/

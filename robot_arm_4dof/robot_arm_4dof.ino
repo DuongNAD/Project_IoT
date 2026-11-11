@@ -23,7 +23,7 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
 #define GRIP_HOLD_MAX_MS   60000UL  // Đã khép kẹp (góc > GRIP_OPEN_ANGLE) quá 60 giây không có lệnh kẹp: nhả xung PWM (vật có thể tuột)
 
 // Góc ban đầu khi mới khởi động (vị trí an toàn)
-int angleBase     = 90; // Kênh 0: Đế (a / d)
+int angleBase     = 180; // Kênh 0: Đế (a / d). Quay hết sang phải (nhìn theo cam NGANG) để cánh tay không che vật ở cam TRÊN
 int angleShoulder = 90; // Kênh 1: Cánh tay (w / s)
 int angleElbow    = 90; // Kênh 2: Khuỷu tay (i / k)
 int angleGrip     = GRIP_OPEN_ANGLE; // Kênh 3: Kẹp (j: mở ra, l: kẹp vào)
@@ -153,7 +153,7 @@ void loop() {
 
       // --- 5. Phím 'h' (Home): Đưa toàn bộ về vị trí an toàn ban đầu ---
       case 'h': case 'H':
-        angleBase = 90; angleShoulder = 90; angleElbow = 90; angleGrip = GRIP_OPEN_ANGLE;
+        angleBase = 180; angleShoulder = 90; angleElbow = 90; angleGrip = GRIP_OPEN_ANGLE;  // Đế quay hết sang phải: không che vật ở cam TRÊN
         gripCmd = true;
         break;
 

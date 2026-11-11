@@ -30,7 +30,7 @@ CAPTURE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures
 HELP_TEXT = """💡 Làm theo lệnh to ở giữa màn hình (bấm phím trên cửa sổ video):
    A / D                 : xoay đế sang PHẢI / TRÁI (nhìn theo cam NGANG), mỗi lần 2°
    W / S                 : nâng / hạ vai, mỗi lần 2°          I / K : khuỷu lên / xuống, mỗi lần 2°
-   H                     : về Home (90/90/90)                  X / Z : cho servo kẹp / cả 4 servo nghỉ (ngắt xung)
+   H                     : về Home (180/90/90)                 X / Z : cho servo kẹp / cả 4 servo nghỉ (ngắt xung)
    J / L                 : mở / khép kẹp, mỗi lần 5° (kẹp không tính vào thành công)
    R                     : chốt đích theo ảnh lúc bấm / bấm lần nữa để theo camera lại
    B                     : hiệu chỉnh đế robot (click vào trục xoay đế trên hình cam TREN)      U : dò lại 4 mã ArUco

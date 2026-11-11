@@ -5,7 +5,7 @@ Dùng CHÍNH app (main.App) ở chế độ mô phỏng trên ảnh camera thậ
 không mở cổng USB / Serial, không đụng Arduino, không ghi calibration.json (kiểm bằng băm trước và sau khi chạy).
 
 Ảnh ghi vào slides/assets/real/ (đồng thời thêm hoặc thay mục trong assets/manifest.json và tạo lại _preview.jpg):
-  ui_screen_before.png      màn hình lúc còn phải bấm phím: ảnh camera 20:27 (cánh tay chưa tới cốc), servo mô phỏng ở Home 90/90/90/95
+  ui_screen_before.png      màn hình lúc còn phải bấm phím: ảnh camera 20:27 (cánh tay chưa tới cốc), servo mô phỏng ở Home 180/90/90/95
   ui_screen_done.png        màn hình sau khi MÔ PHỎNG bấm đủ phím theo lệnh và giữ góc > 1 s: XONG! + Thanh cong: 1 lan (ảnh camera 20:32:52, hai ngón kẹp ôm cốc)
   sw_annot_top.jpg, sw_annot_side.jpg   khung camera do phần mềm vẽ (viền giấy, lưới 5 cm, mã ArUco, vị trí cốc) lúc chưa bấm (ảnh 20:27)
   calib_before_after_side.jpg, calib_before_after_top.jpg   hai dấu 'KEP' (mô hình mặc định và mô hình đã hiệu chỉnh) trên ảnh 21:03:35 lúc hai ngón kẹp ôm cốc
@@ -316,7 +316,7 @@ def manifest_entries(before: dict, done: dict, calib: dict | None) -> list[dict]
     entries = [
         entry("ui_screen_before.png", dict(
             group="screen", source=src_before, clock=BEFORE[2], mode="mô phỏng trên ảnh đã lưu", blurred=INHERITED_BLUR,
-            desc_vi=(f"Màn hình hai phần của phần mềm hiện tại, chạy mô phỏng trên ảnh camera thật lúc {BEFORE[2]} (cánh tay chưa tới cốc; servo mô phỏng ở Home 90/90/90/95, "
+            desc_vi=(f"Màn hình hai phần của phần mềm hiện tại, chạy mô phỏng trên ảnh camera thật lúc {BEFORE[2]} (cánh tay chưa tới cốc; servo mô phỏng ở Home 180/90/90/95, "
                      f"không nối Arduino). Trên cùng là hai camera (NGANG | TRÊN) có lưới 5 cm, vòng DICH quanh cốc ở ({vn(bf['vat_cm'][0])}; {vn(bf['vat_cm'][1])}) cm và dấu KEP. "
                      f"Ô 1 ĐIỀU KHIỂN ghi to '{move_text(nxt)}' và ba dòng servo đế / vai / khuỷu (góc hiện tại → góc đích); "
                      f"ô 2 SUCCESS ghi 'CHUA XONG' và 'con {bf['con_lai']} lan bam'; chân trang ghi 'USB Arduino: MO PHONG'."),
