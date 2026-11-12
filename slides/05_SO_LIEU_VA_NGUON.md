@@ -45,11 +45,11 @@ Nhãn trạng thái:
 | Hệ tọa độ | gốc ở góc ngoài mã ID 0; X chạy ID 0 → ID 1 (29,7 cm); Y chạy ID 0 → ID 3 (21,0 cm); gắn với **tờ giấy**, không phụ thuộc camera nào nhìn | CODE | `README.md` mục 4; `calibration.py:5` |
 | Homography | từ các mã ArUco 0–3 (cần ≥ 2 mã), cho **cả hai camera**; ảnh phẳng của tờ giấy dựng bằng `warpPerspective` | CODE | `vision.py:45-62,71` |
 | Che mất mã | nhớ vị trí từng mã nên che 1–3 mã vẫn còn lưới; dời camera hoặc tờ giấy thì bấm `U` để quên | CODE + MÔ PHỎNG | `README.md` mục 4; `main.py:100-102` |
-| **Cách tìm vật** | tách màu HSV trên ảnh phẳng của tờ giấy: độ bão hòa ≥ 90, sáng ≥ 60; bỏ khối < 1,5 cm² (nhiễu, dây điện) hoặc > 50 cm² (bàn tay, không lọt miệng kẹp), khối cách mép giấy dưới 1 cm, khối hơn 30% dính phần đen của cánh tay | CODE | `vision.py:68-96` |
+| **Cách tìm vật** | tách màu HSV trên ảnh phẳng của tờ giấy: độ bão hòa ≥ 90, sáng ≥ 60; bỏ khối < 1,5 cm² (nhiễu, dây điện) hoặc > 50 cm² (bàn tay, không lọt miệng kẹp), khối cách mép giấy dưới 1 cm (bỏ lọc "dính thân robot" ngày 12/11: đích chỉ chụp một lần khi bấm R) | CODE | `vision.py:68-91` |
 | YOLO | **đã bỏ** ngày 10/11 khi rút gọn phần 2 (trước đó là tùy chọn `--yolo`, mặc định tắt, bản COCO chưa fine-tune, có nhận nhầm) | CODE | `README.md` mục 9 |
 | Kích thước cốc đỏ số 3 | thân 34 mm, nắp ≈ 40 mm, cao 50 mm (độ cao dùng để bù thị sai) | ĐO | `vision.py:23` |
 | Chọn vật (phím `R`) | bấm `R`: vật gần đế nhất trong ảnh lúc bấm thành đích, góc cần tới tính **một lần** lúc bấm, sau đó không theo camera nữa (tay kẹp che hay đẩy lệch vật cũng không đổi đích); vật bị dời thì bấm `R` lại; chưa bấm `R` thì chưa có lệnh. Bỏ ngày 11/11: theo dõi vật liên tục (trung bình 10 khung, nhớ 120 s khi bị che, `R` bỏ chốt) | CODE | `control.py:253-275` |
-| **Hiệu chỉnh phối cảnh cam TRÊN** | cam treo cao ≈ 46 cm nhìn xuống; vật cao 5 cm hiện lệch ≈ 1 cm; công thức `p_thật = n + (p_đo − n)·(H − h)/H` (n: tâm ảnh, H: 46 cm, h: độ cao vật). Một phép đo ngày 02/11: cam TRÊN (20,6; 6,8) cm, cam MacBook (20,0; 7,8) cm, lệch **1,2 cm**; sau hiệu chỉnh còn **0,2 cm** | CODE + ĐO (một vị trí cốc) | `vision.py:22-23,77-93` |
+| **Hiệu chỉnh phối cảnh cam TRÊN** | cam treo cao ≈ 46 cm nhìn xuống; vật cao 5 cm hiện lệch ≈ 1 cm; công thức `p_thật = n + (p_đo − n)·(H − h)/H` (n: tâm ảnh, H: 46 cm, h: độ cao vật). Một phép đo ngày 02/11: cam TRÊN (20,6; 6,8) cm, cam MacBook (20,0; 7,8) cm, lệch **1,2 cm**; sau hiệu chỉnh còn **0,2 cm** | CODE + ĐO (một vị trí cốc) | `vision.py:22-23,76-89` |
 | Độ cao 46 cm của cam TRÊN | ước từ ảnh (≈ 27 px/cm ở mặt bàn); không đo bằng thước | ƯỚC LƯỢNG | `vision.py:22`; ghi chú phiên 02/11 |
 
 ## 3. Khối điều khiển (`control.py`): từ vật tới phím cần bấm
@@ -95,7 +95,7 @@ Nhãn trạng thái:
 | Ô 1 | lệnh to màu cam: `BAM D x8: SANG TRAI 16 do`; ba dòng servo (`DE (xoay): 90 -> 74 do   bam D x8`), dòng đã tới ghi `DA DUNG` màu xanh | CODE | `screen.py:50-59` |
 | Ô 2 | `CHUA XONG` + `con N lan bam`, hoặc **`XONG!`** màu xanh khi cả ba servo tới góc; `Thanh cong: N lan` | CODE | `screen.py:61-70` |
 | Trạng thái khác | ô 1 ghi `Chua co dich: ... roi bam R`, `Vat ngoai tam voi` hoặc `Khong can bam them`; ô 2 ghi `CHUA XONG` | CODE | `screen.py:21-25` |
-| Trên hai camera | vòng **DICH** (chỗ vật lúc bấm `R`) vẽ trên mặt giấy (dấu **KEP** đã bỏ ngày 12/11); lưới 5 cm; viền tờ giấy; dòng `Luoi A4: thay n/4 ma ArUco` | CODE | `main.py:65-71`; `vision.py:112-125,139-161` |
+| Trên hai camera | vòng **DICH** (chỗ vật lúc bấm `R`) vẽ trên mặt giấy (dấu **KEP** đã bỏ ngày 12/11); lưới 5 cm; viền tờ giấy; dòng `Luoi A4: thay n/4 ma ArUco` | CODE | `main.py:65-71`; `vision.py:108-121,135-157` |
 | Chân trang | trạng thái USB (`DA KET NOI` hoặc `MO PHONG`), hàng phím tắt | CODE | `screen.py:72-74` |
 | **Điều khiển từ xa** | máy Dell cách ≈ 2 m: `remote.py` lấy ảnh màn hình Mac qua Wi-Fi (`share.py`, `http://<ip Mac>:8000/screen.jpg`, chỉ cho xem, không nhận lệnh) và gửi phím `A D W S I K J L H X` qua Bluetooth HC-05 thẳng tới Arduino; `H` phải bấm 2 lần trong 2 giây; `R` bấm trên bàn phím Mac. Mac vẫn nối USB để nhận góc servo và tính lệnh, success | CODE | `share.py`; `remote.py`; `main.py:106-118` |
 | Điều khiển từ xa trên phần cứng | bản rút gọn 11/11 **chưa chạy với HC-05 và máy Dell thật** | CHƯA | — |
@@ -168,7 +168,7 @@ Nhãn trạng thái:
 | Mục | Giá trị | Nhãn | Nguồn |
 |---|---|---|---|
 | Cách kiểm tra | **bằng mắt** khi chạy chương trình: lưới 5 cm có bám tờ giấy, vòng xanh có nằm trên cốc, bấm theo lệnh thì cánh tay đi đúng hướng. Bộ test tự động (100 test) đã bỏ ngày 11/11, còn trong lịch sử git | QUYẾT ĐỊNH | — |
-| Quy mô | 7 module Python ≈ **827 dòng** (`main.py` 144 · `control.py` 286 · `success.py` 56 · `screen.py` 75 · `vision.py` 161 · `cameras.py` 45 · `calibration.py` 60) + điều khiển từ xa (`share.py` 66 · `remote.py` 99) + firmware 208 dòng. Phần 2 (vision, cameras, screen, success) từ 1 677 dòng (10/11) còn 381 dòng | CODE | `wc -l` (11/11) |
+| Quy mô | 7 module Python ≈ **823 dòng** (`main.py` 144 · `control.py` 286 · `success.py` 56 · `screen.py` 75 · `vision.py` 157 · `cameras.py` 45 · `calibration.py` 60) + điều khiển từ xa (`share.py` 66 · `remote.py` 99) + firmware 208 dòng. Phần 2 (vision, cameras, screen, success) từ 1 677 dòng (10/11) còn 377 dòng (12/11) | CODE | `wc -l` (11/11) |
 | Chạy không cần phần cứng | `main.py --top a.jpg --side b.jpg` (không ghi `--port`): chương trình đọc ảnh như camera và mô phỏng cánh tay; chế độ không cửa sổ `--headless` đã bỏ ngày 11/11 | CODE | `README.md` mục 7; `cameras.py:19-35` |
 | Mỗi khung hình là ba dòng | `plan = control.update(vision.objects)` → `result = success.update(plan)` → `build_screen(…, plan, result)` | CODE | `README.md` mục 3; `main.py:76-79` |
 | Repo | `github.com/DuongNAD/Project_IoT`: nhánh `main` (`e3f2d85`, 03/11/2026) đã có bản hai khối (`control.py`, `success.py`, `screen.py`, `vision.py`, `cameras.py`, `calibration.py`, `arm_fit.py`, `tests/`, `README.md`) và phần gộp từ máy Windows. `captures/`, `calibration.json` và `slides/assets/real/` nằm trong `.gitignore`; riêng `slides/Project_IoT_ThuyetTrinh.pptx`, `.pdf` và `slides/preview/` **đang được git theo dõi và có nhúng ảnh thật** | CODE | `git log`; `.gitignore`; `slides/.gitignore` |
@@ -292,7 +292,7 @@ CALIB_BASE = 13.83 31.67 -92.4
 CALIB_THETA = 60.2 -58.6
 CALIB_CLAW = 183.7 0.0 0.0
 CALIB_FIT = n:10 rms:8.5 loo:11.6
-PY_LINES = 827
+PY_LINES = 823
 FIRMWARE_LINES = 208
 HUG_ERR_CM = 5.4 3.5 5.9
 GOAL_CUP_20_1_7_4 = 74 58 90

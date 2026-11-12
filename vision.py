@@ -72,7 +72,6 @@ def find_objects(frame, sheet):
     hsv = cv2.cvtColor(flat, cv2.COLOR_BGR2HSV)
     colored = cv2.inRange(hsv, (0, 90, 60), (180, 255, 255))                     # Có màu: độ bão hòa >= 90, đủ sáng
     colored = cv2.morphologyEx(colored, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))  # Bỏ nhiễu và dây điện mảnh
-    robot = cv2.dilate(cv2.inRange(hsv, (0, 0, 0), (180, 255, 69)), np.ones((9, 9), np.uint8))  # Phần đen của cánh tay, nới thêm ~1 cm
 
     h, w = frame.shape[:2]
     nadir = px_to_cm(sheet.H_px2cm, w / 2, h / 2)  # Điểm cam TREN nhìn thẳng xuống = tâm ảnh
@@ -84,9 +83,6 @@ def find_objects(frame, sheet):
             continue  # Nhỏ hơn 1,5 cm² là nhiễu; to hơn 50 cm² là bàn tay, không lọt miệng kẹp
         if x < PPC or y < PPC or x + bw > W - PPC or y + bh > H - PPC:
             continue  # Sát mép giấy (dưới 1 cm): tay hoặc đồ vật thò từ ngoài vào
-        blob = cv2.drawContours(np.zeros_like(colored), [c], -1, 255, -1)
-        if cv2.mean(robot, mask=blob)[0] > 0.3 * 255:
-            continue  # Hơn 30% dính vào phần đen của cánh tay: dây điện, nhãn servo
         m = cv2.moments(c)
         top = (m["m10"] / m["m00"] / PPC, m["m01"] / m["m00"] / PPC)  # Tâm khối màu (cm) = nắp vật nhìn từ trên
         # Bù thị sai: vị trí thật = nadir + (vị trí đo - nadir) * (H - h) / H

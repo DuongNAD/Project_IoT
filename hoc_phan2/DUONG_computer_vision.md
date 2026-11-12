@@ -25,14 +25,14 @@ phần còn lại chỉ cần một câu. Đọc [README.md](README.md) phần "
 | `cameras.py:30-35` (`get_raw_frame`) | mỗi vòng lặp đọc một khung mới nhất; không có hình thì trả về `None` | Rút cáp camera thì sao? (ô camera hiện "Dang cho tin hieu"; cắm lại rồi chạy lại chương trình) |
 | `vision.py:26-31` (`marker_corners_cm`) | tọa độ **thật** (cm) bốn góc mỗi mã: cạnh 2,8 cm, cách mép 0,25 cm | Mã ID 1 nằm ở góc nào? |
 | `vision.py:45-62` (`Sheet`) | OpenCV dò mã → **nhớ mã bị che** → có ≥ 2 mã thì `findHomography` (pixel → cm) | Vì sao 2 mã là đủ? (8 góc, homography cần ≥ 4 cặp điểm) |
-| `vision.py:68-95` (`find_objects`) | 4 bước: ảnh phẳng (`70-71`) → tách màu HSV (`72-75`) → lọc khối (`81-89`) → bù thị sai (`79, 92-93`) | Vật màu trắng thì sao? (chưa nhận được) |
+| `vision.py:68-91` (`find_objects`) | 4 bước: ảnh phẳng (`70-71`) → tách màu HSV (`72-74`) → lọc khối (`80-85`) → bù thị sai (`78, 88-89`) | Vật màu trắng thì sao? (chưa nhận được) |
 
 ## Phần còn lại: chỉ cần một câu
 
 | Phần | Câu cần nói |
 |---|---|
 | Dò mã ArUco | Dùng hàm có sẵn của OpenCV (`cv2.aruco`), bộ mã có sẵn `DICT_4X4_50`; tờ in là `aruco_A4_clean.pdf`. |
-| `vision.py:139-161` (`process_frame`) | Ghép hai bước trên cho từng camera, vẽ mã, lưới 5 cm, vòng xanh quanh vật. |
+| `vision.py:135-157` (`process_frame`) | Ghép hai bước trên cho từng camera, vẽ mã, lưới 5 cm, vòng xanh quanh vật. |
 | `control.py:253-263` (`lock_target`, phím R) | Bấm R: vật gần đế nhất trong ảnh lúc đó thành đích, góc cần tới tính một lần. |
 | `calibration.py` | Nạp `calibration.json`: vị trí đế (đo bằng thước), hai góc chuẩn vai / khuỷu, càng kẹp. |
 | `share.py` | Mac chia sẻ ảnh màn hình qua Wi-Fi cho máy Dell, chỉ cho xem. |
@@ -61,7 +61,7 @@ Nguồn: `slides/05_SO_LIEU_VA_NGUON.md` mục 2 và 10.
 | ≥ 2 mã | đủ tính homography (8 cặp điểm) |
 | 8 pixel / cm | độ phân giải ảnh phẳng của tờ giấy |
 | 90 · 60 | ngưỡng độ bão hòa · độ sáng để coi là "có màu" |
-| 1,5 cm² · 50 cm² · 1 cm · 30% | bốn ngưỡng lọc vật |
+| 1,5 cm² · 50 cm² · 1 cm | ba ngưỡng lọc vật |
 | 46 cm · 5 cm | cam TRÊN treo cao (ước lượng từ ảnh, không đo bằng thước) · cốc cao |
 | 1,2 cm → 0,2 cm | lệch giữa hai camera trước / sau bù thị sai, **ở một vị trí cốc** đo ngày 02/11 |
 

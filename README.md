@@ -174,7 +174,7 @@ Quy trình gắp 5 bước, kiểm tra thành công bằng S1 / S2 (cam NGANG th
 trước khi đơn giản hóa được sao lưu ở `~/Documents/project/Project_IoT_backup_truoc_don_gian_hoa_2026-11-02.tgz` (không nằm trong repo).
 
 Lần rút gọn phần 2 (2026-11-10): bỏ YOLO (`--yolo`), điện thoại qua `adb` / IP Webcam, xoay hình (`--rotate-*`), ước lượng tờ giấy khi không thấy mã,
-vật dán mã ArUco, cảnh báo và phím tráo camera (`T`, `0`-`3`). Vẫn giữ: nhớ mã bị che, bù thị sai, lọc tay người / thân robot.
+vật dán mã ArUco, cảnh báo và phím tráo camera (`T`, `0`-`3`). Vẫn giữ: nhớ mã bị che, bù thị sai, lọc tay người.
 Điều khiển từ xa bằng máy Dell được đưa lại ngày 11/11 ở dạng gọn (`share.py`, `remote.py`): chỉ xem màn hình và gửi phím, `R` bấm trên Mac.
 
 Ngày 11/11, những việc làm tay được thì bỏ code (còn trong lịch sử git): bộ test tự động (kiểm tra bằng mắt, mục 7), tạo tờ ArUco (`generate_aruco_a4.py`),

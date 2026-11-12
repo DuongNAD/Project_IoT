@@ -392,7 +392,7 @@ TITLES = {
     "circuit": "Sơ đồ mạch", "heat": "Bảo vệ servo kẹp", "a4": "Hệ tọa độ từ tờ A4", "objects": "Nhận diện vật",
     "flow": "Lưu đồ thuật toán", "fwcode": "Code firmware", "ik": "Động học ngược", "screen": "Giao diện chương trình",
     "calib": "Hiệu chỉnh mô hình", "success": "Điều kiện hoàn thành", "trial": "Thử nghiệm trên cánh tay thật",
-    "eyecheck": "Kiểm tra bằng mắt", "results": "Kết quả", "limits": "Hạn chế, hướng phát triển",
+    "eyecheck": "Kiểm tra", "results": "Kết quả", "limits": "Hạn chế, hướng phát triển",
 }
 UI_OLD = True  # Ảnh ui_screen_* / sw_annot_* chụp bằng giao diện trước 10/11; chạy lại make_screen_images.py trên Mac rồi đặt False
 UI_NOTE = " (giao diện bản trước)" if UI_OLD else ""
@@ -944,7 +944,7 @@ Camera phía trên đặt cao khoảng 46 cm, nên phần trên của vật cao 
 
 Nếu được hỏi: vì sao dùng ArUco? Mã có số định danh, xác định rõ bốn góc, nhận được khi nhìn nghiêng và có sẵn trong OpenCV. Tờ giấy là hệ quy chiếu chung cho cả hai camera, nên khi đổi vị trí camera không cần đo lại bằng thước. Độ cao 46 cm đo thế nào? Ước lượng từ ảnh, chưa đo bằng thước; con số 0,2 cm là kết quả của một phép đo.
 
-Nguồn: vision.py:16-23,45-62,77-93; README.md mục 4.
+Nguồn: vision.py:16-23,45-62,76-89; README.md mục 4.
 """)
 
 
@@ -957,7 +957,7 @@ def slide_objects(prs, n):
     cards = [
         ("BƯỚC 1", "Ảnh phẳng tờ A4", "Homography, 8 pixel / cm"),
         ("BƯỚC 2", "Tách vùng có màu", "Độ bão hòa ≥ 90, đủ sáng"),
-        ("BƯỚC 3", "Lọc vật", "Bỏ khối < 1,5 cm² hoặc > 50 cm², sát mép giấy, dính thân robot"),
+        ("BƯỚC 3", "Lọc vật", "Bỏ khối < 1,5 cm² hoặc > 50 cm², sát mép giấy"),
     ]
     cw = (CW - 0.5) / 3
     for i, (tag, title, desc) in enumerate(cards):
@@ -979,7 +979,7 @@ def slide_objects(prs, n):
     ], 15, after=9)
     footer(s, n)
     notes(s, """
-Sau khi có hệ tọa độ, chương trình tìm vật bằng cách tách màu, gồm ba bước. Bước một: dùng homography dựng ảnh phẳng của tờ A4, mỗi xăng-ti-mét là 8 pixel. Bước hai: giữ các vùng có màu đậm như cốc đỏ; giấy trắng, bóng xám và thân robot đen bị bỏ. Bước ba: lọc vật. Khối nhỏ hơn 1,5 cm² là nhiễu hoặc dây điện; khối lớn hơn 50 cm² là bàn tay, không lọt miệng kẹp; khối sát mép giấy là vật thò từ ngoài vào; khối dính vào thân robot đen là bộ phận của robot.
+Sau khi có hệ tọa độ, chương trình tìm vật bằng cách tách màu, gồm ba bước. Bước một: dùng homography dựng ảnh phẳng của tờ A4, mỗi xăng-ti-mét là 8 pixel. Bước hai: giữ các vùng có màu đậm như cốc đỏ; giấy trắng, bóng xám và thân robot đen bị bỏ. Bước ba: lọc vật. Khối nhỏ hơn 1,5 cm² là nhiễu hoặc dây điện; khối lớn hơn 50 cm² là bàn tay, không lọt miệng kẹp; khối sát mép giấy là vật thò từ ngoài vào.
 
 Tâm của khối màu đổi ra xăng-ti-mét, rồi được bù thị sai như slide trước. Ảnh bên dưới là khung camera trên: vòng xanh quanh cốc kèm tọa độ X, Y.
 
@@ -989,7 +989,7 @@ Tiếp theo, {succ} trình bày nửa sau của phần này: hỗ trợ gắp.
 
 Nếu được hỏi: vì sao không dùng YOLO? Bản trước có YOLO11 nhưng hay nhận nhầm bộ phận robot, nên nhóm bỏ để mã đơn giản; tách màu đủ cho cốc màu đậm. Vật màu trắng hoặc xám thì sao? Chưa nhận được; đây là một hạn chế. Vì sao phải bấm R mà không theo camera liên tục? Khi tay kẹp tiến vào, nó che và đẩy cốc nên vị trí camera thấy bị nhảy; chụp một lần thì đích đứng yên và mã đơn giản hơn.
 
-Nguồn: vision.py:68-95; control.py:253-263 (phím R).
+Nguồn: vision.py:68-91; control.py:253-263 (phím R).
 """)
 
 
@@ -1371,12 +1371,12 @@ Nguồn: ảnh demo_06, demo_07, demo_08 (khung cắt từ video 02/11/2026, 20:
 
 
 # ==============================================================================
-# 02 · Hỗ trợ gắp · kiểm tra bằng mắt
+# 02 · Hỗ trợ gắp · kiểm tra
 # ==============================================================================
 def slide_eye_check(prs, n):
     s = new_slide(prs, alt=True)
-    header(s, "02 · Hỗ trợ gắp", "Kiểm tra bằng mắt", "succ")
-    label(s, M, 1.95, 6.8, "Chạy chương trình, nhìn bốn điều", TEAL, 10.5)
+    header(s, "02 · Hỗ trợ gắp", "Kiểm tra", "succ")
+    label(s, M, 1.95, 6.8, "Chạy chương trình, kiểm tra bốn điều", TEAL, 10.5)
     steps(s, M, 2.4, 6.9, [
         [("Lưới 5 cm bám tờ giấy", {"bold": True}), ": góc dưới ghi Luoi A4: thay 4/4 ma ArUco"],
         [("Vòng xanh nằm trên cốc", {"bold": True}), ", kèm X, Y (cm)"],
@@ -1392,7 +1392,7 @@ def slide_eye_check(prs, n):
     caption(s, rx, 4.42 + h2 + 0.08, rw, "3–4 · Đủ phím → XONG (mô phỏng)" + UI_NOTE, 10, 0.45)
     footer(s, n)
     notes(s, """
-Nhóm kiểm tra hệ thống bằng mắt khi chạy chương trình, theo bốn điều.
+Nhóm kiểm tra hệ thống khi chạy chương trình, theo bốn điều.
 
 Một: lưới 5 cm phải bám đúng tờ giấy, góc dưới ghi Luoi A4: thay 4/4 ma ArUco; lưới lệch là homography sai. Hai: đặt cốc lên giấy, vòng xanh phải nằm trên cốc, kèm tọa độ X, Y theo xăng-ti-mét. Ba: bấm R để chụp đích; ô một hiện lệnh to, ví dụ BAM D x8, và bấm đúng phím thì số lần bấm giảm dần. Bốn: đủ phím thì hiện XONG, giữ 1 giây thì Thanh cong cộng một.
 

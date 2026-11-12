@@ -372,9 +372,9 @@ def slide_objects(prs):
                """
 Sau khi có homography, find_objects tìm vật trên ảnh cam TRÊN.
 
-Số 1: warpPerspective dựng ảnh phẳng của tờ A4, mỗi xăng-ti-mét là 8 pixel, nên mọi phép đo sau đó tính thẳng bằng xăng-ti-mét. Số 2: chuyển sang không gian màu HSV và giữ các điểm có độ bão hòa từ 90 trở lên; giấy trắng, bóng xám và thân robot đen bị bỏ. Phép mở ảnh bỏ nhiễu và dây điện mảnh. Song song, chương trình đánh dấu vùng đen của cánh tay.
+Số 1: warpPerspective dựng ảnh phẳng của tờ A4, mỗi xăng-ti-mét là 8 pixel, nên mọi phép đo sau đó tính thẳng bằng xăng-ti-mét. Số 2: chuyển sang không gian màu HSV và giữ các điểm có độ bão hòa từ 90 trở lên; giấy trắng, bóng xám và thân robot đen bị bỏ. Phép mở ảnh bỏ nhiễu và dây điện mảnh.
 
-Số 3: lọc từng khối màu. Nhỏ hơn 1,5 cm² là nhiễu; lớn hơn 50 cm² là bàn tay, không lọt miệng kẹp; cách mép giấy dưới 1 cm là vật thò từ ngoài vào; hơn 30% dính vào phần đen là bộ phận của robot.
+Số 3: lọc từng khối màu. Nhỏ hơn 1,5 cm² là nhiễu; lớn hơn 50 cm² là bàn tay, không lọt miệng kẹp; cách mép giấy dưới 1 cm là vật thò từ ngoài vào.
 
 Số 4: bù thị sai. Cam TRÊN treo cao 46 cm, nắp cốc cao 5 cm nên bị lệch ra xa tâm ảnh. Vị trí thật bằng điểm nhìn thẳng xuống cộng khoảng cách đo được nhân với (46 − 5) / 46. Ở một vị trí đã đo, sai lệch giữa hai camera giảm từ 1,2 cm xuống 0,2 cm.
 
