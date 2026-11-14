@@ -6,7 +6,7 @@ KHỐI ĐIỀU KHIỂN: vật ở đâu -> servo phải quay tới góc nào -> 
 
 Phần này lo toàn bộ việc ĐIỀU KHIỂN cánh tay:
   1. Hình học cánh tay: đổi tọa độ tờ giấy -> hệ robot, động học ngược (IK) bằng hai tam giác, đổi góc khớp -> góc servo Arduino.
-  2. Cổng USB tới Arduino: gửi phím (W A S D I K J L H X), đọc góc servo firmware báo về (góc đã ra lệnh: MG996R không đo được góc thật).
+  2. Cổng USB tới Arduino: gửi phím (W A S D I K J L H), đọc góc servo firmware báo về (góc đã ra lệnh: MG996R không đo được góc thật).
   3. Phím R chụp vị trí vật gần đế nhất làm đích và tính góc cần tới MỘT lần; mỗi khung so góc servo hiện tại với góc đó ra lệnh bấm phím (Move).
 Kết quả mỗi khung hình là một Plan, chuyển cho khối success (success.py) để kết luận "đã tới chưa".
 Phần nhìn (camera, ArUco, tìm vật) nằm ở vision.py; phần vẽ màn hình ở screen.py; main.py nối các phần lại.
@@ -175,8 +175,8 @@ def plan_moves(now, goal):
 class ArduinoSerialLink:
     """
     Cổng USB tới Arduino (9600 baud).
-    - Gửi phím: mỗi lần bấm một ký tự (w a s d i k j l h x z).
-    - Nhận gói JSON firmware gửi ngay sau mỗi phím và 5 lần / giây: {"t": ms, "servo": [đế, vai, khuỷu, kẹp], "relax": 0|1, "armrelax": 0|1}; app chỉ lấy "servo".
+    - Gửi phím: mỗi lần bấm một ký tự (w a s d i k j l h).
+    - Nhận gói JSON firmware gửi ngay sau mỗi phím và 5 lần / giây: {"t": ms, "servo": [đế, vai, khuỷu, kẹp], "relax": 0|1}; app chỉ lấy "servo".
       Đọc ở một luồng nền để vòng lặp chính không phải đứng chờ Arduino.
     - Không ghi cổng (port=None): MÔ PHỎNG, tự cộng / trừ góc như firmware để vẫn chạy được camera + IK + màn hình.
     - Mở cổng MỘT lần lúc chạy và không mở lại: Arduino Uno tự reset (cả 4 servo giật về Home) mỗi lần cổng được mở.
@@ -214,7 +214,7 @@ class ArduinoSerialLink:
         while True:
             line = self.ser.readline().decode("utf-8", errors="ignore").strip()
             if not line.startswith("{"):
-                continue  # Banner khởi động, dòng "Phím bấm: x"...: bỏ qua, gói JSON luôn đến ngay sau đó
+                continue  # Banner khởi động, dòng "Phím bấm: d"...: bỏ qua, gói JSON luôn đến ngay sau đó
             try:
                 data = json.loads(line)
                 self.servo = [int(v) for v in data["servo"]][:4]
@@ -277,7 +277,7 @@ class Control:
     def press(self, key):
         """Gửi một phím điều khiển xuống Arduino (hoặc cập nhật mô phỏng nếu chưa nối USB). Trả về True nếu là phím điều khiển."""
         ch = (key or "")[:1].lower()
-        if not ch or ch not in "wasdikjlhx":
+        if not ch or ch not in "wasdikjlh":
             return False
         self.link.send_key(ch)
         return True

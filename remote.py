@@ -5,7 +5,7 @@ APP ĐIỀU KHIỂN TỪ XA TRÊN MÁY DELL (đặt cách cánh tay khoảng 2 m
     Mac (main.py: 2 camera, vision, control, success) --Wi-Fi: ảnh màn hình--> remote.py (Dell) --Bluetooth: phím--> HC-05 --> Arduino
 
 - XEM: ảnh màn hình của Mac (2 camera + lệnh bấm phím + XONG) qua Wi-Fi, từ đường dẫn main.py in ra trên Mac.
-- BẤM: A D W S I K J L H X trên bàn phím Dell đi qua cổng COM Bluetooth của HC-05 thẳng tới Arduino.
+- BẤM: A D W S I K J L H trên bàn phím Dell đi qua cổng COM Bluetooth của HC-05 thẳng tới Arduino.
   H (về Home) phải bấm 2 lần trong 2 giây mới gửi, để khỏi bấm nhầm. Q / ESC: thoát.
 - R (chụp đích) bấm trên bàn phím Mac: Arduino không hiểu R.
 
@@ -26,7 +26,7 @@ import cv2
 import numpy as np
 import serial
 
-SERVO_KEYS = "adwsikjlhx"  # Phím firmware hiểu, giống bàn phím trên Mac
+SERVO_KEYS = "adwsikjlh"  # Phím firmware hiểu, giống bàn phím trên Mac
 CONFIRM_KEYS = {"h": "ve Home"}  # Phím này phải bấm 2 lần
 CONFIRM_S = 2.0  # Lần bấm thứ 2 phải trong ngần này giây
 WINDOW = "DIEU KHIEN TU XA: xem qua Wi-Fi, bam phim qua Bluetooth (Q = thoat)"
@@ -72,7 +72,7 @@ def main(argv=None):
     while True:
         screen = view.frame if view.frame is not None else np.zeros((650, 1280, 3), np.uint8)
         bar = np.full((44, screen.shape[1], 3), 30, np.uint8)
-        text = note or ("Bam A D W S I K J L H X de dieu khien, Q de thoat" if view.frame is not None
+        text = note or ("Bam A D W S I K J L H de dieu khien, Q de thoat" if view.frame is not None
                         else "Dang cho anh tu Mac (cung Wi-Fi chua? main.py dang chay?)")
         cv2.putText(bar, text, (16, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (90, 220, 110), 2, cv2.LINE_AA)
         cv2.imshow(WINDOW, np.vstack([bar, screen]))

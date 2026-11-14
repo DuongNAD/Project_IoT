@@ -23,7 +23,7 @@ from vision import Vision, draw_target
 HELP_TEXT = """💡 Làm theo lệnh to ở giữa màn hình (bấm phím trên cửa sổ video):
    A / D                 : xoay đế sang PHẢI / TRÁI (nhìn theo cam NGANG), mỗi lần 2°
    W / S                 : nâng / hạ vai, mỗi lần 2°          I / K : khuỷu lên / xuống, mỗi lần 2°
-   H                     : về Home (180/90/90)                 X     : cho servo kẹp nghỉ (ngắt xung)
+   H                     : về Home (180/90/90)
    J / L                 : mở / khép kẹp, mỗi lần 5° (kẹp không tính vào thành công)
    R                     : chụp vị trí vật làm đích, tính góc cần tới một lần (vật bị dời thì bấm R lại)
    U                     : dò lại 4 mã ArUco (sau khi dời camera / tờ giấy)                       Q : thoát"""

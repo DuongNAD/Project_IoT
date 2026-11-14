@@ -35,9 +35,6 @@ unsigned long lastReportMs = 0;
 bool gripRelaxed = false;
 unsigned long gripActiveMs = 0; // Lần cuối ra lệnh cho servo kẹp
 
-// Trạng thái nghỉ của 3 servo đế / vai / khuỷu: true = đã ngắt xung PWM kênh 0-2 (phím z), cánh tay không còn giữ lực
-bool armRelaxed = false;
-
 // Hàm đổi góc sang xung PWM gửi đến PCA9685
 void setServoAngle(uint8_t channel, int angle) {
   int pulse = map(angle, 0, 180, SERVOMIN, SERVOMAX);
@@ -57,15 +54,6 @@ void relaxGripper() {
   gripRelaxed = true;
 }
 
-// Ngắt xung PWM 3 servo đế, vai, khuỷu (phím z): để máy chạy không người trông mà servo không nóng.
-// Cánh tay tự hạ theo trọng lực, nên đặt đầu kẹp tựa xuống bàn ở chỗ trống trước khi bấm z.
-void relaxArm() {
-  for (uint8_t ch = 0; ch < GRIP_CH; ch++) {
-    pwm.setPWM(ch, 0, 4096);
-  }
-  armRelaxed = true;
-}
-
 // === [THÊM MỚI 2/3] Hàm gửi gói JSON trạng thái 4 servo qua cáp USB lên Laptop ===
 void sendServoState() {
   Serial.print("{\"t\":");
@@ -77,8 +65,6 @@ void sendServoState() {
   Serial.print(angleGrip);
   Serial.print("],\"relax\":");
   Serial.print(gripRelaxed ? 1 : 0);
-  Serial.print(",\"armrelax\":");
-  Serial.print(armRelaxed ? 1 : 0);
   Serial.println("}");
 }
 
@@ -96,7 +82,7 @@ void setup() {
   driveGripper();
 
   delay(500);
-  Serial.println("Robot Arm Ready! WASD + IK + JL + X (nghi kep) + Z (nghi het)");
+  Serial.println("Robot Arm Ready! WASD + IK + JL + H (home)");
   sendServoState();
 }
 
@@ -114,7 +100,6 @@ void loop() {
     Serial.println(cmd);
 
     bool gripCmd = false; // true nếu lệnh này đổi góc kẹp -> cấp lại xung cho servo kẹp
-    bool armCmd = strchr("adwsikhADWSIKH", cmd) != NULL; // Phím di chuyển đế / vai / khuỷu (hoặc h) đánh thức cánh tay đang nghỉ
 
     switch (cmd) {
       // --- 1. Đế xoay: a (Trái) / d (Phải) ---
@@ -156,28 +141,12 @@ void loop() {
         angleBase = 180; angleShoulder = 90; angleElbow = 90; angleGrip = GRIP_OPEN_ANGLE;  // Đế quay hết sang phải: không che vật ở cam TRÊN
         gripCmd = true;
         break;
-
-      // --- 6. Phím 'x': cho servo kẹp nghỉ ngay (ngắt xung PWM) để nguội, bấm J / L để dùng lại ---
-      case 'x': case 'X':
-        relaxGripper();
-        break;
-
-      // --- 7. Phím 'z': ngắt xung cả 4 servo (máy chạy không người trông mà servo không nóng), bấm phím di chuyển để dùng lại ---
-      case 'z': case 'Z':
-        relaxArm();
-        relaxGripper();
-        break;
     }
 
-    // Cập nhật lại góc đến 3 servo đế, vai, khuỷu; cánh tay đang nghỉ (phím z) chỉ được cấp xung lại khi có phím di chuyển
-    if (armCmd) {
-      armRelaxed = false;
-    }
-    if (!armRelaxed) {
-      setServoAngle(0, angleBase);
-      setServoAngle(1, angleShoulder);
-      setServoAngle(2, angleElbow);
-    }
+    // Cập nhật lại góc đến 3 servo đế, vai, khuỷu
+    setServoAngle(0, angleBase);
+    setServoAngle(1, angleShoulder);
+    setServoAngle(2, angleElbow);
     // Servo kẹp đang nghỉ thì lệnh đế / vai / khuỷu không đánh thức nó
     if (gripCmd) {
       driveGripper();

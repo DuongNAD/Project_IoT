@@ -60,7 +60,6 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `I` / `K` | khuỷu lên / xuống, mỗi lần 2° |
 | `J` / `L` | mở / khép kẹp, mỗi lần 5° (không tính vào thành công) |
 | `H` | đưa cả 4 servo về Home (180/90/90/95): đế quay hết sang **phải** để cánh tay không che vật ở cam TREN |
-| `X` | cho servo kẹp nghỉ (ngắt xung PWM để nguội) |
 | `R` | **chụp đích**: lấy vật gần đế nhất trong ảnh lúc bấm, tính góc cần tới **một lần** (không theo camera nữa, tay kẹp che hay đẩy lệch vật cũng không đổi đích); vật bị dời thì bấm `R` lại. Chưa bấm `R` thì chưa có lệnh |
 | `U` | quên vị trí 4 mã ArUco đã nhớ (sau khi dời camera hoặc tờ giấy) |
 | `Q` | thoát |
@@ -71,14 +70,14 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
                  USB: góc servo + nguồn
    MAC (main.py) ─────────────────────── UNO ── HC-05
    2 camera, vision, control, success              ▲
-     │                                             │ Bluetooth: phím a d w s i k j l h x
+     │                                             │ Bluetooth: phím a d w s i k j l h
      └── Wi-Fi: ảnh màn hình (2 cam + lệnh + XONG) ──►  DELL (remote.py)
 ```
 
 - **Mac** đặt cạnh cánh tay, **cắm USB vào Arduino** và làm toàn bộ phần tính: camera, vision, control, success. Sau mỗi phím Arduino báo góc servo
   về Mac qua USB. Khi mở cửa sổ, `main.py` tự chia sẻ ảnh màn hình qua Wi-Fi (`share.py`, chỉ cho xem, không nhận lệnh) và in ra lệnh cho máy Dell.
   Phím `R` (chụp đích) bấm trên bàn phím Mac.
-- **Dell** chạy `remote.py`: cửa sổ hiện màn hình của Mac; gõ `A D W S I K J L H X` thì phím đi qua Bluetooth tới HC-05 rồi Arduino.
+- **Dell** chạy `remote.py`: cửa sổ hiện màn hình của Mac; gõ `A D W S I K J L H` thì phím đi qua Bluetooth tới HC-05 rồi Arduino.
   `H` (Home) phải bấm 2 lần trong 2 giây. Dòng trên cùng nhắc phím vừa gửi; không mở được cổng Bluetooth thì `remote.py` dừng và báo lỗi; `Q` thoát.
 
 Chuẩn bị:
@@ -128,11 +127,10 @@ nên mỗi lần chạy nhìn hai khung hình: khung có tiêu đề `CAM TREN` 
 
 ## 6. Firmware và bảo vệ servo
 
-`robot_arm_4dof/robot_arm_4dof.ino` nhận phím từ USB lẫn Bluetooth và gửi trạng thái JSON 5 lần/giây (`servo`, `relax`, `armrelax`); app chỉ đọc `servo`.
+`robot_arm_4dof/robot_arm_4dof.ino` nhận phím từ USB lẫn Bluetooth và gửi trạng thái JSON 5 lần/giây (`servo`, `relax`); app chỉ đọc `servo`.
 
 - Mỗi phím quay **2°** (đế / vai / khuỷu, `STEP_ARM`) hoặc **5°** (kẹp, `STEP_GRIP`). Giới hạn kẹp **160°** (`GRIP_CLOSE_LIMIT`).
-- Servo kẹp từng bị nóng vì firmware không nhả xung PWM khi bị ép. Giờ: kẹp mở hết cỡ 5 giây không có lệnh thì **ngắt xung**; đã khép quá 60 giây cũng ngắt;
-  phím `X` cho kẹp nghỉ ngay. Firmware vẫn còn lệnh `z` (ngắt xung cả 4 servo) nhưng app không gửi phím này nữa. Chỉ phím di chuyển mới cấp xung lại.
+- Servo kẹp từng bị nóng vì firmware không nhả xung PWM khi bị ép. Giờ: kẹp mở hết cỡ 5 giây không có lệnh thì **ngắt xung**; đã khép quá 60 giây cũng ngắt; chỉ khi có lệnh kẹp (`J` / `L` / `H`) mới cấp xung lại.
 - Kẹp là cơ cấu song song **phi tuyến**: từ 95° lên 125° hàm chỉ khép thêm ~0,5 cm; vật rộng ~4 cm (như cốc đỏ) bị đẩy ra khi khép tới 150-160°. Cốc thon dần xuống
   đáy nên hai mặt kẹp đẩy nó ra như hạt dưa: nên dán ma sát (băng keo hai mặt / xốp mỏng) lên mặt trong hai ngón hoặc dùng vật có thân thẳng.
 - Nạp firmware: `./robot_arm_4dof/flash.sh` (dùng `arduino-cli` có sẵn trong Arduino IDE 2, board `arduino:avr:uno`). Arduino reset khi nạp nên servo giật về
