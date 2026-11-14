@@ -33,7 +33,7 @@ phần còn lại chỉ cần một câu. Đọc [README.md](README.md) phần "
 |---|---|
 | Dò mã ArUco | Dùng hàm có sẵn của OpenCV (`cv2.aruco`), bộ mã có sẵn `DICT_4X4_50`; tờ in là `aruco_A4_clean.pdf`. |
 | `vision.py:135-157` (`process_frame`) | Ghép hai bước trên cho từng camera, vẽ mã, lưới 5 cm, vòng xanh quanh vật. |
-| `control.py:253-263` (`lock_target`, phím R) | Bấm R: vật gần đế nhất trong ảnh lúc đó thành đích, góc cần tới tính một lần. |
+| `control.py:259-269` (`lock_target`, phím R) | Bấm R: vật gần đế nhất trong ảnh lúc đó thành đích, góc cần tới tính một lần. |
 | `calibration.py` | Nạp `calibration.json`: vị trí đế (đo bằng thước), hai góc chuẩn vai / khuỷu, càng kẹp. |
 | `share.py` | Mac chia sẻ ảnh màn hình qua Wi-Fi cho máy Dell, chỉ cho xem. |
 | `main.py:90-103` (`handle_key`) | Phím di chuyển gửi xuống Arduino, `R` chụp đích, `U` dò lại mã, `Q` thoát. |
@@ -42,12 +42,12 @@ Kiến thức nền (ngoài code): **homography** là ma trận 3 × 3 đổi đ
 
 ## Bài tập
 
-Bài tập bù thị sai (làm bằng tay trước, rồi mới xem đáp án): cam nhìn thẳng xuống điểm n = (14,85; 10,5) cm, nắp cốc đo được ở
-(24,85; 10,5) cm. Vị trí thật của cốc? Cốc bị kéo vào phía tâm ảnh bao nhiêu cm?
+Bài tập bù thị sai (làm bằng tay trước, rồi mới xem đáp án): cam nhìn thẳng xuống điểm n = (14,85; 10,5) cm, nắp vật (cao 4 cm) đo được ở
+(24,85; 10,5) cm. Vị trí thật của đáy vật? Đáy vật được kéo vào phía tâm ảnh bao nhiêu cm?
 
 <details><summary>Đáp án</summary>
 
-x = 14,85 + (24,85 − 14,85) × 41 / 46 ≈ 23,76 cm, y giữ 10,5 cm: kéo vào ≈ 1,1 cm (khớp câu "lệch ~1 cm" ở `vision.py:23`).
+x = 14,85 + (24,85 − 14,85) × (46 − 4) / 46 = 14,85 + 10 × 42 / 46 ≈ 23,98 cm, y giữ 10,5 cm: kéo vào ≈ 0,87 cm (`vision.py:78, 88-89`).
 </details>
 
 ## Số liệu phải nhớ
@@ -62,7 +62,7 @@ Nguồn: `slides/05_SO_LIEU_VA_NGUON.md` mục 2 và 10.
 | 8 pixel / cm | độ phân giải ảnh phẳng của tờ giấy |
 | 90 · 60 | ngưỡng độ bão hòa · độ sáng để coi là "có màu" |
 | 1,5 cm² · 50 cm² · 1 cm | ba ngưỡng lọc vật |
-| 46 cm · 5 cm | cam TRÊN treo cao (ước lượng từ ảnh, không đo bằng thước) · cốc cao |
+| 46 cm · 4 cm | cam TRÊN treo cao (ước lượng từ ảnh, không đo bằng thước) · vật cao |
 | 1,2 cm → 0,2 cm | lệch giữa hai camera trước / sau bù thị sai, **ở một vị trí cốc** đo ngày 02/11 |
 
 ## Không nói quá

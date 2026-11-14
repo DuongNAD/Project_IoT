@@ -20,7 +20,7 @@ Hai khối chỉ nói chuyện với nhau qua **một đối tượng `Plan`**, 
 | | Khối ĐIỀU KHIỂN (`control.py`) | Khối SUCCESS (`success.py`) |
 |---|---|---|
 | Việc | tính góc servo cần tới (IK), lập lệnh bấm phím, gửi phím qua USB | kết luận "đã tới chưa", đếm số lần thành công |
-| Đầu vào | các vật camera thấy + góc servo thật Arduino báo về | `Plan` của khối điều khiển |
+| Đầu vào | các vật camera thấy + góc servo đã ra lệnh mà Arduino báo về | `Plan` của khối điều khiển |
 | Đầu ra | `Plan`: góc hiện tại, góc cần tới, 3 `Move` (phím, số lần, hướng, độ) | `Result`: `done`, từng servo đúng chưa, còn bao nhiêu lần bấm, `count` |
 | Không biết gì về | thế nào là "xong" | cách tính góc, camera, USB |
 
@@ -55,11 +55,11 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 
 | Phím | Tác dụng |
 |---|---|
-| `A` / `D` | xoay đế sang **phải** / **trái** (nhìn theo cam NGANG = MacBook), mỗi lần **2°** |
+| `A` / `D` | xoay đế sang **trái** / **phải**, mỗi lần **2°** |
 | `W` / `S` | nâng / hạ vai, mỗi lần 2° |
 | `I` / `K` | khuỷu lên / xuống, mỗi lần 2° |
 | `J` / `L` | mở / khép kẹp, mỗi lần 5° (không tính vào thành công) |
-| `H` | đưa cả 4 servo về Home (0/90/90/95): đế quay hết sang **trái** để cánh tay không che vật ở cam TREN |
+| `H` | đưa cả 4 servo về Home (0/90/90/95): đế quay hết sang **phải** để cánh tay không che vật ở cam TREN |
 | `R` | **chụp đích**: lấy vật gần đế nhất trong ảnh lúc bấm, tính góc cần tới **một lần** (không theo camera nữa, tay kẹp che hay đẩy lệch vật cũng không đổi đích); vật bị dời thì bấm `R` lại. Chưa bấm `R` thì chưa có lệnh |
 | `U` | quên vị trí 4 mã ArUco đã nhớ (sau khi dời camera hoặc tờ giấy) |
 | `Q` | thoát |
@@ -118,7 +118,7 @@ chạy ID 0 → ID 3 (21.0 cm). Lưới tự dò từ các mã ArUco thật; cá
   (14.85, -7.5) cm, nhìn vào +Y.
 - **Hình học cánh tay thật khác mô hình mặc định**: từ 10 lần "ôm" cốc bằng tay (2026-11-02), khớp 5 thông số bằng bình phương tối thiểu, sai số RMS còn
   ~0,85 cm (kiểm tra bỏ-một-mẫu ~1,2 cm). **Hiệu chỉnh này gắn với đúng tờ giấy và cách đặt robot lúc đo**. Tờ A4 cũ in nhỏ hơn ~4,5% so với đúng cỡ.
-- **Vị trí vật** đo từ cam TREN được **bù thị sai** (`vision.find_objects`): cam treo cao ~46 cm nên nắp cốc cao 5 cm hiện lệch ~1 cm so với đáy.
+- **Vị trí vật** đo từ cam TREN được **bù thị sai** (`vision.find_objects`): cam treo cao ~46 cm nên nắp vật cao 4 cm hiện lệch ra xa tâm ảnh so với đáy.
 
 ## 5. Camera: nhận đúng OBSBOT và MacBook
 
@@ -127,14 +127,14 @@ nên mỗi lần chạy nhìn hai khung hình: khung có tiêu đề `CAM TREN` 
 
 ## 6. Firmware và bảo vệ servo
 
-`robot_arm_4dof/robot_arm_4dof.ino` nhận phím từ USB lẫn Bluetooth và gửi trạng thái JSON 5 lần/giây (`servo`, `relax`); app chỉ đọc `servo`.
+`robot_arm_4dof/robot_arm_4dof.ino` nhận phím từ USB lẫn Bluetooth và gửi gói JSON góc 4 servo (`{"servo":[...]}`) 5 lần/giây.
 
 - Mỗi phím quay **2°** (đế / vai / khuỷu, `STEP_ARM`) hoặc **5°** (kẹp, `STEP_GRIP`). Giới hạn kẹp **160°** (`GRIP_CLOSE_LIMIT`).
 - Servo kẹp từng bị nóng vì firmware không nhả xung PWM khi bị ép. Giờ: kẹp mở hết cỡ 5 giây không có lệnh thì **ngắt xung**; đã khép quá 60 giây cũng ngắt; chỉ khi có lệnh kẹp (`J` / `L` / `H`) mới cấp xung lại.
 - Kẹp là cơ cấu song song **phi tuyến**: từ 95° lên 125° hàm chỉ khép thêm ~0,5 cm; vật rộng ~4 cm (như cốc đỏ) bị đẩy ra khi khép tới 150-160°. Cốc thon dần xuống
   đáy nên hai mặt kẹp đẩy nó ra như hạt dưa: nên dán ma sát (băng keo hai mặt / xốp mỏng) lên mặt trong hai ngón hoặc dùng vật có thân thẳng.
 - Nạp firmware: `./robot_arm_4dof/flash.sh` (dùng `arduino-cli` có sẵn trong Arduino IDE 2, board `arduino:avr:uno`). Arduino reset khi nạp nên servo giật về
-  Home: cắt nguồn servo hoặc đưa cánh tay ra chỗ trống trước. Nạp xong, đế quay hết sang trái (Home 0°) là firmware mới đã chạy.
+  Home: cắt nguồn servo hoặc đưa cánh tay ra chỗ trống trước. Nạp xong, đế quay hết sang phải (Home 0°) là firmware mới đã chạy.
 - Arduino Uno **tự reset mỗi khi đường DTR của cổng USB hạ xuống rồi nâng lên**, cả 4 servo giật về Home 0/90/90/95. Thường do một chương trình khác mở rồi đóng
   cổng USB lúc `main.py` đang chạy. **Đừng mở cổng bằng chương trình khác khi `main.py` đang chạy.** `main.py` chỉ mở cổng một lần lúc chạy và không mở lại; rút cáp USB thì cắm lại rồi chạy lại chương trình.
 
@@ -143,8 +143,8 @@ nên mỗi lần chạy nhìn hai khung hình: khung có tiêu đề `CAM TREN` 
 Chạy chương trình (không ghi `--port` cũng được, khi đó cánh tay mô phỏng) rồi nhìn màn hình:
 
 1. Lưới 5 cm bám đúng tờ giấy, góc dưới ghi `Luoi A4: thay 4/4 ma ArUco`.
-2. Đặt cốc: vòng xanh nằm trên cốc, kèm X, Y (cm).
-3. Bấm `R`: ô 1 hiện lệnh to, ví dụ `BAM D x8`.
+2. Đặt vật có màu: vòng xanh nằm trên vật, kèm X, Y (cm).
+3. Bấm `R`: ô 1 hiện lệnh to, ví dụ `BAM A x55`.
 4. Bấm đúng phím đó: số lần bấm giảm dần, tới `XONG!`; giữ 1 giây thì `Thanh cong` cộng 1.
 
 Không có camera thì dùng 2 ảnh đã lưu thay camera: `uv run python main.py --top tren.jpg --side ngang.jpg`.

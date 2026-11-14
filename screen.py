@@ -48,7 +48,7 @@ def build_screen(view_left, view_right, plan, result, titles=("CAM NGANG", "CAM 
     y = CAM_H + 40
 
     # Ô 1: ĐIỀU KHIỂN
-    put(img, "1. DIEU KHIEN (trai / phai nhin theo cam NGANG)", 20, y, 0.8, ORANGE)
+    put(img, "1. DIEU KHIEN (A sang trai, D sang phai)", 20, y, 0.8, ORANGE)
     if result.state == "moving":
         m = result.next_move
         put(img, f"BAM {m.key.upper()} x{m.steps}: {m.words} {m.degrees} do", 20, y + 50, 1.2, ORANGE, 3)

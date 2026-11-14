@@ -2,7 +2,7 @@
 # Biên dịch rồi nạp firmware robot_arm_4dof.ino cho Arduino Uno bằng arduino-cli (có sẵn trong Arduino IDE 2).
 #   ./robot_arm_4dof/flash.sh            tự tìm cổng /dev/cu.usbmodem* hoặc /dev/cu.usbserial*
 #   ./robot_arm_4dof/flash.sh /dev/cu.usbmodemXXXX
-# Nạp xong Arduino sẽ reset: servo giật về góc mặc định (90, 90, 90, 95). Hãy cắt nguồn servo (nguồn tổ ong)
+# Nạp xong Arduino sẽ reset: servo giật về góc mặc định Home (0, 90, 90, 95). Hãy cắt nguồn servo (nguồn tổ ong)
 # hoặc đưa cánh tay ra chỗ trống trước khi nạp. Tắt chương trình main.py (đang giữ cổng USB) trước khi nạp.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -28,4 +28,4 @@ fi
 
 echo "Nạp vào $PORT ..."
 "$CLI" upload -p "$PORT" --fqbn "$FQBN" .
-echo "Xong. Arduino khởi động lại: đế quay hết sang trái (Home 0°) là firmware mới đã chạy."
+echo "Xong. Arduino khởi động lại: đế quay hết sang phải (Home 0°) là firmware mới đã chạy."

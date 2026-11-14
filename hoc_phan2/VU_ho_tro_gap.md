@@ -24,17 +24,17 @@ màn hình (`screen.py`); trình bày thử nghiệm, kết quả, hạn chế. 
 | `success.py:25-35` (`check`) | so từng servo với góc gợi ý; trạng thái theo ưu tiên `no_target` → `unreachable` → `moving` / `done` | Chưa bấm R mà góc "khớp" thì có XONG không? (không) |
 | `success.py:46-56` (`Success.update`) | vừa `done` thì bắt đầu tính giờ; đủ 1 giây cộng 1; rời góc thì tính lại | Lướt qua đích có được đếm không? (không) |
 | `screen.py:45-70` (`build_screen`) | 2 camera; ô 1 lệnh to `BAM D x8`; 3 dòng servo (`DA DUNG` màu xanh); ô 2 `XONG!` / `CHUA XONG`, `Thanh cong: N lan` | Vì sao chữ không dấu? (font OpenCV không vẽ được dấu) |
-| `control.py:161-169` (`plan_moves`) | góc hiện tại → góc đích: phím gì, mấy lần (`độ lệch // 2`) | Từ 90° tới 74° bấm mấy lần? (8) |
-| `control.py:253-263` (`lock_target`) | bấm R: vật gần đế nhất thành đích, góc cần tới tính **một lần** | Cốc bị dời thì sao? (bấm R lại) |
-| `control.py:266-275` (`update`) | mỗi khung chỉ so góc servo hiện tại với góc đích, ra `Plan` | Arduino báo góc về bằng gì? (gói JSON qua USB) |
+| `control.py:167-175` (`plan_moves`) | góc hiện tại → góc đích: phím gì, mấy lần (`độ lệch // 2`) | Từ 90° tới 74° bấm mấy lần? (8) |
+| `control.py:259-269` (`lock_target`) | bấm R: vật gần đế nhất thành đích, góc cần tới tính **một lần** | Vật bị dời thì sao? (bấm R lại) |
+| `control.py:272-281` (`update`) | mỗi khung chỉ so góc servo hiện tại với góc đích, ra `Plan` | Arduino báo góc về bằng gì? (gói JSON qua USB) |
 
 ## Phần còn lại: chỉ cần một câu
 
 | Phần | Câu cần nói |
 |---|---|
-| IK `control.py:60-96` | Đế quay theo `atan2(y, x)`; vai và khuỷu giải tam giác hai khâu bằng định lý cos, chọn nghiệm khuỷu hướng lên. |
-| `control.py:99-116` (`joint_to_servo`) | Đổi góc khớp sang góc servo, làm tròn về bước 2°. |
-| `control.py:195-200`, `269-280` | Mỗi phím gửi 1 ký tự qua USB; đọc gói JSON góc servo Arduino gửi về; không ghi `--port` thì mô phỏng. |
+| IK `control.py:65-101` | Đế quay theo `atan2(y, x)`; vai và khuỷu giải tam giác hai khâu bằng định lý cos, chọn nghiệm khuỷu hướng lên. |
+| `control.py:104-121` (`joint_to_servo`) | Đổi góc khớp sang góc servo, làm tròn về bước 2°. |
+| `control.py:201-206`, `272-289` | Mỗi phím gửi 1 ký tự qua USB; đọc gói JSON góc servo Arduino gửi về; không ghi `--port` thì mô phỏng. |
 | `remote.py` | Dell hiện màn hình Mac, gửi phím qua Bluetooth HC-05; `H` phải bấm 2 lần (`confirm`, `remote.py:53-59`). |
 | `screen.py:21-25` (`MESSAGES`) | Câu nhắc ở ô 1 cho các trạng thái không phải `moving`. |
 | Cách kiểm tra | Bằng mắt khi chạy chương trình: lưới bám giấy, vòng xanh trên cốc, bấm theo lệnh thì cánh tay đi đúng hướng. |

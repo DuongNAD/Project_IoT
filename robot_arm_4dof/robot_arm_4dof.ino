@@ -23,12 +23,12 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
 #define GRIP_HOLD_MAX_MS   60000UL  // Đã khép kẹp (góc > GRIP_OPEN_ANGLE) quá 60 giây không có lệnh kẹp: nhả xung PWM (vật có thể tuột)
 
 // Góc ban đầu khi mới khởi động (vị trí an toàn)
-int angleBase     = 0; // Kênh 0: Đế (a / d). Quay hết sang trái (0°, nhìn theo cam NGANG) để cánh tay không che vật ở cam TRÊN
+int angleBase     = 0; // Kênh 0: Đế (a: sang trái / d: sang phải). Home 0° = quay hết sang phải để cánh tay không che vật ở cam TRÊN
 int angleShoulder = 90; // Kênh 1: Cánh tay (w / s)
 int angleElbow    = 90; // Kênh 2: Khuỷu tay (i / k)
 int angleGrip     = GRIP_OPEN_ANGLE; // Kênh 3: Kẹp (j: mở ra, l: kẹp vào)
 
-// === [THÊM MỚI 1/3] Biến thời gian để gửi góc servo định kỳ lên Laptop qua USB ===
+// Biến thời gian để gửi góc servo định kỳ lên Laptop qua USB
 unsigned long lastReportMs = 0;
 
 // Trạng thái nghỉ của servo kẹp: true = đã ngắt xung PWM kênh 3 (servo không còn ép, đang nguội)
@@ -54,18 +54,14 @@ void relaxGripper() {
   gripRelaxed = true;
 }
 
-// === [THÊM MỚI 2/3] Hàm gửi gói JSON trạng thái 4 servo qua cáp USB lên Laptop ===
+// Gửi gói JSON 4 góc servo qua cáp USB lên Laptop: {"servo":[đế,vai,khuỷu,kẹp]}
 void sendServoState() {
-  Serial.print("{\"t\":");
-  Serial.print(millis());
-  Serial.print(",\"servo\":[");
+  Serial.print("{\"servo\":[");
   Serial.print(angleBase);     Serial.print(",");
   Serial.print(angleShoulder); Serial.print(",");
   Serial.print(angleElbow);    Serial.print(",");
   Serial.print(angleGrip);
-  Serial.print("],\"relax\":");
-  Serial.print(gripRelaxed ? 1 : 0);
-  Serial.println("}");
+  Serial.println("]}");
 }
 
 void setup() {
@@ -81,13 +77,11 @@ void setup() {
   setServoAngle(2, angleElbow);
   driveGripper();
 
-  delay(500);
-  Serial.println("Robot Arm Ready! WASD + IK + JL + H (home)");
   sendServoState();
 }
 
 void loop() {
-  // === [THÊM MỚI 3/3] Nhận lệnh từ cả Bluetooth (BT) lẫn cáp USB (Serial) ===
+  // Nhận lệnh từ cả Bluetooth (BT) lẫn cáp USB (Serial)
   char cmd = 0;
   if (BT.available()) {
     cmd = BT.read();
@@ -95,10 +89,8 @@ void loop() {
     cmd = Serial.read();
   }
 
-  if (cmd != 0 && cmd != '\n' && cmd != '\r') {
-    Serial.print("Phím bấm: ");
-    Serial.println(cmd);
-
+  if (cmd != 0) {
+    bool validCmd = true;
     bool gripCmd = false; // true nếu lệnh này đổi góc kẹp -> cấp lại xung cho servo kẹp
 
     switch (cmd) {
@@ -138,23 +130,29 @@ void loop() {
 
       // --- 5. Phím 'h' (Home): Đưa toàn bộ về vị trí an toàn ban đầu ---
       case 'h': case 'H':
-        angleBase = 0; angleShoulder = 90; angleElbow = 90; angleGrip = GRIP_OPEN_ANGLE;  // Đế quay hết sang trái: không che vật ở cam TRÊN
+        angleBase = 0; angleShoulder = 90; angleElbow = 90; angleGrip = GRIP_OPEN_ANGLE;  // Đế quay hết sang phải (0°): không che vật ở cam TRÊN
         gripCmd = true;
+        break;
+
+      default:
+        validCmd = false;
         break;
     }
 
-    // Cập nhật lại góc đến 3 servo đế, vai, khuỷu
-    setServoAngle(0, angleBase);
-    setServoAngle(1, angleShoulder);
-    setServoAngle(2, angleElbow);
-    // Servo kẹp đang nghỉ thì lệnh đế / vai / khuỷu không đánh thức nó
-    if (gripCmd) {
-      driveGripper();
-    }
+    if (validCmd) {
+      // Cập nhật lại góc đến 3 servo đế, vai, khuỷu
+      setServoAngle(0, angleBase);
+      setServoAngle(1, angleShoulder);
+      setServoAngle(2, angleElbow);
+      // Servo kẹp đang nghỉ thì lệnh đế / vai / khuỷu không đánh thức nó
+      if (gripCmd) {
+        driveGripper();
+      }
 
-    // Gửi ngay góc mới lên Laptop
-    sendServoState();
-    lastReportMs = millis();
+      // Gửi ngay góc mới lên Laptop
+      sendServoState();
+      lastReportMs = millis();
+    }
   }
 
   // Tự nhả xung servo kẹp: mở hết cỡ thì sau 5 giây, đã khép (giữ vật) thì sau 60 giây không có lệnh kẹp.
@@ -164,8 +162,6 @@ void loop() {
     unsigned long limitMs = holding ? GRIP_HOLD_MAX_MS : GRIP_IDLE_RELAX_MS;
     if (millis() - gripActiveMs >= limitMs) {
       relaxGripper();
-      sendServoState();
-      lastReportMs = millis();
     }
   }
 

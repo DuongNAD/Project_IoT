@@ -2,7 +2,7 @@
 """
 KHỐI ĐIỀU KHIỂN: vật ở đâu -> servo phải quay tới góc nào -> bấm phím gì, mấy lần.
 
-    vật (x, y cm trên tờ giấy) --IK--> 3 góc servo cần tới --so với góc hiện tại--> "bấm phím D x8, S x16 ..."
+    vật (x, y cm trên tờ giấy) --IK--> 3 góc servo cần tới --so với góc hiện tại--> "bấm phím A x55, S x6, K x24"
 
 Phần này lo toàn bộ việc ĐIỀU KHIỂN cánh tay:
   1. Hình học cánh tay: đổi tọa độ tờ giấy -> hệ robot, động học ngược (IK) bằng hai tam giác, đổi góc khớp -> góc servo Arduino.
@@ -48,7 +48,7 @@ ARM_CONFIG = {
 # Servo: giới hạn an toàn và bước mỗi lần bấm phím, khớp robot_arm_4dof.ino (STEP_ARM = 2, STEP_GRIP = 5, GRIP_CLOSE_LIMIT = 160)
 CHANNEL_KEYS = ("base", "shoulder", "elbow", "grip")  # Thứ tự kênh 0..3 của Arduino
 SERVO_LIMITS = {
-    "base": (0, 180, 0),        # Kênh 0: Đế (a: +2° , d: -2°); Home 0° = quay hết sang trái, không che vật ở cam TRÊN
+    "base": (0, 180, 0),        # Kênh 0: Đế (a: +2° sang trái, d: -2° sang phải); Home 0° = quay hết sang phải, không che vật ở cam TRÊN
     "shoulder": (25, 155, 90),  # Kênh 1: Vai (w: +2° nâng lên, s: -2° hạ xuống)
     "elbow": (25, 155, 90),     # Kênh 2: Khuỷu (i: +2° lên, k: -2° xuống)
     "grip": (95, 160, 95),      # Kênh 3: Kẹp (j: -5° mở ra, l: +5° kẹp vào)
@@ -127,10 +127,11 @@ def table_cm_to_robot_mm(x_cm, y_cm, cfg=None):
     Trên tờ A4 đặt ngang (29.7 x 21.0 cm), đế robot ở (base_x_cm, base_y_cm) và nhìn theo base_heading_deg:
       - Trục +x_robot (vươn tới trước) = hướng nhìn của robot f = (cos h, sin h) trong hệ tờ giấy
       - Trục +y_robot (sang trái của đế) = f quay trái 90° = (f_y, -f_x) (X sang phải, Y xuống dưới nên quay trái là (f_y, -f_x))
-    Với h = -90° (đế ở mép dưới nhìn lên) công thức này trở về: x_robot = (base_y - Y), y_robot = (base_x - X).
+    Với h = 90° (đế ở ngoài mép Y = 0 nhìn vào +Y): x_robot = (Y - base_y), y_robot = (X - base_x);
+    với h = -90° (đế ở mép dưới nhìn lên): x_robot = (base_y - Y), y_robot = (base_x - X).
     """
     c = cfg or ARM_CONFIG
-    h = math.radians(c.get("base_heading_deg", -90.0))
+    h = math.radians(c.get("base_heading_deg", 90.0))
     fx, fy = math.cos(h), math.sin(h)
     dx, dy = x_cm - c["base_x_cm"], y_cm - c["base_y_cm"]
     return (dx * fx + dy * fy) * 10.0, (dx * fy - dy * fx) * 10.0
@@ -139,9 +140,9 @@ def table_cm_to_robot_mm(x_cm, y_cm, cfg=None):
 # ==============================================================================
 # 3. LỆNH BẤM PHÍM: từ góc hiện tại tới góc cần tới
 # ==============================================================================
-# Khớp -> (phím tăng góc, phím giảm góc). Trái / phải nhìn theo cam NGANG (MacBook nhìn từ phía trước vào robot): D = sang trái, A = sang phải
+# Khớp -> (phím tăng góc, phím giảm góc): A (+2°) = sang trái, D (-2°) = sang phải
 KEYS = {"base": ("a", "d"), "shoulder": ("w", "s"), "elbow": ("i", "k")}
-WORDS = {"d": "SANG TRAI", "a": "SANG PHAI", "w": "NANG LEN", "s": "HA XUONG", "i": "KHUYU LEN", "k": "KHUYU XUONG"}  # phím -> lời chỉ
+WORDS = {"a": "SANG TRAI", "d": "SANG PHAI", "w": "NANG LEN", "s": "HA XUONG", "i": "KHUYU LEN", "k": "KHUYU XUONG"}  # phím -> lời chỉ
 # Phím -> (servo, +1 tăng góc / -1 giảm góc), giống switch(cmd) trong firmware: dùng để MÔ PHỎNG khi chưa cắm USB
 KEY_MOVES = {"a": ("base", 1), "d": ("base", -1), "w": ("shoulder", 1), "s": ("shoulder", -1),
              "i": ("elbow", 1), "k": ("elbow", -1), "l": ("grip", 1), "j": ("grip", -1)}
@@ -181,7 +182,7 @@ class ArduinoSerialLink:
     """
     Cổng USB tới Arduino (9600 baud).
     - Gửi phím: mỗi lần bấm một ký tự (w a s d i k j l h).
-    - Nhận gói JSON firmware gửi ngay sau mỗi phím và 5 lần / giây: {"t": ms, "servo": [đế, vai, khuỷu, kẹp], "relax": 0|1}; app chỉ lấy "servo".
+    - Nhận gói JSON firmware gửi ngay sau mỗi phím và 5 lần / giây: {"servo": [đế, vai, khuỷu, kẹp]}.
       Đọc ở một luồng nền để vòng lặp chính không phải đứng chờ Arduino.
     - Không ghi cổng (port=None): MÔ PHỎNG, tự cộng / trừ góc như firmware để vẫn chạy được camera + IK + màn hình.
     - Mở cổng MỘT lần lúc chạy và không mở lại: Arduino Uno tự reset (cả 4 servo giật về Home) mỗi lần cổng được mở.
@@ -219,7 +220,7 @@ class ArduinoSerialLink:
         while True:
             line = self.ser.readline().decode("utf-8", errors="ignore").strip()
             if not line.startswith("{"):
-                continue  # Banner khởi động, dòng "Phím bấm: d"...: bỏ qua, gói JSON luôn đến ngay sau đó
+                continue  # Bỏ qua dòng không phải JSON (nếu Arduino đang chạy firmware cũ)
             try:
                 data = json.loads(line)
                 self.servo = [int(v) for v in data["servo"]][:4]
