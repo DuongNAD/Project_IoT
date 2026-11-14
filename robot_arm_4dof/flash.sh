@@ -28,4 +28,4 @@ fi
 
 echo "Nạp vào $PORT ..."
 "$CLI" upload -p "$PORT" --fqbn "$FQBN" .
-echo "Xong. Arduino khởi động lại: đế quay hết sang phải (Home 180°) là firmware mới đã chạy."
+echo "Xong. Arduino khởi động lại: đế quay hết sang trái (Home 0°) là firmware mới đã chạy."

@@ -23,12 +23,17 @@ import serial
 # ==============================================================================
 # 1. HÌNH HỌC CÁNH TAY 4 SERVO (MG996R + PCA9685)
 # ==============================================================================
+L34_OPEN_MM = 120.0      # L3 + L4 khi mở full 95° (12,0 cm)
+L34_CLOSE_MM = 165.0     # L3 + L4 khi kẹp full 160° (16,5 cm)
+OBJECT_SIZE_MM = 40.0    # Kích thước vật 4 cm (cao 40 mm, rộng 40 mm)
+L34_GRASP_MM = L34_CLOSE_MM - OBJECT_SIZE_MM / 2.0  # = 145.0 mm (14,5 cm tính tới tâm vật 4 cm khi ôm)
+
 ARM_CONFIG = {
-    "d1_mm": 70.0,      # Chiều cao từ mặt bàn đến trục khớp Vai (mm)
-    "L2_mm": 105.0,     # Chiều dài khâu Vai -> Khuỷu (mm)
-    "L3_mm": 100.0,     # Chiều dài khâu Khuỷu -> Cổ tay / giá kẹp (mm)
-    "L4_r_mm": 65.0,    # Độ vươn ngang từ khớp giá kẹp tới tâm 2 ngón kẹp (mm)
-    "L4_z_mm": 25.0,    # Độ trễ dọc từ khớp giá kẹp xuống tâm 2 ngón kẹp (mm)
+    "d1_mm": 90.0,         # Chiều cao từ mặt bàn đến trục khớp Vai (L1 = 9 cm)
+    "L2_mm": 105.0,        # Chiều dài khâu Vai -> Khuỷu (L2 = 10,5 cm)
+    "L3_mm": L34_GRASP_MM, # L3 + L4 tính tới tâm vật 4 cm khi ôm (14,5 cm)
+    "L4_r_mm": 0.0,        # Đã gộp L3 + L4 theo hướng khâu khuỷu
+    "L4_z_mm": 0.0,        # Đã gộp L3 + L4 theo hướng khâu khuỷu
     # Vị trí trục xoay Đế Robot trên hệ tọa độ tờ giấy A4 (xem calibration.py): gốc ở góc ngoài mã ArUco ID 0,
     # X chạy ID 0 -> ID 1 (29.7 cm), Y chạy ID 0 -> ID 3 (21.0 cm). Mặc định: robot đứng NGOÀI mép Y = 0, giữa mép, nhìn vào tờ giấy (+Y).
     # Đo bằng thước rồi ghi vào calibration.json mục "base" (calibration.py).
@@ -43,7 +48,7 @@ ARM_CONFIG = {
 # Servo: giới hạn an toàn và bước mỗi lần bấm phím, khớp robot_arm_4dof.ino (STEP_ARM = 2, STEP_GRIP = 5, GRIP_CLOSE_LIMIT = 160)
 CHANNEL_KEYS = ("base", "shoulder", "elbow", "grip")  # Thứ tự kênh 0..3 của Arduino
 SERVO_LIMITS = {
-    "base": (0, 180, 180),      # Kênh 0: Đế (a: +2° , d: -2°); Home 180° = quay hết sang phải, không che vật ở cam TRÊN
+    "base": (0, 180, 0),        # Kênh 0: Đế (a: +2° , d: -2°); Home 0° = quay hết sang trái, không che vật ở cam TRÊN
     "shoulder": (25, 155, 90),  # Kênh 1: Vai (w: +2° nâng lên, s: -2° hạ xuống)
     "elbow": (25, 155, 90),     # Kênh 2: Khuỷu (i: +2° lên, k: -2° xuống)
     "grip": (95, 160, 95),      # Kênh 3: Kẹp (j: -5° mở ra, l: +5° kẹp vào)
@@ -51,7 +56,7 @@ SERVO_LIMITS = {
 SERVO_STEPS = {"base": 2, "shoulder": 2, "elbow": 2, "grip": 5}
 SERVO_ANCHORS = {"base": 90, "shoulder": 90, "elbow": 90, "grip": 95}  # Neo lưới góc: mọi góc bấm tới được = neo + k * bước (Home ở cột 3 của SERVO_LIMITS)
 
-GRASP_Z_MM = 25.0        # Độ cao điểm kẹp mục tiêu (mm): nửa thân cốc, đúng độ cao dùng khi hiệu chỉnh hình học bằng các lần ôm
+GRASP_Z_MM = OBJECT_SIZE_MM / 2.0  # Độ cao điểm kẹp mục tiêu (20,0 mm = nửa chiều cao vật 4 cm)
 
 
 # ==============================================================================

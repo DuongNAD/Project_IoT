@@ -59,7 +59,7 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `W` / `S` | nâng / hạ vai, mỗi lần 2° |
 | `I` / `K` | khuỷu lên / xuống, mỗi lần 2° |
 | `J` / `L` | mở / khép kẹp, mỗi lần 5° (không tính vào thành công) |
-| `H` | đưa cả 4 servo về Home (180/90/90/95): đế quay hết sang **phải** để cánh tay không che vật ở cam TREN |
+| `H` | đưa cả 4 servo về Home (0/90/90/95): đế quay hết sang **trái** để cánh tay không che vật ở cam TREN |
 | `R` | **chụp đích**: lấy vật gần đế nhất trong ảnh lúc bấm, tính góc cần tới **một lần** (không theo camera nữa, tay kẹp che hay đẩy lệch vật cũng không đổi đích); vật bị dời thì bấm `R` lại. Chưa bấm `R` thì chưa có lệnh |
 | `U` | quên vị trí 4 mã ArUco đã nhớ (sau khi dời camera hoặc tờ giấy) |
 | `Q` | thoát |
@@ -134,8 +134,8 @@ nên mỗi lần chạy nhìn hai khung hình: khung có tiêu đề `CAM TREN` 
 - Kẹp là cơ cấu song song **phi tuyến**: từ 95° lên 125° hàm chỉ khép thêm ~0,5 cm; vật rộng ~4 cm (như cốc đỏ) bị đẩy ra khi khép tới 150-160°. Cốc thon dần xuống
   đáy nên hai mặt kẹp đẩy nó ra như hạt dưa: nên dán ma sát (băng keo hai mặt / xốp mỏng) lên mặt trong hai ngón hoặc dùng vật có thân thẳng.
 - Nạp firmware: `./robot_arm_4dof/flash.sh` (dùng `arduino-cli` có sẵn trong Arduino IDE 2, board `arduino:avr:uno`). Arduino reset khi nạp nên servo giật về
-  Home: cắt nguồn servo hoặc đưa cánh tay ra chỗ trống trước. Nạp xong, đế quay hết sang phải (Home 180°) là firmware mới đã chạy.
-- Arduino Uno **tự reset mỗi khi đường DTR của cổng USB hạ xuống rồi nâng lên**, cả 4 servo giật về Home 180/90/90/95. Thường do một chương trình khác mở rồi đóng
+  Home: cắt nguồn servo hoặc đưa cánh tay ra chỗ trống trước. Nạp xong, đế quay hết sang trái (Home 0°) là firmware mới đã chạy.
+- Arduino Uno **tự reset mỗi khi đường DTR của cổng USB hạ xuống rồi nâng lên**, cả 4 servo giật về Home 0/90/90/95. Thường do một chương trình khác mở rồi đóng
   cổng USB lúc `main.py` đang chạy. **Đừng mở cổng bằng chương trình khác khi `main.py` đang chạy.** `main.py` chỉ mở cổng một lần lúc chạy và không mở lại; rút cáp USB thì cắm lại rồi chạy lại chương trình.
 
 ## 7. Kiểm tra bằng mắt

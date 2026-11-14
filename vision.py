@@ -20,7 +20,7 @@ DETECTOR = cv2.aruco.ArucoDetector(ARUCO_DICT)
 
 PPC = 8                  # Ảnh phẳng của tờ giấy để tìm vật: 8 pixel / cm
 CAM_HEIGHT_CM = 46.0     # Cam TREN treo cao 46 cm so với mặt bàn (0 = không bù thị sai)
-OBJECT_HEIGHT_CM = 5.0   # Cốc cao 5 cm: nhìn từ trên, nắp cốc lệch ra xa tâm ảnh ~1 cm so với đáy cốc
+OBJECT_HEIGHT_CM = 4.0   # Vật cao 4 cm: nhìn từ trên, nắp vật lệch ra xa tâm ảnh so với đáy vật
 
 
 def marker_corners_cm(i):
