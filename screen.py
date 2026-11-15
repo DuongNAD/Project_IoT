@@ -13,7 +13,7 @@ Chữ không dấu vì font của OpenCV không vẽ được dấu tiếng Vi�
 import cv2
 import numpy as np
 
-SCREEN_WINDOW = "GAP DON GIAN: bam phim theo lenh (Q = thoat)"
+SCREEN_WINDOW = "GAP DON GIAN: bam phim theo lenh"
 CAM_W, CAM_H = 640, 360  # Mỗi camera một ô 16:9
 SCREEN_W, SCREEN_H = 2 * CAM_W, CAM_H + 290
 WHITE, GRAY, GREEN, ORANGE = (255, 255, 255), (170, 170, 170), (80, 220, 80), (0, 170, 255)  # Màu BGR
@@ -71,5 +71,5 @@ def build_screen(view_left, view_right, plan, result, titles=("CAM NGANG", "CAM 
 
     # Chân trang: USB, phím tắt
     usb = "USB Arduino: DA KET NOI" if plan.usb_ok else "USB Arduino: MO PHONG (chua ket noi)"
-    put(img, f"{usb}    [R] chup dich  [H] ve Home  [U] do lai ma  [Q] thoat", 20, SCREEN_H - 40, 0.55, GRAY, 1)
+    put(img, f"{usb}    [R] chup dich  [H] ve Home", 20, SCREEN_H - 40, 0.55, GRAY, 1)
     return img

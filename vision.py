@@ -3,7 +3,7 @@
 COMPUTER VISION: từ ảnh camera ra vị trí vật trên tờ A4 (cm).
 
   1. Sheet: dò 4 mã ArUco ở 4 góc tờ A4 -> homography đổi pixel <-> cm, cho cả 2 camera.
-     Nhớ vị trí từng mã nên cánh tay che mất 1-2 mã vẫn còn lưới tọa độ (dời camera / tờ giấy thì bấm U).
+     Nhớ vị trí từng mã nên cánh tay che mất 1-2 mã vẫn còn lưới tọa độ.
   2. find_objects: trên ảnh cam TREN, tách vật có màu nằm trên giấy trắng -> (x, y) cm, có bù thị sai theo độ cao vật.
   3. Vision.process_frame: ghép hai bước trên rồi vẽ lưới 5 cm và vật tìm thấy lên ảnh.
 
@@ -127,10 +127,6 @@ class Vision:
     def __init__(self):
         self.sheets = {"topdown": Sheet(), "side": Sheet()}
         self.objects = []
-
-    def reset_sheet(self):
-        """Phím U: quên vị trí các mã đã nhớ (vừa dời camera hoặc tờ giấy)."""
-        self.sheets = {"topdown": Sheet(), "side": Sheet()}
 
     def process_frame(self, frame, mode="topdown"):
         """Dò tờ giấy, tìm vật (cam TREN), trả về bản sao ảnh đã vẽ: mã ArUco, lưới 5 cm, vật, dòng trạng thái."""

@@ -61,8 +61,6 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
 | `J` / `L` | mở / khép kẹp, mỗi lần 5° (không tính vào thành công) |
 | `H` | đưa cả 4 servo về Home (0/90/90/95): đế quay hết sang **phải** để cánh tay không che vật ở cam TREN |
 | `R` | **chụp đích**: lấy vật gần đế nhất trong ảnh lúc bấm, tính góc cần tới **một lần** (không theo camera nữa, tay kẹp che hay đẩy lệch vật cũng không đổi đích); vật bị dời thì bấm `R` lại. Chưa bấm `R` thì chưa có lệnh |
-| `U` | quên vị trí 4 mã ArUco đã nhớ (sau khi dời camera hoặc tờ giấy) |
-| `Q` | thoát |
 
 ### Điều khiển từ xa: máy Dell cách ~2 m (xem qua Wi-Fi, bấm phím qua Bluetooth)
 
@@ -78,7 +76,7 @@ Một cửa sổ: 2 camera ở trên, bên dưới **phần 1 (điều khiển)*
   về Mac qua USB. Khi mở cửa sổ, `main.py` tự chia sẻ ảnh màn hình qua Wi-Fi (`share.py`, chỉ cho xem, không nhận lệnh) và in ra lệnh cho máy Dell.
   Phím `R` (chụp đích) bấm trên bàn phím Mac.
 - **Dell** chạy `remote.py`: cửa sổ hiện màn hình của Mac; gõ `A D W S I K J L H` thì phím đi qua Bluetooth tới HC-05 rồi Arduino.
-  `H` (Home) phải bấm 2 lần trong 2 giây. Dòng trên cùng nhắc phím vừa gửi; không mở được cổng Bluetooth thì `remote.py` dừng và báo lỗi; `Q` thoát.
+  `H` (Home) phải bấm 2 lần trong 2 giây. Dòng trên cùng nhắc phím vừa gửi; không mở được cổng Bluetooth thì `remote.py` dừng và báo lỗi; `ESC` hoặc đóng cửa sổ để thoát.
 
 Chuẩn bị:
 1. Dell: ghép đôi HC-05 trong cài đặt Bluetooth (PIN thường là `1234` hoặc `0000`). Số cổng: Settings > Bluetooth & devices > Devices >
@@ -129,8 +127,7 @@ nên mỗi lần chạy nhìn hai khung hình: khung có tiêu đề `CAM TREN` 
 
 `robot_arm_4dof/robot_arm_4dof.ino` nhận phím từ USB lẫn Bluetooth và gửi gói JSON góc 4 servo (`{"servo":[...]}`) 5 lần/giây.
 
-- Mỗi phím quay **2°** (đế / vai / khuỷu, `STEP_ARM`) hoặc **5°** (kẹp, `STEP_GRIP`). Giới hạn kẹp **160°** (`GRIP_CLOSE_LIMIT`).
-- Servo kẹp từng bị nóng vì firmware không nhả xung PWM khi bị ép. Giờ: kẹp mở hết cỡ 5 giây không có lệnh thì **ngắt xung**; đã khép quá 60 giây cũng ngắt; chỉ khi có lệnh kẹp (`J` / `L` / `H`) mới cấp xung lại.
+- Mỗi phím quay **2°** (đế / vai / khuỷu, `BUOC_TAY_MAY`) hoặc **5°** (kẹp, `BUOC_KEP`). Giới hạn kẹp trong khoảng **95°–160°** (`GOC_MO_HET_CO`..`GOC_DONG_TOI_DA`) để không ép servo vượt dải xung cơ khí.
 - Kẹp là cơ cấu song song **phi tuyến**: từ 95° lên 125° hàm chỉ khép thêm ~0,5 cm; vật rộng ~4 cm (như cốc đỏ) bị đẩy ra khi khép tới 150-160°. Cốc thon dần xuống
   đáy nên hai mặt kẹp đẩy nó ra như hạt dưa: nên dán ma sát (băng keo hai mặt / xốp mỏng) lên mặt trong hai ngón hoặc dùng vật có thân thẳng.
 - Nạp firmware: `./robot_arm_4dof/flash.sh` (dùng `arduino-cli` có sẵn trong Arduino IDE 2, board `arduino:avr:uno`). Arduino reset khi nạp nên servo giật về
@@ -155,7 +152,7 @@ Không có camera thì dùng 2 ảnh đã lưu thay camera: `uv run python main.
 |---|---|
 | `KHONG THAY TO A4` | in đúng kích thước, đủ sáng, 4 mã không bị che / chói; trong khung có ít nhất 2 mã |
 | Mã ArUco không nhận | thêm **viền trắng** quanh mã (ít nhất ~0,5 cm); kiểm tra cạnh mã đúng 2,8 cm |
-| Lưới lệch sau khi dời camera / giấy | bấm `U` |
+| Lưới lệch sau khi dời camera / giấy | để camera thấy lại các mã ArUco (hoặc chạy lại chương trình) |
 | Hai khung đảo nhau / sai camera | chạy lại với `--top` / `--side` đổi số (mục 5) |
 | Camera đen, log `not authorized to capture video` | cấp quyền Camera trong Cài đặt hệ thống → Quyền riêng tư; mở lại ứng dụng |
 | `USB Arduino: MO PHONG` | chưa ghi `--port` hoặc ghi sai cổng; cắm cáp USB, tắt chương trình khác đang giữ cổng |

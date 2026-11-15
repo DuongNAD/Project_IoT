@@ -25,8 +25,7 @@ HELP_TEXT = """💡 Làm theo lệnh to ở giữa màn hình (bấm phím trên
    W / S                 : nâng / hạ vai, mỗi lần 2°          I / K : khuỷu lên / xuống, mỗi lần 2°
    H                     : về Home (0/90/90/95)
    J / L                 : mở / khép kẹp, mỗi lần 5° (kẹp không tính vào thành công)
-   R                     : chụp vị trí vật làm đích, tính góc cần tới một lần (vật bị dời thì bấm R lại)
-   U                     : dò lại 4 mã ArUco (sau khi dời camera / tờ giấy)                       Q : thoát"""
+   R                     : chụp vị trí vật làm đích, tính góc cần tới một lần (vật bị dời thì bấm R lại)"""
 
 
 def parse_args(argv=None):
@@ -88,8 +87,8 @@ class App:
         return state
 
     def handle_key(self, key):
-        """Xử lý phím; trả về False khi cần thoát."""
-        if key in (ord("q"), ord("Q")):
+        """Xử lý phím; trả về False khi cần thoát (ESC)."""
+        if key == 27:
             return False
         if key < 0 or key == 255:
             return True
@@ -97,9 +96,6 @@ class App:
             pass  # Phím điều khiển servo: đã gửi xuống Arduino
         elif key in (ord("r"), ord("R")):
             self.lock_target()
-        elif key in (ord("u"), ord("U")):
-            self.vision.reset_sheet()
-            print("🔄 Đã quên vị trí các mã ArUco, đang dò lại tờ giấy")
         return True
 
     # ------------------------------------------------------------------ chạy
@@ -113,7 +109,8 @@ class App:
                 screen, _, _ = self.render()
                 cv2.imshow(SCREEN_WINDOW, screen)
                 share.update(screen)
-                if not self.handle_key(cv2.waitKey(5) & 0xFF):
+                key = cv2.waitKey(5) & 0xFF
+                if cv2.getWindowProperty(SCREEN_WINDOW, cv2.WND_PROP_VISIBLE) < 1 or not self.handle_key(key):
                     break
         finally:
             share.close()

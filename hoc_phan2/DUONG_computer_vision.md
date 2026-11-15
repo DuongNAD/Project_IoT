@@ -19,8 +19,8 @@ phần còn lại chỉ cần một câu. Đọc [README.md](README.md) phần "
 
 | Dòng | Ý chính | Tự hỏi |
 |---|---|---|
-| `main.py:56-63` (`_frame`) | đọc khung mới nhất của camera rồi đưa vào `vision.process_frame`; mất tín hiệu thì hiện "Dang cho tin hieu" và xóa vật cũ | Vì sao phải xóa vật cũ? (không gợi ý theo dữ liệu đã cũ) |
-| `main.py:73-80` (`render`) | `vision.objects` → `control.update` → `success.update` → `build_screen` | Kể lại 5 số trên slide 3 |
+| `main.py:55-62` (`_frame`) | đọc khung mới nhất của camera rồi đưa vào `vision.process_frame`; mất tín hiệu thì hiện "Dang cho tin hieu" và xóa vật cũ | Vì sao phải xóa vật cũ? (không gợi ý theo dữ liệu đã cũ) |
+| `main.py:72-79` (`render`) | `vision.objects` → `control.update` → `success.update` → `build_screen` | Kể lại 5 số trên slide 3 |
 | `cameras.py:19-28` (`__init__`) | mở camera theo **chỉ số** (`--top`, `--side`); nguồn là ảnh `.png` thì lần nào cũng trả lại ảnh đó, để chạy thử | Camera nào là cam TRÊN? (số ghi ở `--top`) |
 | `cameras.py:30-35` (`get_raw_frame`) | mỗi vòng lặp đọc một khung mới nhất; không có hình thì trả về `None` | Rút cáp camera thì sao? (ô camera hiện "Dang cho tin hieu"; cắm lại rồi chạy lại chương trình) |
 | `vision.py:26-31` (`marker_corners_cm`) | tọa độ **thật** (cm) bốn góc mỗi mã: cạnh 2,8 cm, cách mép 0,25 cm | Mã ID 1 nằm ở góc nào? |
@@ -32,11 +32,11 @@ phần còn lại chỉ cần một câu. Đọc [README.md](README.md) phần "
 | Phần | Câu cần nói |
 |---|---|
 | Dò mã ArUco | Dùng hàm có sẵn của OpenCV (`cv2.aruco`), bộ mã có sẵn `DICT_4X4_50`; tờ in là `aruco_A4_clean.pdf`. |
-| `vision.py:135-157` (`process_frame`) | Ghép hai bước trên cho từng camera, vẽ mã, lưới 5 cm, vòng xanh quanh vật. |
+| `vision.py:131-153` (`process_frame`) | Ghép hai bước trên cho từng camera, vẽ mã, lưới 5 cm, vòng xanh quanh vật. |
 | `control.py:259-269` (`lock_target`, phím R) | Bấm R: vật gần đế nhất trong ảnh lúc đó thành đích, góc cần tới tính một lần. |
 | `calibration.py` | Nạp `calibration.json`: vị trí đế (đo bằng thước), hai góc chuẩn vai / khuỷu, càng kẹp. |
 | `share.py` | Mac chia sẻ ảnh màn hình qua Wi-Fi cho máy Dell, chỉ cho xem. |
-| `main.py:90-103` (`handle_key`) | Phím di chuyển gửi xuống Arduino, `R` chụp đích, `U` dò lại mã, `Q` thoát. |
+| `main.py:89-99` (`handle_key`) | Phím di chuyển gửi xuống Arduino, `R` chụp đích, `ESC` thoát. |
 
 Kiến thức nền (ngoài code): **homography** là ma trận 3 × 3 đổi điểm trên một mặt phẳng nhìn từ góc này sang mặt phẳng khác. Ở đây: ảnh camera (pixel) ↔ tờ giấy (cm).
 
