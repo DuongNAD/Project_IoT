@@ -96,7 +96,6 @@ Chuẩn bị:
 | `screen.py` | vẽ màn hình: 2 camera + phần 1 + phần 2 nối nhau |
 | `vision.py` | dò tờ A4 qua ArUco (hàm có sẵn của OpenCV, homography pixel ↔ cm), tìm vật có màu, bù thị sai theo độ cao vật |
 | `cameras.py` | mở camera theo chỉ số (hoặc ảnh để chạy thử), vòng lặp chính đọc thẳng từng khung; rút cáp camera thì chạy lại chương trình |
-| `calibration.py` | nạp hiệu chỉnh từ `calibration.json` |
 | `share.py` | chia sẻ ảnh màn hình của Mac qua Wi-Fi cho máy Dell (`/screen.jpg`, chỉ cho xem) |
 | `remote.py` | app máy Dell: xem màn hình Mac qua Wi-Fi, gửi phím qua Bluetooth HC-05 (chép riêng tệp này sang Dell cũng chạy) |
 | `robot_arm_4dof/` | firmware Arduino và `flash.sh` |
@@ -107,15 +106,15 @@ Mỗi khung hình trong `main.py` chỉ là ba dòng: `plan = control.update(vis
 ## 4. Tờ giấy, đế robot và hiệu chỉnh
 
 Hệ tọa độ gắn với **tờ giấy** (không phụ thuộc camera nào nhìn): gốc ở góc ngoài mã **ID 0**, trục **X** chạy ID 0 → ID 1 (29.7 cm), trục **Y**
-chạy ID 0 → ID 3 (21.0 cm). Lưới tự dò từ các mã ArUco thật; cánh tay che mất 1-2 mã thì dùng vị trí đã nhớ.
+chạy ID 0 → ID 3 (21.0 cm). Thấy ít nhất 3 mã ArUco thì tính lại lưới; cánh tay che bớt mã thì giữ lưới cũ (camera và tờ giấy phải đứng yên,
+OBSBOT tắt chế độ tự lấy khung).
 
-- **Hiệu chỉnh** nằm trong `calibration.json` (không đưa lên git), sửa tay được:
-  `base` (vị trí trục xoay đế trên tờ giấy, cm, và hướng robot nhìn), `arm` (hai góc chuẩn vai / khuỷu khi servo ở 90°), `claw` (càng kẹp gắn cứng vào khâu
-  khuỷu nên độ lệch của điểm kẹp được dồn vào chiều dài khâu 3). Ví dụ ở docstring `calibration.py`.
-- **Đế robot**: dời robot thì **đo bằng thước** vị trí trục xoay đế theo hệ tọa độ tờ giấy rồi sửa mục `base`. Không có `calibration.json` thì dùng mặc định
-  (14.85, -7.5) cm, nhìn vào +Y.
-- **Hình học cánh tay thật khác mô hình mặc định**: từ 10 lần "ôm" cốc bằng tay (2026-11-02), khớp 5 thông số bằng bình phương tối thiểu, sai số RMS còn
-  ~0,85 cm (kiểm tra bỏ-một-mẫu ~1,2 cm). **Hiệu chỉnh này gắn với đúng tờ giấy và cách đặt robot lúc đo**. Tờ A4 cũ in nhỏ hơn ~4,5% so với đúng cỡ.
+**Đặt tờ giấy cố định:** mã **ID 0 ở góc dưới cùng bên phải, sát cánh tay** (gốc 0,0), ID 1 cùng cạnh phía robot, ID 3 phía xa robot. Màn hình vẽ chấm "0,0" và 2 mũi tên X, Y: nhãn "0,0" không nằm sát cánh tay là tờ giấy bị xoay, xoay lại cho đúng (vị trí đế trong `control.py` tính theo cách đặt này). Nên dán băng keo giữ tờ giấy.
+
+- **Số đo cánh tay và vị trí đế** nằm ngay đầu `control.py` (`ARM_CONFIG`), sửa tay ở đó: vị trí trục xoay đế trên tờ giấy (cm) và hướng robot nhìn,
+  độ cao vai `d1`, hai khâu `L2`, `L3` (càng kẹp gắn cứng vào khâu khuỷu nên gộp vào `L3`), hai góc chuẩn vai / khuỷu khi servo ở 90°.
+- Các số này **khớp từ 10 lần "ôm" cốc thật** (2026-11-02, sai số ~0,85 cm), không phải số đo thước; ngày 15/11 gắp thử lại, đầu kẹp lệch 0,6 cm.
+  Dời robot hoặc xoay tờ giấy thì vị trí đế không còn đúng: đặt lại như cũ.
 - **Vị trí vật** đo từ cam TREN được **bù thị sai** (`vision.find_objects`): cam treo cao ~46 cm nên nắp vật cao 4 cm hiện lệch ra xa tâm ảnh so với đáy.
 
 ## 5. Camera: nhận đúng OBSBOT và MacBook
@@ -150,7 +149,7 @@ Không có camera thì dùng 2 ảnh đã lưu thay camera: `uv run python main.
 
 | Hiện tượng | Cách xử lý |
 |---|---|
-| `KHONG THAY TO A4` | in đúng kích thước, đủ sáng, 4 mã không bị che / chói; trong khung có ít nhất 2 mã |
+| `KHONG THAY TO A4` | in đúng kích thước, đủ sáng, 4 mã không bị che / chói; trong khung có ít nhất 3 mã |
 | Mã ArUco không nhận | thêm **viền trắng** quanh mã (ít nhất ~0,5 cm); kiểm tra cạnh mã đúng 2,8 cm |
 | Lưới lệch sau khi dời camera / giấy | để camera thấy lại các mã ArUco (hoặc chạy lại chương trình) |
 | Hai khung đảo nhau / sai camera | chạy lại với `--top` / `--side` đổi số (mục 5) |

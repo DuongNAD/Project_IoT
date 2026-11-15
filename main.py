@@ -13,9 +13,8 @@ import sys
 
 import cv2
 
-from calibration import apply_calibration
 from cameras import Camera
-from control import ARM_CONFIG, Control
+from control import Control
 from screen import SCREEN_WINDOW, build_screen
 from success import Success
 from vision import Vision, draw_target
@@ -41,8 +40,6 @@ class App:
     """Vòng lặp chính: 2 camera -> vision (vật ở đâu) -> control (bấm phím gì) -> success (đã tới chưa) -> màn hình."""
 
     def __init__(self, args):
-        if apply_calibration(ARM_CONFIG):  # Số đo thật của robot trong calibration.json thay cho số mặc định trong control.py
-            print(f"📐 Đã nạp hiệu chỉnh từ calibration.json: đế ({ARM_CONFIG['base_x_cm']:.1f}, {ARM_CONFIG['base_y_cm']:.1f}) cm")
         if args.port is None:
             print("ℹ️ Chưa ghi --port: chạy mô phỏng, phím không xuống robot")
         self.cam_side = Camera(args.side, "NGANG")
@@ -102,13 +99,15 @@ class App:
     def run(self):
         print(HELP_TEXT)
         from share import start as start_share
-        share = start_share()  # Máy Dell xem màn hình này qua Wi-Fi (remote.py), phím đi qua Bluetooth HC-05; R bấm trên Mac
+        share = start_share()  # Laptop (remote.py) xem màn hình qua Wi-Fi và báo phím; phím tới cánh tay qua Bluetooth HC-05; R bấm trên Mac
         cv2.namedWindow(SCREEN_WINDOW)
         try:
             while True:
                 screen, _, _ = self.render()
                 cv2.imshow(SCREEN_WINDOW, screen)
                 share.update(screen)
+                for ch in share.pop_keys():  # Laptop báo phím qua Wi-Fi: Mac cộng / trừ góc
+                    self.control.count_key(ch)
                 key = cv2.waitKey(5) & 0xFF
                 if cv2.getWindowProperty(SCREEN_WINDOW, cv2.WND_PROP_VISIBLE) < 1 or not self.handle_key(key):
                     break

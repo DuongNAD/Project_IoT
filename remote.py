@@ -2,14 +2,15 @@
 """
 APP ĐIỀU KHIỂN TỪ XA TRÊN MÁY DELL (đặt cách cánh tay khoảng 2 m)
 
-    Mac (main.py: 2 camera, vision, control, success) --Wi-Fi: ảnh màn hình--> remote.py (Dell) --Bluetooth: phím--> HC-05 --> Arduino
+    Mac (main.py: 2 camera, vision, control, success) <--Wi-Fi: ảnh màn hình / phím--> remote.py (laptop) --Bluetooth: phím--> HC-05 --> Arduino
 
 - XEM: ảnh màn hình của Mac (2 camera + lệnh bấm phím + XONG) qua Wi-Fi, từ đường dẫn main.py in ra trên Mac.
-- BẤM: A D W S I K J L H trên bàn phím Dell đi qua cổng COM Bluetooth của HC-05 thẳng tới Arduino.
+- BẤM: A D W S I K J L H đi 2 đường: qua Bluetooth (HC-05) tới Arduino để quay servo, và qua Wi-Fi tới Mac để Mac cộng / trừ góc.
   H (về Home) phải bấm 2 lần trong 2 giây mới gửi, để khỏi bấm nhầm. ESC / đóng cửa sổ: thoát.
 - R (chụp đích) bấm trên bàn phím Mac: Arduino không hiểu R.
 
-Mac vẫn cắm USB vào Arduino: sau mỗi phím Arduino báo góc mới về Mac, Mac tính lại lệnh + success rồi ảnh mới về đây.
+Mac đếm góc theo phím báo qua Wi-Fi; nếu Mac cắm USB vào Arduino thì góc thật Arduino báo về (0,2 giây / lần) được ưu tiên.
+Mac tính lại lệnh + success rồi ảnh mới về đây.
 
     python remote.py --mac http://192.168.1.5:8000/ --port COM5
 
@@ -30,6 +31,16 @@ SERVO_KEYS = "adwsikjlh"  # Phím firmware hiểu, giống bàn phím trên Mac
 CONFIRM_KEYS = {"h": "ve Home"}  # Phím này phải bấm 2 lần
 CONFIRM_S = 2.0  # Lần bấm thứ 2 phải trong ngần này giây
 WINDOW = "DIEU KHIEN TU XA: xem qua Wi-Fi, bam phim qua Bluetooth"
+
+
+def tell_mac(base_url, key):
+    """Báo phím cho Mac qua Wi-Fi (luồng nền, cửa sổ khỏi khựng). Mất Wi-Fi thì bỏ qua: cánh tay vẫn nhận phím qua Bluetooth."""
+    def run():
+        try:
+            urllib.request.urlopen(urllib.request.Request(f"{base_url}/key/{key}", data=b"", method="POST"), timeout=2).read()
+        except Exception:
+            pass
+    threading.Thread(target=run, daemon=True).start()
 
 
 class MacView:
@@ -87,7 +98,8 @@ def main(argv=None):
         elif ch in SERVO_KEYS:
             ok, pending = confirm(ch, pending, time.time())
             if ok:
-                bt.write(ch.encode())
+                bt.write(ch.encode())                # Đường 1: Bluetooth -> HC-05 -> Arduino quay servo
+                tell_mac(args.mac.rstrip("/"), ch)   # Đường 2: Wi-Fi -> Mac cộng / trừ góc
                 note = f"Da gui {ch.upper()}"
             else:
                 note = f"Bam {ch.upper()} lan nua trong 2 giay de {CONFIRM_KEYS[ch]}"

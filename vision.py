@@ -3,11 +3,11 @@
 COMPUTER VISION: từ ảnh camera ra vị trí vật trên tờ A4 (cm).
 
   1. Sheet: dò 4 mã ArUco ở 4 góc tờ A4 -> homography đổi pixel <-> cm, cho cả 2 camera.
-     Nhớ vị trí từng mã nên cánh tay che mất 1-2 mã vẫn còn lưới tọa độ.
+     Thấy ít nhất 3 mã thì tính lại lưới; cánh tay che bớt mã thì giữ lưới cũ.
   2. find_objects: trên ảnh cam TREN, tách vật có màu nằm trên giấy trắng -> (x, y) cm, có bù thị sai theo độ cao vật.
   3. Vision.process_frame: ghép hai bước trên rồi vẽ lưới 5 cm và vật tìm thấy lên ảnh.
 
-Hệ tọa độ tờ giấy: gốc ở góc ngoài mã ID 0, X chạy ID 0 -> ID 1 (29,7 cm), Y chạy ID 0 -> ID 3 (21 cm).
+Hệ tọa độ tờ giấy: gốc ở góc ngoài mã ID 0 (góc dưới bên phải, sát cánh tay), X chạy ID 0 -> ID 1 (29,7 cm), Y chạy ID 0 -> ID 3 (21 cm).
 """
 
 import cv2
@@ -43,8 +43,9 @@ def cm_to_px(H_cm2px, x, y):
 # 1. Tờ A4 trong ảnh của một camera
 # ==============================================================================
 class Sheet:
+    """Lưới tọa độ của tờ A4 trong ảnh: thấy ít nhất 3 mã thì tính lại, thiếu (cánh tay che) thì giữ lưới cũ."""
+
     def __init__(self):
-        self.markers = {}  # ID mã -> 4 góc pixel lần cuối thấy (mã đang bị che thì dùng vị trí đã nhớ)
         self.n_seen = 0    # Số mã thấy trong khung vừa xử lý
         self.H_px2cm = self.H_cm2px = None
 
@@ -52,11 +53,10 @@ class Sheet:
         corners, ids, _ = DETECTOR.detectMarkers(frame)
         ids = [] if ids is None else ids.ravel()
         seen = {int(i): c.reshape(4, 2) for c, i in zip(corners, ids) if i in (0, 1, 2, 3)}
-        self.markers.update(seen)
         self.n_seen = len(seen)
-        if len(self.markers) >= 2:  # 2 mã = 8 góc, đủ tính homography
-            px = np.concatenate(list(self.markers.values()))
-            cm = np.concatenate([marker_corners_cm(i) for i in self.markers])
+        if len(seen) >= 3:  # Cần 3 mã: chỉ 2 mã (nhất là 2 mã cùng một mép) thì lưới tính ra bị méo
+            px = np.concatenate(list(seen.values()))
+            cm = np.concatenate([marker_corners_cm(i) for i in seen])
             self.H_px2cm = cv2.findHomography(px, cm)[0]
             self.H_cm2px = np.linalg.inv(self.H_px2cm)
         return corners
@@ -72,6 +72,7 @@ def find_objects(frame, sheet):
     hsv = cv2.cvtColor(flat, cv2.COLOR_BGR2HSV)
     colored = cv2.inRange(hsv, (0, 90, 60), (180, 255, 255))                     # Có màu: độ bão hòa >= 90, đủ sáng
     colored = cv2.morphologyEx(colored, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))  # Bỏ nhiễu và dây điện mảnh
+    dark = cv2.dilate(cv2.inRange(hsv, (0, 0, 0), (180, 255, 69)), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))  # Vùng đen = cánh tay robot
 
     h, w = frame.shape[:2]
     nadir = px_to_cm(sheet.H_px2cm, w / 2, h / 2)  # Điểm cam TREN nhìn thẳng xuống = tâm ảnh
@@ -83,6 +84,10 @@ def find_objects(frame, sheet):
             continue  # Nhỏ hơn 1,5 cm² là nhiễu; to hơn 50 cm² là bàn tay, không lọt miệng kẹp
         if x < PPC or y < PPC or x + bw > W - PPC or y + bh > H - PPC:
             continue  # Sát mép giấy (dưới 1 cm): tay hoặc đồ vật thò từ ngoài vào
+        blob = np.zeros_like(colored)
+        cv2.drawContours(blob, [c], -1, 255, -1)
+        if cv2.countNonZero(blob & dark) > 0.3 * cv2.countNonZero(blob):
+            continue  # Dính vào cánh tay đen: dây, nhãn servo
         m = cv2.moments(c)
         top = (m["m10"] / m["m00"] / PPC, m["m01"] / m["m00"] / PPC)  # Tâm khối màu (cm) = nắp vật nhìn từ trên
         # Bù thị sai: vị trí thật = nadir + (vị trí đo - nadir) * (H - h) / H
@@ -106,11 +111,20 @@ def point(H_cm2px, x, y):
 
 
 def draw_grid(img, H_cm2px, k):
-    """Viền tờ giấy và lưới 5 cm: nhìn là biết lưới tọa độ có bám đúng tờ giấy không."""
+    """Viền tờ giấy, lưới 5 cm, gốc (0, 0) và trục X, Y: nhìn là biết lưới tọa độ có bám đúng tờ giấy và tờ giấy có đặt đúng chiều không."""
     for x in (0, 5, 10, 15, 20, 25, SHEET_W_CM):
         cv2.line(img, point(H_cm2px, x, 0), point(H_cm2px, x, SHEET_H_CM), (200, 200, 200), int(2 * k))
     for y in (0, 5, 10, 15, SHEET_H_CM):
         cv2.line(img, point(H_cm2px, 0, y), point(H_cm2px, SHEET_W_CM, y), (200, 200, 200), int(2 * k))
+    # Gốc toạ độ CỐ ĐỊNH: góc ngoài mã ID 0 = góc dưới cùng bên phải, sát cánh tay (vị trí đế trong control.py tính theo gốc này).
+    # Tờ giấy bị xoay thì nhãn "0,0" rời khỏi chỗ sát cánh tay: đặt lại tờ giấy, đừng đo lại vị trí đế.
+    o = point(H_cm2px, 0, 0)
+    for end, name in (((6, 0), "X"), ((0, 6), "Y")):
+        tip = point(H_cm2px, *end)
+        cv2.arrowedLine(img, o, tip, (255, 0, 255), int(4 * k), cv2.LINE_AA, tipLength=0.2)
+        text(img, name, (tip[0] + 8 * k, tip[1] - 8 * k), (255, 0, 255))
+    cv2.circle(img, o, int(9 * k), (255, 0, 255), -1)
+    text(img, "0,0", (o[0] + 12 * k, o[1] + 30 * k), (255, 0, 255))
 
 
 def draw_target(img, H_cm2px, target_cm):

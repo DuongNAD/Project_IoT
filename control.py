@@ -23,27 +23,20 @@ import serial
 # ==============================================================================
 # 1. HÌNH HỌC CÁNH TAY 4 SERVO (MG996R + PCA9685)
 # ==============================================================================
-L34_OPEN_MM = 120.0      # L3 + L4 khi mở full 95° (12,0 cm)
-L34_CLOSE_MM = 165.0     # L3 + L4 khi kẹp full 160° (16,5 cm)
-OBJECT_SIZE_MM = 40.0    # Kích thước vật 4 cm (cao 40 mm, rộng 40 mm)
-L34_GRASP_MM = L34_CLOSE_MM - OBJECT_SIZE_MM / 2.0  # = 145.0 mm (14,5 cm tính tới tâm vật 4 cm khi ôm)
-
+# SỐ ĐO CÁNH TAY: số đã KHỚP từ 10 lần ôm cốc thật (sai số ~8,5 mm), bù vai +2° sau lần gắp thử; vị trí đế kiểm tra lại 15/11 (lệch 0,6 cm).
+# Không thay bằng số đo thước: d1 / L3 / góc chuẩn là số "tương đương" đã bù lệch thật của cánh tay. Sửa số thì sửa ngay tại đây.
 ARM_CONFIG = {
-    "d1_mm": 90.0,         # Chiều cao từ mặt bàn đến trục khớp Vai (L1 = 9 cm)
-    "L2_mm": 105.0,        # Chiều dài khâu Vai -> Khuỷu (L2 = 10,5 cm)
-    "L3_mm": L34_GRASP_MM, # L3 + L4 tính tới tâm vật 4 cm khi ôm (14,5 cm)
-    "L4_r_mm": 0.0,        # Đã gộp L3 + L4 theo hướng khâu khuỷu
-    "L4_z_mm": 0.0,        # Đã gộp L3 + L4 theo hướng khâu khuỷu
-    # Vị trí trục xoay Đế Robot trên hệ tọa độ tờ giấy A4 (xem calibration.py): gốc ở góc ngoài mã ArUco ID 0,
-    # X chạy ID 0 -> ID 1 (29.7 cm), Y chạy ID 0 -> ID 3 (21.0 cm). Mặc định: robot đứng NGOÀI mép Y = 0, giữa mép, nhìn vào tờ giấy (+Y).
-    # Đo bằng thước rồi ghi vào calibration.json mục "base" (calibration.py).
-    "base_x_cm": 14.85,
-    "base_y_cm": -7.5,
-    "base_heading_deg": 90.0,   # Hướng robot nhìn, đo từ +X quay về +Y (90 = nhìn vào +Y, -90 = nhìn lên -Y)
-    # Góc khớp chuẩn (độ) khi 3 servo Đế, Vai, Khuỷu đang ở góc mặc định 90° của code Arduino
-    "theta2_at_90_deg": 45.0,   # Khi angleShoulder = 90° thì khâu L2 nghiêng +45° so với phương ngang
-    "theta3_at_90_deg": -45.0,  # Khi angleElbow = 90° thì khâu L3 gập -45° so với khâu L2
+    "d1_mm": 70.0,              # Mặt bàn -> trục vai
+    "L2_mm": 105.0,             # Vai -> khuỷu
+    "L3_mm": 183.7,             # Khuỷu -> tâm 2 ngón kẹp (kẹp gắn cứng vào khâu khuỷu nên gộp vào đây)
+    # Trục xoay đế trên tờ giấy (gốc = góc ngoài mã ArUco ID 0, X: ID 0 -> ID 1, Y: ID 0 -> ID 3) và hướng robot nhìn
+    "base_x_cm": 15.87,
+    "base_y_cm": -10.67,        # Robot đứng ngoài mép Y = 0 (phía mã ID 0, 1), nhìn vào tờ giấy
+    "base_heading_deg": 87.6,
+    "theta2_at_90_deg": 62.2,   # Khâu vai nghiêng 62,2° khi servo vai ở 90°
+    "theta3_at_90_deg": -58.6,  # Khâu khuỷu gập -58,6° so với khâu vai khi servo khuỷu ở 90°
 }
+MAX_MISS_MM = 20  # Vật quá gần đế: khuỷu chạm giới hạn mà đầu kẹp vẫn hụt hơn ngần này thì báo ngoài tầm
 
 # Servo: giới hạn an toàn và bước mỗi lần bấm phím, khớp robot_arm_4dof.ino (STEP_ARM = 2, STEP_GRIP = 5, GRIP_CLOSE_LIMIT = 160)
 CHANNEL_KEYS = ("base", "shoulder", "elbow", "grip")  # Thứ tự kênh 0..3 của Arduino
@@ -56,7 +49,7 @@ SERVO_LIMITS = {
 SERVO_STEPS = {"base": 2, "shoulder": 2, "elbow": 2, "grip": 5}
 SERVO_ANCHORS = {"base": 90, "shoulder": 90, "elbow": 90, "grip": 95}  # Neo lưới góc: mọi góc bấm tới được = neo + k * bước (Home ở cột 3 của SERVO_LIMITS)
 
-GRASP_Z_MM = OBJECT_SIZE_MM / 2.0  # Độ cao điểm kẹp mục tiêu (20,0 mm = nửa chiều cao vật 4 cm)
+GRASP_Z_MM = 25.0  # Độ cao điểm kẹp (mm): nửa thân cốc, đúng độ cao dùng lúc khớp số đo ở trên
 
 
 # ==============================================================================
@@ -76,13 +69,10 @@ def ik_4dof_joint(x_mm, y_mm, z_mm, cfg=None):
     r = math.hypot(x_mm, y_mm)
     theta1_deg = math.degrees(math.atan2(y_mm, x_mm)) if r > 1e-6 else 0.0
 
-    r_w = max(5.0, r - c["L4_r_mm"])
-    z_w = (z_mm + c["L4_z_mm"]) - c["d1_mm"]
+    r_w = max(5.0, r)          # Khoảng cách ngang vai -> đầu kẹp
+    z_w = z_mm - c["d1_mm"]    # Chênh cao vai -> đầu kẹp
 
-    dist_sq = r_w * r_w + z_w * z_w
-    min_reach = abs(L2 - L3)
-
-    D = (dist_sq - L2 * L2 - L3 * L3) / (2.0 * L2 * L3)
+    D = (r_w * r_w + z_w * z_w - L2 * L2 - L3 * L3) / (2.0 * L2 * L3)  # Định lý côsin trong tam giác vai - khuỷu - đầu kẹp
     reachable = abs(D) <= 1.0
 
     # Kẹp D trong [-1, 1] để luôn tính ra bộ góc gần mục tiêu nhất ngay cả khi hơi quá tầm
@@ -94,7 +84,7 @@ def ik_4dof_joint(x_mm, y_mm, z_mm, cfg=None):
     )
 
     return {
-        "reachable": reachable and (r >= c["L4_r_mm"] + min_reach * 0.5),
+        "reachable": reachable,
         "theta1_deg": theta1_deg,
         "theta2_deg": math.degrees(theta2_rad),
         "theta3_deg": math.degrees(theta3_rad),
@@ -119,6 +109,34 @@ def joint_to_servo(theta1_deg, theta2_deg, theta3_deg, cfg=None):
         step, anchor = SERVO_STEPS[key], SERVO_ANCHORS[key]
         servo.append(max(lo, min(hi, int(anchor + round((val - anchor) / step) * step))))
     return servo
+
+
+def tip_mm(shoulder, elbow, cfg=None):
+    """Động học thuận: góc servo vai, khuỷu -> đầu kẹp (khoảng cách ngang tới trục đế, độ cao) tính bằng mm."""
+    c = cfg or ARM_CONFIG
+    t2 = math.radians(c["theta2_at_90_deg"] + shoulder - 90)
+    t3 = t2 + math.radians(c["theta3_at_90_deg"] + elbow - 90)
+    r = c["L2_mm"] * math.cos(t2) + c["L3_mm"] * math.cos(t3)
+    z = c["d1_mm"] + c["L2_mm"] * math.sin(t2) + c["L3_mm"] * math.sin(t3)
+    return r, z
+
+
+def goal_angles(x_mm, y_mm, z_mm=None, cfg=None):
+    """Điểm (x, y, z) hệ robot -> (3 góc servo cần tới, có với tới không).
+    Vật gần đế: khuỷu cần gập quá giới hạn 25° nên giữ khuỷu ở giới hạn, chọn lại góc vai cho đầu kẹp tới gần vật nhất."""
+    c = cfg or ARM_CONFIG
+    z_mm = GRASP_Z_MM if z_mm is None else z_mm
+    ik = ik_4dof_joint(x_mm, y_mm, z_mm, c)
+    goal = joint_to_servo(ik["theta1_deg"], ik["theta2_deg"], ik["theta3_deg"], c)
+    reachable = bool(ik["reachable"])
+    elbow_raw = 90.0 + ik["theta3_deg"] - c["theta3_at_90_deg"]
+    lo, hi, _ = SERVO_LIMITS["shoulder"]
+    if elbow_raw < SERVO_LIMITS["elbow"][0]:
+        target = (math.hypot(x_mm, y_mm), z_mm)
+        miss = lambda sh: math.dist(tip_mm(sh, goal[2], c), target)
+        goal[1] = min(range(lo + 1, hi, SERVO_STEPS["shoulder"]), key=miss)
+        reachable = reachable and miss(goal[1]) <= MAX_MISS_MM
+    return goal, reachable
 
 
 def table_cm_to_robot_mm(x_cm, y_cm, cfg=None):
@@ -263,9 +281,8 @@ class Control:
             return "no_target"
         obj = self.objects[0]
         rx, ry = table_cm_to_robot_mm(obj["x_cm"], obj["y_cm"])
-        ik = ik_4dof_joint(rx, ry, GRASP_Z_MM)
-        self.target = {"cm": (obj["x_cm"], obj["y_cm"]), "reachable": bool(ik["reachable"]),
-                       "goal": joint_to_servo(ik["theta1_deg"], ik["theta2_deg"], ik["theta3_deg"])}
+        goal, reachable = goal_angles(rx, ry)
+        self.target = {"cm": (obj["x_cm"], obj["y_cm"]), "reachable": reachable, "goal": goal}
         return "locked"
 
     # --- kế hoạch ----------------------------------------------------------
@@ -279,6 +296,11 @@ class Control:
         if t is None:
             return Plan(found=False, target_cm=None, reachable=True, goal=list(servo_now[:3]), moves=plan_moves(servo_now, servo_now), **base)
         return Plan(found=True, target_cm=t["cm"], reachable=t["reachable"], goal=list(t["goal"]), moves=plan_moves(servo_now, t["goal"]), **base)
+
+    def count_key(self, key):
+        """Phím laptop báo qua Wi-Fi: chỉ cộng / trừ góc trên Mac, KHÔNG gửi xuống Arduino (laptop đã gửi qua Bluetooth).
+        Có cắm USB thì gói góc Arduino báo về (0,2 giây / lần) vẫn là số đúng và ghi đè số đếm này."""
+        self.link.apply_key_locally((key or "")[:1].lower())
 
     def press(self, key):
         """Gửi một phím điều khiển xuống Arduino (hoặc cập nhật mô phỏng nếu chưa nối USB). Trả về True nếu là phím điều khiển."""
