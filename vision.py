@@ -4,7 +4,7 @@ COMPUTER VISION: từ ảnh camera ra vị trí vật trên tờ A4 (cm).
 
   1. Sheet: dò 4 mã ArUco ở 4 góc tờ A4 -> homography đổi pixel <-> cm, cho cả 2 camera.
      Thấy ít nhất 3 mã thì tính lại lưới; cánh tay che bớt mã thì giữ lưới cũ.
-  2. find_objects: trên ảnh cam TREN, tách vật có màu nằm trên giấy trắng -> (x, y) cm, có bù thị sai theo độ cao vật.
+  2. find_objects: trên ảnh cam TREN, tách màu, lấy khối màu lớn nhất (giấy chỉ đặt một vật) -> (x, y) cm, có bù thị sai theo độ cao vật.
   3. Vision.process_frame: ghép hai bước trên rồi vẽ lưới 5 cm và vật tìm thấy lên ảnh.
 
 Hệ tọa độ tờ giấy: gốc ở góc ngoài mã ID 0 (góc dưới bên phải, sát cánh tay), X chạy ID 0 -> ID 1 (29,7 cm), Y chạy ID 0 -> ID 3 (21 cm).
@@ -21,6 +21,7 @@ DETECTOR = cv2.aruco.ArucoDetector(ARUCO_DICT)
 PPC = 8                  # Ảnh phẳng của tờ giấy để tìm vật: 8 pixel / cm
 CAM_HEIGHT_CM = 46.0     # Cam TREN treo cao 46 cm so với mặt bàn (0 = không bù thị sai)
 OBJECT_HEIGHT_CM = 4.0   # Vật cao 4 cm: nhìn từ trên, nắp vật lệch ra xa tâm ảnh so với đáy vật
+MIN_OBJECT_CM2 = 8       # Khối màu nhỏ hơn 8 cm² không phải cốc: ảnh thật đo cốc 14-19 cm², dây servo / nhiễu dưới 5 cm²
 
 
 def marker_corners_cm(i):
@@ -69,38 +70,27 @@ class Sheet:
 # 2. Tìm vật có màu trên giấy trắng (ảnh cam TREN)
 # ==============================================================================
 def find_objects(frame, sheet):
-    """Danh sách vật [{"name", "x_cm", "y_cm", "px"}]; px là tâm vật trên ảnh, để vẽ."""
+    """Vật trên giấy [{"name", "x_cm", "y_cm", "px"}] (rỗng khi không thấy cốc); px là tâm vật trên ảnh, để vẽ.
+    Giấy chỉ đặt MỘT vật có màu nên vật = khối màu lớn nhất (dây servo màu cam cũng qua ngưỡng màu nhưng chỉ vài cm²)."""
     # Bước 1: nắn phẳng tờ giấy
     W, H = round(SHEET_W_CM * PPC), round(SHEET_H_CM * PPC)
     flat = cv2.warpPerspective(frame, np.diag([PPC, PPC, 1.0]) @ sheet.H_px2cm, (W, H))  # Ảnh phẳng tờ giấy: 1 cm = PPC pixel
     # Bước 2: tách vùng có màu
-    hsv = cv2.cvtColor(flat, cv2.COLOR_BGR2HSV)
-    colored = cv2.inRange(hsv, (0, 90, 60), (180, 255, 255))                     # Có màu: độ bão hòa >= 90, đủ sáng
-    colored = cv2.morphologyEx(colored, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))  # Bỏ nhiễu và dây điện mảnh
-    dark = cv2.dilate(cv2.inRange(hsv, (0, 0, 0), (180, 255, 69)), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))  # Vùng đen = cánh tay robot
+    colored = cv2.inRange(cv2.cvtColor(flat, cv2.COLOR_BGR2HSV), (0, 90, 60), (180, 255, 255))  # Có màu: độ bão hòa >= 90, đủ sáng
+    # Bước 3: lấy khối màu lớn nhất
+    c = max(cv2.findContours(colored, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0], key=cv2.contourArea, default=None)
+    if c is None or cv2.contourArea(c) / PPC**2 < MIN_OBJECT_CM2:
+        return []  # Không có cốc: khối màu lớn nhất chỉ là dây điện, nhiễu
 
     h, w = frame.shape[:2]
     nadir = px_to_cm(sheet.H_px2cm, w / 2, h / 2)  # Điểm cam TREN nhìn thẳng xuống = tâm ảnh
     k = (CAM_HEIGHT_CM - OBJECT_HEIGHT_CM) / CAM_HEIGHT_CM if CAM_HEIGHT_CM > 0 else 1.0
-    objects = []
-    # Bước 3: lọc từng khối màu
-    for c in cv2.findContours(colored, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]:
-        x, y, bw, bh = cv2.boundingRect(c)
-        if not 1.5 <= cv2.contourArea(c) / PPC**2 <= 50:
-            continue  # Nhỏ hơn 1,5 cm² là nhiễu; to hơn 50 cm² là bàn tay, không lọt miệng kẹp
-        if x < PPC or y < PPC or x + bw > W - PPC or y + bh > H - PPC:
-            continue  # Sát mép giấy (dưới 1 cm): tay hoặc đồ vật thò từ ngoài vào
-        blob = np.zeros_like(colored)
-        cv2.drawContours(blob, [c], -1, 255, -1)
-        if cv2.countNonZero(blob & dark) > 0.3 * cv2.countNonZero(blob):
-            continue  # Dính vào cánh tay đen: dây, nhãn servo
-        # Bước 4: tâm khối màu -> tọa độ cm, có bù thị sai
-        m = cv2.moments(c)
-        top = (m["m10"] / m["m00"] / PPC, m["m01"] / m["m00"] / PPC)  # Tâm khối màu (cm) = nắp vật nhìn từ trên
-        # Bù thị sai: vị trí thật = nadir + (vị trí đo - nadir) * (H - h) / H
-        x_cm, y_cm = (nadir[j] + (top[j] - nadir[j]) * k for j in (0, 1))
-        objects.append({"name": "Vat mau", "x_cm": x_cm, "y_cm": y_cm, "px": cm_to_px(sheet.H_cm2px, *top)})
-    return objects
+    # Bước 4: tâm khối màu -> tọa độ cm, có bù thị sai
+    m = cv2.moments(c)
+    top = (m["m10"] / m["m00"] / PPC, m["m01"] / m["m00"] / PPC)  # Tâm khối màu (cm) = nắp vật nhìn từ trên
+    # Bù thị sai: vị trí thật = nadir + (vị trí đo - nadir) * (H - h) / H
+    x_cm, y_cm = (nadir[j] + (top[j] - nadir[j]) * k for j in (0, 1))
+    return [{"name": "Vat mau", "x_cm": x_cm, "y_cm": y_cm, "px": cm_to_px(sheet.H_cm2px, *top)}]
 
 
 # ==============================================================================

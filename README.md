@@ -155,7 +155,7 @@ Không có camera thì dùng 2 ảnh đã lưu thay camera: `uv run python main.
 | Hai khung đảo nhau / sai camera | chạy lại với `--top` / `--side` đổi số (mục 5) |
 | Camera đen, log `not authorized to capture video` | cấp quyền Camera trong Cài đặt hệ thống → Quyền riêng tư; mở lại ứng dụng |
 | `USB Arduino: MO PHONG` | chưa ghi `--port` hoặc ghi sai cổng; cắm cáp USB, tắt chương trình khác đang giữ cổng |
-| `Chua co dich: ... roi bam R` | đặt vật **có màu** (cốc đỏ) lên giấy, không sát mép (dưới ~1 cm), rồi bấm `R` |
+| `Chua co dich: ... roi bam R` | đặt **một** vật **có màu** (cốc đỏ) lên giấy, bỏ tay ra khỏi giấy, rồi bấm `R` (chương trình lấy khối màu lớn nhất, ≥ 8 cm²) |
 | Cánh tay tự giật về Home | Arduino vừa reset (mục 6) |
 | Dell: `khong thay Mac` | hai máy cùng Wi-Fi chưa, `main.py` đang chạy trên Mac chưa, macOS có hỏi cho Python nhận kết nối mạng (bấm Cho phép) |
 | Dell: `khong noi duoc COMx` | HC-05 có điện (đèn nháy), đã ghép đôi với Dell, đúng cổng **Outgoing**; máy khác đang nối HC-05 thì ngắt ra |

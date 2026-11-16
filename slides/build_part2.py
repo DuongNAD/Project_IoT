@@ -345,15 +345,15 @@ Nếu được hỏi: camera nào là cam TRÊN? Chọn bằng chỉ số khi ch
 def slide_sheet(prs):
     ranges = [span("vision.py", "def marker_corners_cm"), span("vision.py", "class Sheet")]
     code_slide(prs, "cv", "Hệ tọa độ từ tờ A4 · vision.py", "vision.py", ranges,
-               [(1, "Góc mã theo cm"), (2, "Dò mã ArUco"), (3, "Nhớ mã bị che"), (4, "Tính homography")],
-               [("def marker_corners_cm", 1), ("DETECTOR.detectMarkers", 2), ("self.markers.update(seen)", 3),
+               [(1, "Góc mã theo cm"), (2, "Dò mã ArUco"), (3, "Cần ít nhất 3 mã"), (4, "Tính homography")],
+               [("def marker_corners_cm", 1), ("DETECTOR.detectMarkers", 2), ("if len(seen) >= 3", 3),
                 ("cv2.findHomography", 4)],
                """
 Phần này dựng hệ tọa độ xăng-ti-mét trên tờ A4 cho cả hai camera.
 
-Số 1: marker_corners_cm cho tọa độ thật bốn góc của mỗi mã ArUco trên tờ giấy: mã cạnh 2,8 cm, cách mép giấy 0,25 cm, gốc tọa độ ở góc ngoài mã số 0. Số 2: mỗi khung hình, OpenCV dò các mã ArUco và trả về bốn góc pixel của từng mã. Số 3: vị trí mã được nhớ trong self.markers; khi cánh tay che mất một vài mã, chương trình dùng vị trí đã nhớ. Số 4: có từ hai mã trở lên, tức tám cặp điểm pixel và xăng-ti-mét, findHomography tính ma trận đổi pixel sang xăng-ti-mét; ma trận nghịch đảo đổi ngược lại để vẽ lưới.
+Số 1: marker_corners_cm cho tọa độ thật bốn góc của mỗi mã ArUco trên tờ giấy: mã cạnh 2,8 cm, cách mép giấy 0,25 cm, gốc tọa độ ở góc ngoài mã số 0. Số 2: mỗi khung hình, OpenCV dò các mã ArUco và trả về bốn góc pixel của từng mã. Số 3: thấy ít nhất 3 mã mới tính lại lưới; chỉ 2 mã, nhất là 2 mã cùng một mép giấy, thì lưới tính ra bị méo. Khi cánh tay che bớt mã, chương trình giữ lưới đã tính trước đó. Số 4: findHomography dùng 12 đến 16 cặp điểm pixel và xăng-ti-mét để tính ma trận đổi pixel sang xăng-ti-mét; ma trận nghịch đảo đổi ngược lại để vẽ lưới.
 
-Nếu được hỏi: vì sao hai mã là đủ? Homography cần ít nhất bốn cặp điểm; mỗi mã cho bốn góc, hai mã cho tám. Dời camera thì sao? Bấm phím U để quên vị trí mã đã nhớ và dò lại.""")
+Nếu được hỏi: vì sao cần 3 mã? Điểm mốc phải trải theo cả hai chiều của tờ giấy thì lưới mới vững; 2 mã cùng một mép thì phía bên kia không có gì giữ. Vì sao không bắt buộc đủ 4 mã? Tay robot hay che mất một mã. Dời camera thì sao? Lưới được tính lại ở mỗi khung hình thấy đủ 3 mã, nên không cần làm gì.""")
 
 
 def slide_objects_overview(prs):
@@ -367,18 +367,18 @@ def slide_objects_overview(prs):
 def slide_objects(prs):
     ranges = [span("vision.py", "def find_objects")]
     code_slide(prs, "cv", "Nhận diện vật · vision.py", "vision.py", ranges,
-               [(1, "Ảnh phẳng tờ A4"), (2, "Tách vùng có màu"), (3, "Lọc vật"), (4, "Bù thị sai")],
-               [("flat = cv2.warpPerspective", 1), ("colored = cv2.inRange", 2), ("if not 1.5 <=", 3), ("# Bù thị sai", 4)],
+               [(1, "Ảnh phẳng tờ A4"), (2, "Tách vùng có màu"), (3, "Chọn khối lớn nhất"), (4, "Bù thị sai")],
+               [("flat = cv2.warpPerspective", 1), ("colored = cv2.inRange", 2), ("c = max(", 3), ("# Bù thị sai", 4)],
                """
 Sau khi có homography, find_objects tìm vật trên ảnh cam TRÊN.
 
-Số 1: warpPerspective dựng ảnh phẳng của tờ A4, mỗi xăng-ti-mét là 8 pixel, nên mọi phép đo sau đó tính thẳng bằng xăng-ti-mét. Số 2: chuyển sang không gian màu HSV và giữ các điểm có độ bão hòa từ 90 trở lên; giấy trắng, bóng xám và thân robot đen bị bỏ. Phép mở ảnh bỏ nhiễu và dây điện mảnh.
+Số 1: warpPerspective dựng ảnh phẳng của tờ A4, mỗi xăng-ti-mét là 8 pixel, nên mọi phép đo sau đó tính thẳng bằng xăng-ti-mét. Số 2: chuyển sang không gian màu HSV và giữ các điểm có độ bão hòa từ 90 trở lên và đủ sáng; giấy trắng, bóng xám và thân robot đen bị bỏ.
 
-Số 3: lọc từng khối màu. Nhỏ hơn 1,5 cm² là nhiễu; lớn hơn 50 cm² là bàn tay, không lọt miệng kẹp; cách mép giấy dưới 1 cm là vật thò từ ngoài vào.
+Số 3: trên giấy chỉ đặt một vật, nên vật là khối màu lớn nhất. Dây servo màu cam cũng qua ngưỡng màu nhưng chỉ vài cm², còn cốc nhìn từ trên khoảng 14 đến 19 cm². Khối lớn nhất nhỏ hơn 8 cm² thì coi như không có vật.
 
-Số 4: bù thị sai. Cam TRÊN treo cao 46 cm, nắp cốc cao 5 cm nên bị lệch ra xa tâm ảnh. Vị trí thật bằng điểm nhìn thẳng xuống cộng khoảng cách đo được nhân với (46 − 5) / 46. Ở một vị trí đã đo, sai lệch giữa hai camera giảm từ 1,2 cm xuống 0,2 cm.
+Số 4: bù thị sai. Cam TRÊN treo cao khoảng 46 cm, nắp cốc cao 4 cm nên bị lệch ra xa tâm ảnh. Vị trí thật bằng điểm nhìn thẳng xuống cộng khoảng cách đo được nhân với (46 − 4) / 46. Ở một vị trí đã đo, sai lệch giữa hai camera giảm từ 1,2 cm xuống 0,2 cm.
 
-Nếu được hỏi: vật màu trắng hoặc xám thì sao? Chưa nhận được, đây là một hạn chế. Vì sao không dùng YOLO? Bản trước có YOLO nhưng hay nhận nhầm bộ phận robot, nên nhóm bỏ để mã đơn giản.""")
+Nếu được hỏi: có hai vật thì sao? Chương trình chỉ nhận vật lớn nhất; đây là giới hạn, giấy chỉ đặt một vật và không để tay trên giấy lúc bấm R. Vật màu trắng hoặc xám thì sao? Chưa nhận được, đây là một hạn chế. Vì sao không dùng YOLO? Bản trước có YOLO nhưng hay nhận nhầm bộ phận robot, nên nhóm bỏ để mã đơn giản.""")
 
 
 def slide_success(prs):

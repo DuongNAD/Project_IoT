@@ -957,7 +957,7 @@ def slide_objects(prs, n):
     cards = [
         ("BƯỚC 1", "Ảnh phẳng tờ A4", "Homography, 8 pixel / cm"),
         ("BƯỚC 2", "Tách vùng có màu", "Độ bão hòa ≥ 90, đủ sáng"),
-        ("BƯỚC 3", "Lọc vật", "Bỏ khối < 1,5 cm² hoặc > 50 cm², sát mép giấy"),
+        ("BƯỚC 3", "Chọn vật", "Khối màu lớn nhất, từ 8 cm² trở lên"),
     ]
     cw = (CW - 0.5) / 3
     for i, (tag, title, desc) in enumerate(cards):
@@ -972,24 +972,24 @@ def slide_objects(prs, n):
     box(s, bx, 4.19, W - M - bx, 2.42, fill=BG2)
     label(s, bx + 0.25, 4.38, 3.6, "Chọn mục tiêu", TEAL, 10.5)
     bullets(s, bx + 0.25, 4.78, W - M - bx - 0.45, 1.75, [
-        "Ưu tiên vật gần đế nhất",
+        "Giấy chỉ đặt một vật",
         [("R", {"bold": True}), " chụp vị trí làm đích"],
         "Góc cần tới tính một lần",
         ["Vật bị dời: bấm ", ("R", {"bold": True}), " lại"],
     ], 15, after=9)
     footer(s, n)
     notes(s, """
-Sau khi có hệ tọa độ, chương trình tìm vật bằng cách tách màu, gồm ba bước. Bước một: dùng homography dựng ảnh phẳng của tờ A4, mỗi xăng-ti-mét là 8 pixel. Bước hai: giữ các vùng có màu đậm như cốc đỏ; giấy trắng, bóng xám và thân robot đen bị bỏ. Bước ba: lọc vật. Khối nhỏ hơn 1,5 cm² là nhiễu hoặc dây điện; khối lớn hơn 50 cm² là bàn tay, không lọt miệng kẹp; khối sát mép giấy là vật thò từ ngoài vào.
+Sau khi có hệ tọa độ, chương trình tìm vật bằng cách tách màu, gồm ba bước. Bước một: dùng homography dựng ảnh phẳng của tờ A4, mỗi xăng-ti-mét là 8 pixel. Bước hai: giữ các vùng có màu đậm như cốc đỏ; giấy trắng, bóng xám và thân robot đen bị bỏ. Bước ba: chọn vật. Trên giấy chỉ đặt một vật, nên vật là khối màu lớn nhất. Dây servo màu cam cũng qua ngưỡng màu nhưng chỉ vài cm², còn cốc nhìn từ trên khoảng 14 đến 19 cm²; khối lớn nhất nhỏ hơn 8 cm² thì coi như không có vật.
 
 Tâm của khối màu đổi ra xăng-ti-mét, rồi được bù thị sai như slide trước. Ảnh bên dưới là khung camera trên: vòng xanh quanh cốc kèm tọa độ X, Y.
 
-Khi có nhiều vật, vật gần đế nhất được chọn. Người điều khiển bấm phím R để chụp vị trí vật lúc đó làm đích; góc cần tới được tính một lần và không theo camera nữa, nên khi tay kẹp che hoặc đẩy lệch vật, đích không đổi. Vật bị dời thì bấm R lại.
+Người điều khiển bấm phím R để chụp vị trí vật lúc đó làm đích; góc cần tới được tính một lần và không theo camera nữa, nên khi tay kẹp che hoặc đẩy lệch vật, đích không đổi. Vật bị dời thì bấm R lại.
 
 Tiếp theo, {succ} trình bày nửa sau của phần này: hỗ trợ gắp.
 
-Nếu được hỏi: vì sao không dùng YOLO? Bản trước có YOLO11 nhưng hay nhận nhầm bộ phận robot, nên nhóm bỏ để mã đơn giản; tách màu đủ cho cốc màu đậm. Vật màu trắng hoặc xám thì sao? Chưa nhận được; đây là một hạn chế. Vì sao phải bấm R mà không theo camera liên tục? Khi tay kẹp tiến vào, nó che và đẩy cốc nên vị trí camera thấy bị nhảy; chụp một lần thì đích đứng yên và mã đơn giản hơn.
+Nếu được hỏi: vì sao không dùng YOLO? Bản trước có YOLO11 nhưng hay nhận nhầm bộ phận robot, nên nhóm bỏ để mã đơn giản; tách màu đủ cho cốc màu đậm. Có hai vật thì sao? Chỉ nhận vật lớn nhất; đây là giới hạn, giấy chỉ đặt một vật và không để tay trên giấy lúc bấm R. Vật màu trắng hoặc xám thì sao? Chưa nhận được; đây là một hạn chế. Vì sao phải bấm R mà không theo camera liên tục? Khi tay kẹp tiến vào, nó che và đẩy cốc nên vị trí camera thấy bị nhảy; chụp một lần thì đích đứng yên và mã đơn giản hơn.
 
-Nguồn: vision.py:68-91; control.py:253-263 (phím R).
+Nguồn: vision.py:24,69-86; control.py:277-286 (phím R).
 """)
 
 

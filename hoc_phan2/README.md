@@ -12,7 +12,7 @@ khoảng 100 dòng); mọi phần khác chỉ cần nói được **một câu**
 
 | Dòng | Ý chính |
 |---|---|
-| `main.py:76-79` | mỗi khung hình chỉ có ba bước: `plan = control.update(...)` → `result = success.update(plan)` → `screen = build_screen(...)` |
+| `main.py:73-76` | mỗi khung hình chỉ có ba bước: `plan = control.update(...)` → `result = success.update(plan)` → `screen = build_screen(...)` |
 | `success.py:11-12` | hai con số: lệch **≤ 2°** là tới, giữ **1 giây** thì đếm 1 lần |
 | `control.py:232-241` | lớp `Plan`, "hợp đồng" giữa hai khối: chỉ cần biết tên các trường (`found`, `goal`, `moves`, `now`...) |
 
